@@ -146,6 +146,7 @@ void *DealClient(void *InputArg)
                         ReadString(data + vil + 1, datasize - vil, username, 20);
                         switch (CL_Check(username))
                         {
+                            
                         case CHECK_LOGIN_SUCCESS:
                             if (0 != WS_ConnectServer(remoteServerAddress, Remote_Port, &remoteserver))
                             {
