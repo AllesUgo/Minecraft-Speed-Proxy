@@ -1,0 +1,3 @@
+输入make以编译程序
+输入sudo make install以安装程序
+输入minecraftspeedplus以获取使用说明和启动程序
