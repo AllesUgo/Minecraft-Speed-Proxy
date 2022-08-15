@@ -25,6 +25,7 @@ typedef struct ONLINE_LINK
 } OL_L;
 pthread_mutex_t O_lock;
 OL_L *head;
+extern char*Version;
 void printonline();
 void kickplayer(const char *playername);
 void kicksock(int sock);
@@ -48,6 +49,10 @@ void *thread(void *a)
         else if (!strcmp(cmd, "help"))
         {
             printf("命令列表:\nhelp\t查看帮助\nstop\t退出程序\nmemuse\t查看内存使用情况\nlist\t列出在线玩家\npid\t获取当前进程pid\nkick --help获取kick命令帮助\nwhitelist --help获取白名单命令帮助\nban --help获取封禁命令帮助\npardon --help获取接触封禁命令帮助\n");
+        }
+        else if (!strcmp(cmd,"version"))
+        {
+            puts(Version);
         }
         else if (!strcmp(cmd, "pid"))
         {

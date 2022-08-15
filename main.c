@@ -3,12 +3,11 @@
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>
-#include<signal.h>
+#include <signal.h>
 #include "websocket.h"
 #include "cJSON.h"
 #include "log.h"
-
-
+ char *Version;
 char *remoteServerAddress;
 int LocalPort;
 int Remote_Port;
@@ -22,11 +21,11 @@ void sighandle(int sig)
 	switch (sig)
 	{
 	case SIGINT:
-		printf("[%s] 退出服务器\n",gettime().time);
+		printf("[%s] 退出服务器\n", gettime().time);
 		exit(0);
 		break;
 	case SIGSEGV:
-		printf("[%s] [E] 服务器内部错误，请重新启动服务进程，您也可以将error.log发送给开发人员\n",gettime().time);
+		printf("[%s] [E] 服务器内部错误，请重新启动服务进程，您也可以将error.log发送给开发人员\n", gettime().time);
 		system("date >>error.log");
 		system("uname -a >>error.log");
 		system("echo ulimit: >>error.log");
@@ -38,33 +37,44 @@ void sighandle(int sig)
 }
 int main(int argc, char *argv[])
 {
-	signal(SIGINT,sighandle);
-	signal(SIGINT,sighandle);
+	signal(SIGINT, sighandle);
+	signal(SIGSEGV, sighandle);
+	Version = (char *)malloc(1024);
+	sprintf(Version, "Version:1.0.0\n编译时间:%s\n编译器版本:%s\n", __DATE__, __VERSION__);
 	char noinput_sign = 0;
-	if (argc < 4)
+	if (argc == 2 && (!strcmp(argv[1], "--version")))
 	{
-		printf("参数错误！\n<远程服务器地址> <远程服务器端口> <本地监听端口> [可选参数]\n可选参数 --noinput 无命令控制\n");
-		return 1;
+
+		puts(Version);
+		return 0;
 	}
-	if (argc > 4)
+	else
 	{
-		char unknown_sign = 0;
-		for (int i = 4; i < argc; i++)
+		if (argc < 4)
 		{
-			if (!strcmp(argv[i], "--noinput"))
-			{
-				noinput_sign = 1;
-				printf("禁用命令行控制\n");
-			}
-			else
-			{
-				printf("未知的参数 %s\n", argv[i]);
-				unknown_sign = 1;
-			}
-		}
-		if (unknown_sign == 1)
-		{
+			printf("参数错误！\n<远程服务器地址> <远程服务器端口> <本地监听端口> [可选参数]\t启动服务器\n--version\t显示版本信息\n可选参数:\n\t --noinput 无命令控制\n");
 			return 1;
+		}
+		if (argc > 4)
+		{
+			char unknown_sign = 0;
+			for (int i = 4; i < argc; i++)
+			{
+				if (!strcmp(argv[i], "--noinput"))
+				{
+					noinput_sign = 1;
+					printf("禁用命令行控制\n");
+				}
+				else
+				{
+					printf("未知的参数 %s\n", argv[i]);
+					unknown_sign = 1;
+				}
+			}
+			if (unknown_sign == 1)
+			{
+				return 1;
+			}
 		}
 	}
 
@@ -90,7 +100,7 @@ int main(int argc, char *argv[])
 		{
 			fputs(jdata, fp);
 			fclose(fp);
-			printf("[%s] [I] 已生成默认的motd.json\n",gettime().time);
+			printf("[%s] [I] 已生成默认的motd.json\n", gettime().time);
 		}
 	}
 	else
@@ -120,7 +130,7 @@ int main(int argc, char *argv[])
 	//循环等待用户连接
 	WS_Connection_t *client;
 	pthread_t pid;
-	printf("[%s] [I] 加载完成，等待连接，输入help获取帮助\n",gettime().time);
+	printf("[%s] [I] 加载完成，等待连接，输入help获取帮助\n", gettime().time);
 	while (1)
 	{
 		client = (WS_Connection_t *)malloc(sizeof(WS_Connection_t));
