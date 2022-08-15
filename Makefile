@@ -1,6 +1,6 @@
 CXX=gcc
 LINKLIBS=-lpthread -lm
-OUTPUT=minecraftspeedplus
+OUTPUT=minecraftspeedproxy
 
 
 CARGVS=-c
@@ -36,7 +36,7 @@ websocket.o:websocket.c websocket.h
 clean:
 	rm ./*.o
 install:minecraftspeedplus
-	cp minecraftspeedplus /usr/bin/
-	@echo "输入minecraftfastproxy以运行程序"
-uninstall:/usr/bin/minecraftspeedplus
-	rm /usr/bin/minecraftspeedplus
+	cp $(OUTPUT) /usr/bin/
+	@echo "输入$(OUTPUT)以运行程序"
+uninstall:/usr/bin/$(OUTPUT)
+	rm /usr/bin/$(OUTPUT)
