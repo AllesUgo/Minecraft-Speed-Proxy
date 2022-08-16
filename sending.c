@@ -63,27 +63,29 @@ void UpSendingData(SendingPack_t *pack, void *data, size_t datasize)
     pthread_cond_signal(&(pack->write));
     pthread_mutex_unlock(&(pack->lock));
 }
-struct DATAPACK MoveOutData(SendingPack_t *pack)
+void MoveOutData(SendingPack_t *pack,struct DATAPACK*datapack)
 {
-    struct DATAPACK datapack = {0};
+    //struct DATAPACK datapack = {0};
+    datapack->data=NULL;
+    datapack->datasize=0;
     pthread_mutex_lock(&(pack->lock));
     while (pack->head == NULL)
     {
         if (pack->exit == 1)
         {
             pthread_mutex_unlock(&(pack->lock));
-            return datapack;
+            return;
         }
         pthread_cond_wait(&(pack->write), &(pack->lock));
         if (pack->exit == 1)
         {
             pthread_mutex_unlock(&(pack->lock));
-            return datapack;
+            return;
         }
     }
 
-    datapack.data = pack->head->data;
-    datapack.datasize = pack->head->datasize;
+    datapack->data = pack->head->data;
+    datapack->datasize = pack->head->datasize;
     DataLink_t *temp = pack->head;
     pack->head = pack->head->next;
     if (pack->head != NULL)
@@ -99,15 +101,16 @@ struct DATAPACK MoveOutData(SendingPack_t *pack)
     pthread_cond_signal(&(pack->read));
     pthread_mutex_unlock(&(pack->lock));
 
-    return datapack;
+    return;
 }
 
-void *SendingThread(SendingPack_t *pack)
+void *SendingThread(void*input)
 {
+    SendingPack_t *pack=input;
     struct DATAPACK datapack;
     while (1)
     {
-        datapack = MoveOutData(pack);
+        MoveOutData(pack,&datapack);
         if (datapack.datasize == 0)
         {
             break;
