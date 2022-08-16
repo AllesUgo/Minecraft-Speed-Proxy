@@ -10,7 +10,7 @@ extern char *remoteServerAddress;
 extern int LocalPort;
 extern int Remote_Port;
 
-void *SendingThread(SendingPack_t *pack);
+void *SendingThread(void *pack);
 SendingPack_t InitSending(int target_sock, int maxdata);
 void UpSendingData(SendingPack_t *pack, void *data, size_t datasize);
 

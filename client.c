@@ -26,7 +26,7 @@ int SendPong(WS_Connection_t client, char *data, int datasize);
 int CL_Check(const char *username);
 void SendKick(WS_Connection_t client, const char *reason);
 
-void *SendingThread(SendingPack_t *pack);
+void *SendingThread(void*pack);
 SendingPack_t InitSending(int target_sock, int maxdata);
 void UpSendingData(SendingPack_t *pack, void *data, size_t datasize);
 void printdata(char *data, int datasize)
