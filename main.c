@@ -39,6 +39,7 @@ int main(int argc, char *argv[])
 {
 	signal(SIGINT, sighandle);
 	signal(SIGSEGV, sighandle);
+	signal(SIGPIPE, SIG_IGN);
 	Version = (char *)malloc(1024);
 	sprintf(Version, "Version:1.0.0\n编译时间:%s\n编译器版本:%s\n", __DATE__, __VERSION__);
 	char noinput_sign = 0;

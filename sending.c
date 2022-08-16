@@ -112,7 +112,7 @@ void *SendingThread(SendingPack_t *pack)
         {
             break;
         }
-        if (0 >= send(pack->target_sock, datapack.data, datapack.datasize, MSG_NOSIGNAL))
+        if (0 >= write(pack->target_sock, datapack.data, datapack.datasize))
         {
             ML_Free(&(pack->mempool), datapack.data);
             shutdown(pack->target_sock, SHUT_RDWR);

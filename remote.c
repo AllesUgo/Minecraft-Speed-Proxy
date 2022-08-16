@@ -33,8 +33,8 @@ void *DealRemote(void *InputArg)
 
     while (1)
     {
-        stackdata = ML_Malloc(&(spack.mempool), 8192);
-        rsnum = recv(server.sock, stackdata, 8192, MSG_NOSIGNAL);
+        stackdata = ML_Malloc(&(spack.mempool), 128);
+        rsnum = read(server.sock, stackdata, 128);
         if (rsnum <= 0)
         {
             ML_Free(&(spack.mempool), stackdata);
