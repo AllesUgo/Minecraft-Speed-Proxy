@@ -9,7 +9,7 @@
 #include "cJSON.h"
 #include <alloca.h>
 #include <netinet/tcp.h>
-#include"CheckLogin.h"
+#include "CheckLogin.h"
 
 extern char *remoteServerAddress;
 extern int LocalPort;
@@ -22,13 +22,13 @@ void *DealRemote(void *InputArg);
 void removeip(int sock);
 int SendResponse(WS_Connection_t client, char *jdata, int pro);
 int SendPong(WS_Connection_t client, char *data, int datasize);
-//int chick(char *name);
+// int chick(char *name);
 int CL_Check(const char *username);
 void SendKick(WS_Connection_t client, const char *reason);
 
-void *SendingThread(void*pack);
+void *SendingThread(void *pack);
 SendingPack_t InitSending(int target_sock, int maxdata);
-void UpSendingData(SendingPack_t *pack, void *data, size_t datasize);
+DataLink_t *UpSendingData(SendingPack_t *pack, DataLink_t *link, void *data, size_t size);
 void printdata(char *data, int datasize)
 {
     printf("\n");
@@ -69,7 +69,7 @@ void *DealClient(void *InputArg)
     char logined = 0;
     int statusmode = 0;
     char *handpackdata = (char *)malloc(4096);
-    char connected=0;
+    char connected = 0;
     int handpacksize;
     HandPack hp;
     int cancelid;
@@ -146,8 +146,7 @@ void *DealClient(void *InputArg)
                         ReadString(data + vil + 1, datasize - vil, username, 20);
                         switch (CL_Check(username))
                         {
-                        
-                        
+
                         case CHECK_LOGIN_SUCCESS:
                             if (0 != WS_ConnectServer(remoteServerAddress, Remote_Port, &remoteserver))
                             {
@@ -199,36 +198,45 @@ void *DealClient(void *InputArg)
         }
 
     ACCEPTWHILE:
-        spack = InitSending(remoteserver.sock, 20);
+        spack = InitSending(remoteserver.sock, 2000);
         pthread_create(&sendingthread, NULL, SendingThread, &spack);
+        fflush(stdout);
+        DataLink_t *temp = spack.head;
+        
         while (1)
         {
 
-            stackdata = ML_Malloc(&(spack.mempool), 1024);
-            rsnum = read(client.sock, stackdata, 1024);
+            stackdata = ML_Malloc(&spack.pool,512);
+            rsnum = read(client.sock, stackdata, 512);
+            //printf("#");
+            fflush(stdout);
             if (rsnum <= 0)
             {
-                ML_Free(&spack.mempool, stackdata);
-                shutdown(client.sock,SHUT_RDWR);
-                shutdown(remoteserver.sock,SHUT_RDWR);
+                ML_Free(&spack.pool, stackdata);
+                pthread_mutex_unlock(&(temp->lock));
+                shutdown(client.sock, SHUT_RDWR);
+                shutdown(remoteserver.sock, SHUT_RDWR);
                 break;
             }
-            UpSendingData(&spack, stackdata, rsnum);
+            temp = UpSendingData(&spack, temp, stackdata, rsnum);
+            if (temp == NULL)
+            {
+                //另一侧连接已断开
+                ML_Free(&spack.pool, stackdata);
+                shutdown(client.sock, SHUT_RDWR);
+                shutdown(remoteserver.sock, SHUT_RDWR);
+                break;
+            }
         }
-        pthread_mutex_lock(&(spack.lock));
-        spack.exit = 1;
-        pthread_cond_signal(&(spack.write));
-        pthread_mutex_unlock(&(spack.lock));
-        pthread_join(sendingthread, NULL);//等待发送线程回收
-        pthread_cond_destroy(&(spack.read));
-        pthread_cond_destroy(&(spack.write));
-        pthread_mutex_destroy(&(spack.lock));
-        if (ML_DestoryMem(&spack.mempool) != ML_SUCCESS)
-        {
-            printf("内存未完全释放\n");
-        }
-        pthread_join(pid, NULL); //等待服务线程资源回收
+
+        pthread_join(sendingthread, NULL); //等待发送线程回收
+        pthread_join(pid, NULL);           //等待服务线程资源回收
         WS_CloseConnection(&remoteserver);
+        pthread_spin_destroy(&(spack.spinlock));
+        if (NULL!=ML_CheekMemLeak(spack.pool))
+        {
+            printf("内存泄露\n");
+        }
     }
 CLOSECONNECT:
     //断开连接并且回收资源

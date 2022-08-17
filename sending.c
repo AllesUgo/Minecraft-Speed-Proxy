@@ -2,142 +2,86 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include "RemoteClient.h"
+
+SendingPack_t InitSending(int target_sock, int maxdata);
+void *SendingThread(void *pack);
+DataLink_t *UpSendingData(SendingPack_t *pack, DataLink_t *link, void *data, size_t size);
 SendingPack_t InitSending(int target_sock, int maxdata)
 {
-    SendingPack_t pack = {0};
+    SendingPack_t pack={0};
+    pack.datanum = 0;
+    pack.close = 0;
+    pack.pool= ML_CreateMemPool(1024*1024);
+    pthread_spin_init(&(pack.spinlock),PTHREAD_PROCESS_SHARED);
+   // printf("1\n");
+    pack.head = (DataLink_t *)ML_Malloc(&pack.pool,sizeof(DataLink_t));
+    memset(&(pack.head->lock),0,sizeof(pthread_mutex_t));
+    //printf("2\n");
+    pthread_mutex_lock(&(pack.head->lock));
+    //printf("3\n");
+    pack.maxdatanum = maxdata;
     pack.target_sock = target_sock;
-    pack.maxdata = maxdata;
-    pack.mempool = ML_CreateMemPool(1024 * 1024);
     return pack;
 }
-void UpSendingData(SendingPack_t *pack, void *data, size_t datasize)
+DataLink_t *UpSendingData(SendingPack_t *pack, DataLink_t *link, void *data, size_t size)
 {
-    pthread_mutex_lock(&(pack->lock));
-    if (pack->datanum == -1)
+    //printf("?");
+
+    pthread_spin_lock(&(pack->spinlock));
+    
+    
+    if (pack->close == 1)
     {
-        pthread_mutex_unlock(&(pack->lock));
-        ML_Free(&(pack->mempool), data);
-        return;
+        pthread_mutex_unlock(&link->lock);
+        pthread_spin_unlock(&(pack->spinlock));
+        return NULL;
     }
-    if (pack->end == NULL)
-    {
-        fflush(stdout);
-        pack->head = (DataLink_t *)ML_Malloc(&(pack->mempool), sizeof(DataLink_t));
-        pack->head->data = data;
-        pack->head->datasize = datasize;
-        pack->head->next = NULL;
-        pack->head->back = NULL;
-        pack->end = pack->head;
-    }
-    else
-    {
-        //检查是否超过最大可用量
-        while (pack->datanum == pack->maxdata)
+
+    pthread_spin_unlock(&(pack->spinlock));
+    while (pack->datanum > pack->maxdatanum)
         {
-            pthread_cond_wait(&(pack->read), &(pack->lock));
-            if (pack->datanum == -1)
-            {
-                pthread_mutex_unlock(&(pack->lock));
-                ML_Free(&(pack->mempool), data);
-                return;
-            }
+            usleep(10000);
         }
-        fflush(stdout);
-        DataLink_t *temp = (DataLink_t *)ML_Malloc(&(pack->mempool), sizeof(DataLink_t));
-        temp->data = data;
-        temp->datasize = datasize;
-        temp->back = pack->end;
-        temp->next = NULL;
-        if (pack->head != NULL)
-        {
-            pack->end->next = temp;
-            pack->end = temp;
-        }
-        else
-        {
-            pack->head=temp;
-            pack->end=temp;
-        }
-    }
+    link->data = data;
+    link->datasize = size;
+    link->next = (DataLink_t *)ML_Malloc(&pack->pool,sizeof(DataLink_t));
+    memset(&(link->next->lock),0,sizeof(pthread_mutex_t));
+    link->next->data = NULL;
+    pthread_mutex_lock(&(link->next->lock));
+    pthread_spin_lock(&(pack->spinlock));
     pack->datanum += 1;
-    pthread_cond_signal(&(pack->write));
-    pthread_mutex_unlock(&(pack->lock));
+    pthread_spin_unlock(&(pack->spinlock));
+    pthread_mutex_unlock(&(link->lock));
+    return link->next;
 }
-void MoveOutData(SendingPack_t *pack,struct DATAPACK*datapack)
-{
-    //struct DATAPACK datapack = {0};
-    datapack->data=NULL;
-    datapack->datasize=0;
-    pthread_mutex_lock(&(pack->lock));
-    while (pack->head == NULL)
-    {
-        if (pack->exit == 1)
-        {
-            pthread_mutex_unlock(&(pack->lock));
-            return;
-        }
-        pthread_cond_wait(&(pack->write), &(pack->lock));
-        if (pack->exit == 1)
-        {
-            pthread_mutex_unlock(&(pack->lock));
-            return;
-        }
-    }
 
-    datapack->data = pack->head->data;
-    datapack->datasize = pack->head->datasize;
+void *SendingThread(void *input)
+{
+    SendingPack_t *pack = input;
     DataLink_t *temp = pack->head;
-    pack->head = pack->head->next;
-    if (pack->head != NULL)
-    {
-        pack->head->back = NULL;
-    }
-    else
-    {
-        pack->end = NULL;
-    }
-    ML_Free(&(pack->mempool), temp);
-    pack->datanum -= 1;
-    pthread_cond_signal(&(pack->read));
-    pthread_mutex_unlock(&(pack->lock));
-
-    return;
-}
-
-void *SendingThread(void*input)
-{
-    SendingPack_t *pack=input;
-    struct DATAPACK datapack;
+    DataLink_t *freebackup;
     while (1)
     {
-        MoveOutData(pack,&datapack);
-        if (datapack.datasize == 0)
+        pthread_mutex_lock(&(temp->lock));
+        if (temp->data == NULL)
         {
-            break;
-        }
-        if (0 >= write(pack->target_sock, datapack.data, datapack.datasize))
-        {
-            ML_Free(&(pack->mempool), datapack.data);
+            pthread_mutex_unlock(&(temp->lock));
             shutdown(pack->target_sock, SHUT_RDWR);
-            break;
+            ML_Free(&pack->pool,temp);
+            pthread_exit(NULL);
         }
-
-        ML_Free(&(pack->mempool), datapack.data);
+        if (0 >= write(pack->target_sock, temp->data, temp->datasize))
+        {
+            pthread_spin_lock(&(pack->spinlock));
+            pack->close = 1;
+            pthread_spin_unlock(&(pack->spinlock));
+        }
+        pthread_spin_lock(&(pack->spinlock));
+        pack->datanum--;
+        pthread_spin_unlock(&(pack->spinlock));
+        ML_Free(&pack->pool,temp->data);
+        freebackup = temp->next;
+        ML_Free(&pack->pool,temp);
+        temp = freebackup;
     }
-    pthread_mutex_lock(&(pack->lock));
-
-    DataLink_t *temp1 = pack->head, *temp2;
-    while (temp1 != NULL)
-    {
-        temp2 = temp1->next;
-        ML_Free(&(pack->mempool), temp1->data);
-        ML_Free(&(pack->mempool), temp1);
-        temp1 = temp2;
-        pack->datanum -= 1;
-    }
-    pack->head = NULL + 1;
-    pack->end = NULL + 1;
-    pack->datanum = -1;
-    pthread_mutex_unlock(&(pack->lock));
-    pthread_exit(NULL);
 }

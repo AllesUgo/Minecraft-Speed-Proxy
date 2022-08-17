@@ -12,7 +12,7 @@ extern int Remote_Port;
 
 void *SendingThread(void *pack);
 SendingPack_t InitSending(int target_sock, int maxdata);
-void UpSendingData(SendingPack_t *pack, void *data, size_t datasize);
+DataLink_t *UpSendingData(SendingPack_t *pack, DataLink_t *link, void *data, size_t size);
 
 void *DealRemote(void *InputArg);
 void *DealRemote(void *InputArg)
@@ -26,37 +26,39 @@ void *DealRemote(void *InputArg)
     //直接进入接收循环
     register int rsnum; //收发的数据量
     //数据包
-    SendingPack_t spack = InitSending(client.sock, 20);
+    SendingPack_t spack = InitSending(client.sock, 2000);
     pthread_t pid;
     pthread_create(&pid, NULL, SendingThread, &spack);
     void *stackdata;
-
+    DataLink_t*temp=spack.head;
     while (1)
     {
-        stackdata = ML_Malloc(&(spack.mempool), 1024);
-        rsnum = read(server.sock, stackdata, 1024);
+        stackdata = ML_Malloc(&spack.pool,8192*4);
+        rsnum = read(server.sock, stackdata, 8192*4);
+        
         if (rsnum <= 0)
         {
-            ML_Free(&(spack.mempool), stackdata);
-            shutdown(client.sock,SHUT_RDWR);
-            shutdown(server.sock,SHUT_RDWR);
+            ML_Free(&spack.pool, stackdata);
+            pthread_mutex_unlock(&(temp->lock));
+            shutdown(client.sock, SHUT_RDWR);
+            shutdown(server.sock, SHUT_RDWR);
             break;
         }
-        // printf("S R%d\n",rsnum);
-
-        UpSendingData(&spack, stackdata, rsnum);
+        temp = UpSendingData(&spack, temp, stackdata, rsnum);
+        if (temp == NULL)
+        {
+            //另一侧连接已断开
+            ML_Free(&spack.pool, stackdata);
+            shutdown(client.sock, SHUT_RDWR);
+            shutdown(server.sock, SHUT_RDWR);
+            break;
+        }
     }
-    pthread_mutex_lock(&(spack.lock));
-    spack.exit = 1;
-    pthread_cond_signal(&(spack.write));
-    pthread_mutex_unlock(&(spack.lock));
     pthread_join(pid, NULL);
-    pthread_cond_destroy(&(spack.read));
-    pthread_cond_destroy(&(spack.write));
-    pthread_mutex_destroy(&(spack.lock));
-    if (ML_DestoryMem(&spack.mempool) != ML_SUCCESS)
-    {
-        printf("内存未完全释放\n");
-    }
+    pthread_spin_destroy(&(spack.spinlock));
+    if (NULL!=ML_CheekMemLeak(spack.pool))
+        {
+            printf("内存泄露\n");
+        }
     return NULL;
 }

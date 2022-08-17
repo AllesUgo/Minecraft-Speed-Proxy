@@ -5,7 +5,7 @@
       "name": "(gdb) 启动",
       "type": "cppdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/minecraftspeedplus",
+      "program": "${workspaceFolder}/minecraftspeedproxy",
       "args": [
         "127.0.0.1",
         "25566",

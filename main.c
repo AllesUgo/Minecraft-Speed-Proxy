@@ -41,7 +41,7 @@ int main(int argc, char *argv[])
 	signal(SIGSEGV, sighandle);
 	signal(SIGPIPE, SIG_IGN);
 	Version = (char *)malloc(1024);
-	sprintf(Version, "Version:1.0.0\n编译时间:%s\n编译器版本:%s\n", __DATE__, __VERSION__);
+	sprintf(Version, "Version:2.0.0\n编译时间:%s\n编译器版本:%s\n", __DATE__, __VERSION__);
 	char noinput_sign = 0;
 	if (argc == 2 && (!strcmp(argv[1], "--version")))
 	{

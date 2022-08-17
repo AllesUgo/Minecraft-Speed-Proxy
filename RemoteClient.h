@@ -11,22 +11,19 @@ typedef struct DATALINK
 {
     void *data;
     size_t datasize;
-    struct DATALINK *back;
+    pthread_mutex_t lock;
     struct DATALINK *next;
 } DataLink_t;
 typedef struct SENDINGPACK
 {
-    char exit;
+    ML_Pool_t pool;
+    char close;
     DataLink_t *head;
-    DataLink_t *end;
-    pthread_mutex_t lock;
+    pthread_spinlock_t spinlock;
     pid_t pid;
-    pthread_cond_t write;
-    pthread_cond_t read;
-    int maxdata;
+    int maxdatanum;
     int datanum;
     int target_sock;
-    ML_Pool_t mempool;
 } SendingPack_t;
 
 

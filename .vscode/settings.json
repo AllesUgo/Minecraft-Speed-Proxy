@@ -36,6 +36,7 @@
     "cjson.h": "c",
     "checklogin.h": "c",
     "type_traits": "c",
-    "errno.h": "c"
+    "errno.h": "c",
+    "mempool.h": "c"
   }
 }
