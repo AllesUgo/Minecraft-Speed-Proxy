@@ -1,6 +1,7 @@
 add_requires("cjson")
 add_packages("cjson")
 add_rules("mode.debug", "mode.release")
+set_optimize("fastest")
 
 target("deps")
     set_kind("static")
@@ -15,6 +16,7 @@ target("deps")
     add_files("sending.c")
     add_files("client.c")
     add_files("mempool.c")
+    add_cxflags("-static")
 
 target("minecraftspeedproxy")
     add_syslinks("pthread")
@@ -22,6 +24,7 @@ target("minecraftspeedproxy")
     add_files("main.c")
     
     add_deps("deps")
+    add_cxflags("-static")
 
 --
 -- If you want to known more usage about xmake, please see https://xmake.io
