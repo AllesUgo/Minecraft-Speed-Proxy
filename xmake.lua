@@ -4,6 +4,7 @@ add_rules("mode.debug", "mode.release")
 
 target("deps")
     set_kind("static")
+    add_syslinks("pthread")
     add_files("unpack.c")
     add_files("remote.c")
     add_files("online.c")
@@ -16,6 +17,7 @@ target("deps")
     add_files("mempool.c")
 
 target("minecraftspeedproxy")
+    add_syslinks("pthread")
     set_kind("binary")
     add_files("main.c")
     
