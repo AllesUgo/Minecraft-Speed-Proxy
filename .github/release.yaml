@@ -1,0 +1,27 @@
+name: Build and release
+
+on:
+  push:
+    tags: 'v*'
+
+jobs:
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up xmake
+        run: bash <(curl -fsSL https://xmake.io/shget.text)
+
+      - name: Build
+        run: xmake build && cp build/linux/x86_64/release/minecraftspeedproxy .
+
+      - name: Pack deb
+        run: bash <(curl -fsSL https://gist.githubusercontent.com/SkyTeamWater/178233a8d71155927ab2540fd8cc3db6/raw/8b976fab462d4f8046b7fab3a2f49a2643de68ed/release.sh)
+      
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: *.deb
