@@ -56,7 +56,49 @@ int main(int argc, char *argv[])
 			printf("参数错误！\n<远程服务器地址> <远程服务器端口> <本地监听端口> [可选参数]\t启动服务器\n--version\t显示版本信息\n可选参数:\n\t --noinput 无命令控制\n");
 			return 1;
 		}
-		if (argc > 4)
+		else if (argc==3)
+		{
+			if (!strcmp(argv[1],"-c"))
+			{
+				FILE*fp=fopen(argv[2],"r");
+				if (fp==NULL)
+				{
+					printf("无法打开文件%s,原因:%s\n",argv[2],strerror(errno));
+					return 0;
+				}
+				//获取文件大小
+				fseek(fp,0L,SEEK_END);
+				size_t filesize=ftell(fp);
+				fseek(fp,0L,SEEK_SET);
+				if (filesize==0||filesize>1024*1024)
+				{
+					printf("配置文件大小错误:%lu\n",filesize);
+					fclose(fp);
+					return 1;
+				}
+				char*jsondata=(char*)malloc(filesize);
+				if (1!=fread(jsondata,filesize,1,fp))
+				{
+					printf("读取配置文件错误\n");
+					fclose(fp);
+					free(jsondata);
+					return 1;
+				}
+				cJSON*json=cJSON_Parse(jsondata);
+				cJSON*temp=cJSON_GetObjectItem(json,"Address");
+				if (temp==NULL||temp->type!=cJSON_String)
+				{
+					printf("配置文件错误，不存在Address或其");
+				}
+				
+			}
+			else
+			{
+				printf("不支持的参数%s\n",argv[1]);
+				return 1;
+			}
+		}
+		else if (argc > 4)
 		{
 			char unknown_sign = 0;
 			for (int i = 4; i < argc; i++)
