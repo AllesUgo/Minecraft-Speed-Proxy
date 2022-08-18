@@ -6,7 +6,7 @@
 #include "websocket.h"
 #include "RemoteClient.h"
 #include "unpack.h"
-#include "cJSON.h"
+#include "cjson/cJSON.h"
 #include <alloca.h>
 #include <netinet/tcp.h>
 #include "CheckLogin.h"
