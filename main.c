@@ -5,7 +5,7 @@
 #include <errno.h>
 #include <signal.h>
 #include "websocket.h"
-#include "cjson/cJSON.h"
+#include "cJSON.h"
 #include "log.h"
  char *Version;
 char *remoteServerAddress;
