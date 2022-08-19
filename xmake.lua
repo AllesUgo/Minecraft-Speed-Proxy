@@ -2,7 +2,7 @@ add_requires("cjson")
 add_packages("cjson")
 add_rules("mode.debug", "mode.release")
 set_optimize("fastest")
-add_cxflags("-static")
+add_ldflags("-static")
 
 target("deps")
     set_kind("static")
