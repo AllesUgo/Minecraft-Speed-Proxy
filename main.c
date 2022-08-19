@@ -35,11 +35,13 @@ void sighandle(int sig)
 	switch (sig)
 	{
 	case SIGINT:
-		printf("[%s] 退出服务器\n", gettime().time);
+		// printf("[%s] 退出服务器\n", gettime().time);
+		log_info("退出服务器\n");
 		exit(0);
 		break;
 	case SIGSEGV:
-		printf("[%s] [E] 服务器内部错误，请重新启动服务进程，您也可以将error.log发送给开发人员\n", gettime().time);
+		// printf("[%s] [E] 服务器内部错误，请重新启动服务进程，您也可以将error.log发送给开发人员\n", gettime().time);
+		log_error("服务器内部错误，请重新启动服务进程，您也可以将error.log发送给开发人员\n");
 		system("date >>error.log");
 		system("uname -a >>error.log");
 		system("echo ulimit: >>error.log");
@@ -67,7 +69,8 @@ int main(int argc, char *argv[])
 			printf("使用参数--help以获取使用帮助\n");
 			return 1;
 		}
-		printf("[%s] [I] 配置文件加载成功，若要获取使用帮助请使用minecraftspeedproxy --help\n",gettime().time);
+		// printf("[%s] [I] 配置文件加载成功，若要获取使用帮助请使用minecraftspeedproxy --help\n",gettime().time);
+		log_info("配置文件加载成功，若要获取使用帮助请使用minecraftspeedproxy --help\n");
 	}
 	else if (argc == 2)
 	{
@@ -168,25 +171,30 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	printf("[%s] [I] PID:%d 远程服务器:%s:%d 本地监听端口%d\n", gettime().time, getpid(), remoteServerAddress, Remote_Port, LocalPort);
+	// printf("[%s] [I] PID:%d 远程服务器:%s:%d 本地监听端口%d\n", gettime().time, getpid(), remoteServerAddress, Remote_Port, LocalPort);
+	log_info("PID:%d 远程服务器:%s:%d 本地监听端口%d\n", getpid(), remoteServerAddress, Remote_Port, LocalPort);
 	//读取motd
-	printf("[%s] [I] 加载motd数据\n", gettime().time);
+	// printf("[%s] [I] 加载motd数据\n", gettime().time);
+	log_info("加载motd数据\n");
 	FILE *fp = fopen("motd.json", "r");
 	if (fp == NULL)
 	{
-		printf("[%s] [W] 没有找到motd.json\n", gettime().time);
+		// printf("[%s] [W] 没有找到motd.json\n", gettime().time);
+		log_warn("没有找到motd.json\n");
 		jdata = (char *)malloc(141);
 		strcpy(jdata, "{\"version\": {\"name\": \"1.8.7\",\"protocol\": 47},\"players\": {\"max\": 0,\"online\": 0,\"sample\": []},\"description\": {\"text\": \"Minecraft Speed Plus\"}}");
 		fp = fopen("motd.json", "w");
 		if (fp == NULL)
 		{
-			printf("[%s] [W] 无法保存motd.json文件，原因是:%s\n", gettime().time, strerror(errno));
+			// printf("[%s] [W] 无法保存motd.json文件，原因是:%s\n", gettime().time, strerror(errno));
+			log_warn("无法保存motd.json文件，原因是:%s\n", strerror(errno));
 		}
 		else
 		{
 			fputs(jdata, fp);
 			fclose(fp);
-			printf("[%s] [I] 已生成默认的motd.json\n", gettime().time);
+			// printf("[%s] [I] 已生成默认的motd.json\n", gettime().time);
+			log_info("已生成默认的motd.json\n");
 		}
 	}
 	else
@@ -201,36 +209,42 @@ int main(int argc, char *argv[])
 	}
 	if (noinput_sign == 0)
 	{
-		printf("[%s] [I] 初始化在线人数管理\n", gettime().time);
+		// printf("[%s] [I] 初始化在线人数管理\n", gettime().time);
+		log_info("初始化在线人数管理\n");
 		OnlineControl_Init();
 	}
 	//创建监听端口
-	printf("[%s] [I] 初始化服务端口\n", gettime().time);
+	// printf("[%s] [I] 初始化服务端口\n", gettime().time);
+	log_info("初始化服务端口\n");
 	WS_ServerPort_t server = WS_CreateServerPort(LocalPort, 5);
 	if (server == 0)
 	{
 		if (errno == 98)
-			printf("[%s] [E] 绑定端口%d失败，端口已被占用\n", gettime().time, LocalPort);
+			// printf("[%s] [E] 绑定端口%d失败，端口已被占用\n", gettime().time, LocalPort);
+			log_error("绑定端口%d失败，端口已被占用\n", LocalPort);
 		return 1;
 	}
 	//循环等待用户连接
 	WS_Connection_t *client;
 	pthread_t pid;
-	printf("[%s] [I] 加载完成，等待连接，输入help获取帮助\n", gettime().time);
+	// printf("[%s] [I] 加载完成，等待连接，输入help获取帮助\n", gettime().time);
+	log_info("加载完成，等待连接，输入help获取帮助\n");
 	while (1)
 	{
 		client = (WS_Connection_t *)malloc(sizeof(WS_Connection_t));
 		if (-1 == WS_WaitClient(server, client))
 		{
 			//建立连接失败
-			printf("[%s] [W] 连接建立失败:%s\n", gettime().time, strerror(errno));
+			// printf("[%s] [W] 连接建立失败:%s\n", gettime().time, strerror(errno));
+			log_warn("连接建立失败:%s\n", strerror(errno));
 			free(client);
 			continue;
 		}
 		addip(client->sock, client->addr);
 		if (0 != pthread_create(&pid, NULL, DealClient, client))
 		{
-			printf("[%s] [E] 创建线程失败\n", gettime().time);
+			// printf("[%s] [E] 创建线程失败\n", gettime().time);
+			log_error("创建线程失败\n");
 			WS_CloseConnection(client);
 			free(client);
 			sleep(5);
