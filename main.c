@@ -8,6 +8,7 @@
 #include "cJSON.h"
 #include "log.h"
 int a.c
+int b;
 char *Version;
 char *remoteServerAddress;
 const char *Defalut_Configfile_Path = "/etc/minecraftspeedproxy/config.json";
