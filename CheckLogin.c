@@ -4,6 +4,7 @@
 #include <errno.h>
 #include <pthread.h>
 #include "CheckLogin.h"
+#include "log.h"
 #define ON 1
 #define OFF 0
 Link_t *Whitelist_head = NULL;
@@ -69,7 +70,8 @@ int CL_EnableWhiteList()
         fp = fopen(Whitelist_file, "w");
     if (fp == NULL)
     {
-        printf("无法读取白名单文件,原因是:%s\n", strerror(errno));
+        // printf("无法读取白名单文件,原因是:%s\n", strerror(errno));
+        log_warn("无法读取白名单文件,原因是:%s", strerror(errno));
         pthread_mutex_unlock(&lock);
         return -1;
     }
@@ -133,7 +135,8 @@ int CL_ReloadWhiteList()
     if (fp == NULL)
     {
         fp = fopen(Whitelist_file, "w");
-        printf("无法读取白名单文件,原因是:%s\n", strerror(errno));
+        // printf("无法读取白名单文件,原因是:%s\n", strerror(errno));
+        log_warn("无法读取白名单文件,原因是:%s", strerror(errno));
         pthread_mutex_unlock(&lock);
         return -1;
     }
@@ -179,7 +182,8 @@ int CL_LoadBanList()
     fp=fopen(Banlist_file, "w");
     if (fp == NULL)
     {
-        printf("无法读取封禁列表,原因是:%s\n", strerror(errno));
+        // printf("无法读取封禁列表,原因是:%s\n", strerror(errno));
+        log_warn("无法读取封禁列表,原因是:%s", strerror(errno));
         pthread_mutex_unlock(&lock);
         return -1;
     }
@@ -254,7 +258,8 @@ int CL_WhiteListAdd(const char *playername)
     //写入文件
     if (-1 == Save(Whitelist_file, Whitelist_head))
     {
-        printf("写入白名单文件失败，原因是%s,本次更改将在程序重启后失效\n", strerror(errno));
+        // printf("写入白名单文件失败，原因是%s,本次更改将在程序重启后失效\n", strerror(errno));
+        log_warn("写入白名单文件失败，原因是%s,本次更改将在程序重启后失效", strerror(errno));
     }
     return 0;
 }
@@ -296,7 +301,8 @@ int CL_WhiteListRemove(const char *playername)
     //写入文件
     if (-1 == Save(Whitelist_file, Whitelist_head))
     {
-        printf("写入白名单文件失败，原因是%s,本次更改将在程序重启后失效\n", strerror(errno));
+        // printf("写入白名单文件失败，原因是%s,本次更改将在程序重启后失效\n", strerror(errno));
+        log_warn("写入白名单文件失败，原因是%s,本次更改将在程序重启后失效", strerror(errno));
     }
     return 0;
 }
@@ -324,7 +330,8 @@ int CL_BanListAdd(const char *playername)
     //写入文件
     if (-1 == Save(Banlist_file, Ban_head))
     {
-        printf("写入封禁列表文件失败，原因是%s,本次更改将在程序重启后失效\n", strerror(errno));
+        // printf("写入封禁列表文件失败，原因是%s,本次更改将在程序重启后失效\n", strerror(errno));
+        log_warn("写入封禁列表文件失败，原因是%s,本次更改将在程序重启后失效", strerror(errno));
     }
     return 0;
 }
@@ -364,7 +371,8 @@ int CL_BanListRemove(const char *playername)
     //写入文件
     if (-1 == Save(Banlist_file, Ban_head))
     {
-        printf("写入封禁列表文件失败，原因是%s,本次更改将在程序重启后失效\n", strerror(errno));
+        // printf("写入封禁列表文件失败，原因是%s,本次更改将在程序重启后失效\n", strerror(errno));
+        log_warn("写入封禁列表文件失败，原因是%s,本次更改将在程序重启后失效", strerror(errno));
     }
     return 0;
 }

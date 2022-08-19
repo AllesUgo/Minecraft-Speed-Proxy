@@ -36,12 +36,12 @@ void sighandle(int sig)
 	{
 	case SIGINT:
 		// printf("[%s] 退出服务器\n", gettime().time);
-		log_info("退出服务器\n");
+		log_info("退出服务器");
 		exit(0);
 		break;
 	case SIGSEGV:
 		// printf("[%s] [E] 服务器内部错误，请重新启动服务进程，您也可以将error.log发送给开发人员\n", gettime().time);
-		log_error("服务器内部错误，请重新启动服务进程，您也可以将error.log发送给开发人员\n");
+		log_error("服务器内部错误，请重新启动服务进程，您也可以将error.log发送给开发人员");
 		system("date >>error.log");
 		system("uname -a >>error.log");
 		system("echo ulimit: >>error.log");
@@ -70,7 +70,7 @@ int main(int argc, char *argv[])
 			return 1;
 		}
 		// printf("[%s] [I] 配置文件加载成功，若要获取使用帮助请使用minecraftspeedproxy --help\n",gettime().time);
-		log_info("配置文件加载成功，若要获取使用帮助请使用minecraftspeedproxy --help\n");
+		log_info("配置文件加载成功，若要获取使用帮助请使用minecraftspeedproxy --help");
 	}
 	else if (argc == 2)
 	{
@@ -172,22 +172,22 @@ int main(int argc, char *argv[])
 	}
 
 	// printf("[%s] [I] PID:%d 远程服务器:%s:%d 本地监听端口%d\n", gettime().time, getpid(), remoteServerAddress, Remote_Port, LocalPort);
-	log_info("PID:%d 远程服务器:%s:%d 本地监听端口%d\n", getpid(), remoteServerAddress, Remote_Port, LocalPort);
+	log_info("PID:%d 远程服务器:%s:%d 本地监听端口%d", getpid(), remoteServerAddress, Remote_Port, LocalPort);
 	//读取motd
 	// printf("[%s] [I] 加载motd数据\n", gettime().time);
-	log_info("加载motd数据\n");
+	log_info("加载motd数据");
 	FILE *fp = fopen("motd.json", "r");
 	if (fp == NULL)
 	{
 		// printf("[%s] [W] 没有找到motd.json\n", gettime().time);
-		log_warn("没有找到motd.json\n");
+		log_warn("没有找到motd.json");
 		jdata = (char *)malloc(141);
 		strcpy(jdata, "{\"version\": {\"name\": \"1.8.7\",\"protocol\": 47},\"players\": {\"max\": 0,\"online\": 0,\"sample\": []},\"description\": {\"text\": \"Minecraft Speed Plus\"}}");
 		fp = fopen("motd.json", "w");
 		if (fp == NULL)
 		{
 			// printf("[%s] [W] 无法保存motd.json文件，原因是:%s\n", gettime().time, strerror(errno));
-			log_warn("无法保存motd.json文件，原因是:%s\n", strerror(errno));
+			log_warn("无法保存motd.json文件，原因是:%s", strerror(errno));
 		}
 		else
 		{
@@ -210,25 +210,25 @@ int main(int argc, char *argv[])
 	if (noinput_sign == 0)
 	{
 		// printf("[%s] [I] 初始化在线人数管理\n", gettime().time);
-		log_info("初始化在线人数管理\n");
+		log_info("初始化在线人数管理");
 		OnlineControl_Init();
 	}
 	//创建监听端口
 	// printf("[%s] [I] 初始化服务端口\n", gettime().time);
-	log_info("初始化服务端口\n");
+	log_info("初始化服务端口");
 	WS_ServerPort_t server = WS_CreateServerPort(LocalPort, 5);
 	if (server == 0)
 	{
 		if (errno == 98)
 			// printf("[%s] [E] 绑定端口%d失败，端口已被占用\n", gettime().time, LocalPort);
-			log_error("绑定端口%d失败，端口已被占用\n", LocalPort);
+			log_error("绑定端口%d失败，端口已被占用", LocalPort);
 		return 1;
 	}
 	//循环等待用户连接
 	WS_Connection_t *client;
 	pthread_t pid;
 	// printf("[%s] [I] 加载完成，等待连接，输入help获取帮助\n", gettime().time);
-	log_info("加载完成，等待连接，输入help获取帮助\n");
+	log_info("加载完成，等待连接，输入help获取帮助");
 	while (1)
 	{
 		client = (WS_Connection_t *)malloc(sizeof(WS_Connection_t));
@@ -236,7 +236,7 @@ int main(int argc, char *argv[])
 		{
 			//建立连接失败
 			// printf("[%s] [W] 连接建立失败:%s\n", gettime().time, strerror(errno));
-			log_warn("连接建立失败:%s\n", strerror(errno));
+			log_warn("连接建立失败:%s", strerror(errno));
 			free(client);
 			continue;
 		}
@@ -244,7 +244,7 @@ int main(int argc, char *argv[])
 		if (0 != pthread_create(&pid, NULL, DealClient, client))
 		{
 			// printf("[%s] [E] 创建线程失败\n", gettime().time);
-			log_error("创建线程失败\n");
+			log_error("创建线程失败");
 			WS_CloseConnection(client);
 			free(client);
 			sleep(5);
@@ -258,7 +258,8 @@ int ReadConfig(const char *filepath, char **remoteserveraddress, int *remoteport
 	FILE *fp = fopen(filepath, "r");
 	if (fp == NULL)
 	{
-		printf("无法打开文件%s,原因:%s\n", filepath, strerror(errno));
+		// printf("无法打开文件%s,原因:%s\n", filepath, strerror(errno));
+		log_warn("无法打开文件%s,原因:%s", filepath, strerror(errno));
 		return -1;
 	}
 	//获取文件大小
@@ -267,14 +268,16 @@ int ReadConfig(const char *filepath, char **remoteserveraddress, int *remoteport
 	fseek(fp, 0L, SEEK_SET);
 	if (filesize == 0 || filesize > 1024 * 1024)
 	{
-		printf("配置文件大小错误:%lu\n", filesize);
+		// printf("配置文件大小错误:%lu\n", filesize);
+		log_warn("配置文件大小错误:%lu", filesize);
 		fclose(fp);
 		return -2;
 	}
 	char *jsondata = (char *)malloc(filesize);
 	if (1 != fread(jsondata, filesize, 1, fp))
 	{
-		printf("读取配置文件错误\n");
+		// printf("读取配置文件错误\n");
+		log_warn("读取配置文件错误");
 		fclose(fp);
 		free(jsondata);
 		return -3;
@@ -285,7 +288,8 @@ int ReadConfig(const char *filepath, char **remoteserveraddress, int *remoteport
 	cJSON *temp = cJSON_GetObjectItem(json, "Address");
 	if (temp == NULL || temp->type != cJSON_String)
 	{
-		printf("配置文件错误，不存在Address或其键值没有使用字符串\n");
+		// printf("配置文件错误，不存在Address或其键值没有使用字符串\n");
+		log_warn("配置文件错误，不存在Address或其键值没有使用字符串");
 		cJSON_Delete(json);
 		return -4;
 	}
@@ -294,7 +298,8 @@ int ReadConfig(const char *filepath, char **remoteserveraddress, int *remoteport
 	temp = cJSON_GetObjectItem(json, "RemotePort");
 	if (temp == NULL || temp->type != cJSON_Number)
 	{
-		printf("配置文件错误，不存在RemotePort或其键值没有使用整数,默认使用25565端口\n");
+		// printf("配置文件错误，不存在RemotePort或其键值没有使用整数,默认使用25565端口\n");
+		log_warn("配置文件错误，不存在RemotePort或其键值没有使用整数,默认使用25565端口");
 		*remoteport = 25565;
 	}
 	else
@@ -304,7 +309,8 @@ int ReadConfig(const char *filepath, char **remoteserveraddress, int *remoteport
 	temp = cJSON_GetObjectItem(json, "LocalPort");
 	if (temp == NULL || temp->type != cJSON_Number)
 	{
-		printf("配置文件错误，不存在LocalPort或其键值没有使用整数,默认使用25565端口\n");
+		// printf("配置文件错误，不存在LocalPort或其键值没有使用整数,默认使用25565端口\n");
+		log_warn("配置文件错误，不存在LocalPort或其键值没有使用整数,默认使用25565端口");
 		*localport = 25565;
 	}
 	else
@@ -314,7 +320,8 @@ int ReadConfig(const char *filepath, char **remoteserveraddress, int *remoteport
 	temp = cJSON_GetObjectItem(json, "AllowInput");
 	if (temp == NULL || (temp->type != cJSON_True && temp->type != cJSON_False))
 	{
-		printf("配置文件错误，不存在AllowInput或其键值没有使用布尔值,默认开启命令行控制\n");
+		// printf("配置文件错误，不存在AllowInput或其键值没有使用布尔值,默认开启命令行控制\n");
+		log_warn("配置文件错误，不存在AllowInput或其键值没有使用布尔值,默认开启命令行控制");
 		*noinput_sign = 0;
 	}
 	else
@@ -322,7 +329,8 @@ int ReadConfig(const char *filepath, char **remoteserveraddress, int *remoteport
 		if (temp->valueint == 0)
 		{
 			*noinput_sign = 1;
-			printf("禁用命令行控制\n");
+			// printf("禁用命令行控制\n");
+			log_info("禁用命令行控制");
 		}
 	}
 	cJSON_Delete(json);

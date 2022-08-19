@@ -52,7 +52,7 @@ void *DealClient(void *InputArg)
     if (err != 0)
     {
         // printf("[%s] [W] 优先级设置失败：%s\n", gettime().time, strerror(errno));
-        log_warn("优先级设置失败：%s\n", strerror(errno));
+        log_warn("优先级设置失败：%s", strerror(errno));
     }
     struct timeval timeout = {10, 0}; //设置10s超时
     setsockopt(client.sock, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
@@ -92,23 +92,23 @@ void *DealClient(void *InputArg)
                 if (handshakepacksize <= 0)
                 {
                     // printf("[%s] [%lu] [W] 握手包错误，无法完成握手\n", gettime().time, pthread_self());
-                    log_warn("[%lu] 握手包错误，无法完成握手\n", pthread_self());
+                    log_warn("[%lu] 握手包错误，无法完成握手", pthread_self());
                     goto CLOSECONNECT;
                 }
                 if (GetPackID(data, handshakepacksize) != 0)
                 {
                     // printf("[%s] [%lu] [W] 不是握手包，无法完成握手\n", gettime().time, pthread_self());
-                    log_warn("[%lu] 不是握手包，无法完成握手\n", pthread_self());
+                    log_warn("[%lu] 不是握手包，无法完成握手", pthread_self());
                     goto CLOSECONNECT;
                 }
                 if (0 != ParseHandlePack(&hp, data, handshakepacksize))
                 {
                     // printf("[%s] [%lu] [W] 握手包无法解析\n", gettime().time, pthread_self());
-                    log_warn("[%lu] 握手包无法解析\n", pthread_self());
+                    log_warn("[%lu] 握手包无法解析", pthread_self());
                     goto CLOSECONNECT;
                 }
                 // printf("[%s] [I] %s连接到服务器\n", gettime().time, client.addr);
-                log_info("%s连接到服务器\n", client.addr);
+                log_info("%s连接到服务器", client.addr);
                 if (hp.nextstate == 1)
                 {
                     statusmode = 1; // status连接
@@ -156,7 +156,7 @@ void *DealClient(void *InputArg)
                             if (0 != WS_ConnectServer(remoteServerAddress, Remote_Port, &remoteserver))
                             {
                                 // printf("[%s] [E] 无法连接远程服务器，原因是%s\n", gettime().time, strerror(errno));
-                                log_error("无法连接远程服务器，原因是%s\n", strerror(errno));
+                                log_error("无法连接远程服务器，原因是%s", strerror(errno));
                                 WS_CloseConnection(&client);
                                 removeip(client.sock);
                                 free(handpackdata);
@@ -167,7 +167,7 @@ void *DealClient(void *InputArg)
                             if (err != 0)
                             {
                                 // printf("[%s] [W] 优先级设置失败：%s\n", gettime().time, strerror(errno));
-                                log_warn("优先级设置失败：%s\n", strerror(errno));
+                                log_warn("优先级设置失败：%s", strerror(errno));
                             }
                             pack->client = client;
                             pack->server = remoteserver;
@@ -252,7 +252,7 @@ CLOSECONNECT:
     free(pack);
     removeip(client.sock);
     // printf("[%s] [I] %s断开连接\n", gettime().time, client.addr);
-    log_info("%s断开连接\n", client.addr);
+    log_info("%s断开连接", client.addr);
     return NULL;
 }
 
@@ -269,7 +269,7 @@ int SendResponse(WS_Connection_t client, char *jdata, int pro)
     {
         //数据格式错误!
         // printf("[%s] [W] motd.json数据格式错误\n", gettime().time);
-        log_warn("motd.json数据格式错误\n");
+        log_warn("motd.json数据格式错误");
         return -3;
     }
     cJSON *version = cJSON_GetObjectItem(json, "version");
@@ -278,7 +278,7 @@ int SendResponse(WS_Connection_t client, char *jdata, int pro)
         cJSON_Delete(json);
         //数据格式错误!
         // printf("[%s] [W] motd.json数据格式错误\n", gettime().time);
-        log_warn("motd.json数据格式错误\n");
+        log_warn("motd.json数据格式错误");
         return -3;
     }
     cJSON *temp = cJSON_CreateNumber(pro);
