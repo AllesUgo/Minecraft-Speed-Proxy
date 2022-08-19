@@ -16,6 +16,7 @@ extern int LocalPort;
 extern int Remote_Port;
 extern char *jdata;
 
+
 void *DealClient(void *InputArg);
 void adduser(int sock, const char *username);
 void *DealRemote(void *InputArg);

@@ -12,7 +12,6 @@
 #include <stdarg.h>
 #include <stdbool.h>
 #include <time.h>
-
 #define LOG_VERSION "0.1.0"
 
 typedef struct {
@@ -31,13 +30,13 @@ typedef void (*log_LockFn)(bool lock, void *udata);
 enum { LOG_TRACE, LOG_DEBUG, LOG_INFO, LOG_WARN, LOG_ERROR, LOG_FATAL, LOG_PLAYER };
 
 #ifndef DEBUG
-#define log_trace(...) log_log(LOG_TRACE, "", pthread_self(), __VA_ARGS__)
-#define log_debug(...) log_log(LOG_DEBUG, "", pthread_self(), __VA_ARGS__)
-#define log_info(...)  log_log(LOG_INFO,  "", pthread_self(), __VA_ARGS__)
-#define log_warn(...)  log_log(LOG_WARN,  "", pthread_self(), __VA_ARGS__)
-#define log_error(...) log_log(LOG_ERROR, "", pthread_self(), __VA_ARGS__)
-#define log_fatal(...) log_log(LOG_FATAL, "", pthread_self(), __VA_ARGS__)
-#define log_player(...) log_log(LOG_PLAYER, "", pthread_self(), __VA_ARGS__)
+#define log_trace(...) log_log(LOG_TRACE, "", GetOnlinePlayerNumber(), __VA_ARGS__)
+#define log_debug(...) log_log(LOG_DEBUG, "", GetOnlinePlayerNumber(), __VA_ARGS__)
+#define log_info(...)  log_log(LOG_INFO,  "", GetOnlinePlayerNumber(), __VA_ARGS__)
+#define log_warn(...)  log_log(LOG_WARN,  "", GetOnlinePlayerNumber(), __VA_ARGS__)
+#define log_error(...) log_log(LOG_ERROR, "", GetOnlinePlayerNumber(), __VA_ARGS__)
+#define log_fatal(...) log_log(LOG_FATAL, "", GetOnlinePlayerNumber(), __VA_ARGS__)
+#define log_player(...) log_log(LOG_PLAYER, "", GetOnlinePlayerNumber(), __VA_ARGS__)
 #else
 #define log_trace(...) log_log(LOG_TRACE, __FILE__, __LINE__, __VA_ARGS__)
 #define log_debug(...) log_log(LOG_DEBUG, __FILE__, __LINE__, __VA_ARGS__)
@@ -56,5 +55,6 @@ int log_add_callback(log_LogFn fn, void *udata, int level);
 int log_add_fp(FILE *fp, int level);
 
 void log_log(int level, const char *file, int line, const char *fmt, ...);
+int GetOnlinePlayerNumber();
 
 #endif

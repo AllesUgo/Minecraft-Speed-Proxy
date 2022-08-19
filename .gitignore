@@ -62,3 +62,15 @@ dkms.conf
 # Xmake cache
 .xmake/
 build/
+
+#log file
+*.log
+
+#Executable file
+minecraftspeedproxy
+
+#Config file
+banned-players.txt
+whitelist.txt
+motd.json
+config.json
