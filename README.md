@@ -2,6 +2,12 @@
 
 Minecraft加速IP程序
 
+# 生成配置文件
+
+```bash
+bash <(curl -fsSL https://fastly.jsdelivr.net/gh/AllesUgo/Minecraft-Speed-Proxy@master/scripts/config.sh )
+```
+
 ## 如何编译并运行
 
 0.安装[xmake](https://github.com/xmake-io/xmake),`bash <(curl -fsSL https://xmake.io/shget.text)`
