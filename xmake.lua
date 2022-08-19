@@ -29,6 +29,10 @@ target("minecraftspeedproxy")
 	os.cp(path.join("$(buildir)", "minecraftspeedproxy"), path.join("usr", "bin"))
     end)
 
+    on_uninstall(function (target)
+	os.rm(path.join("usr", "bin", "minecraftspeedproxy"))
+    end)
+
 --
 -- If you want to known more usage about xmake, please see https://xmake.io
 --
