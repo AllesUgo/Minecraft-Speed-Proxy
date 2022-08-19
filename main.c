@@ -26,7 +26,7 @@ void printhelp(void)
 	printf("\t--help\t获取帮助\n");
 	printf("\t-a\t在默认位置%s生成默认配置文件\n",Defalut_Configfile_Path);
 	printf("\t-c\t<配置文件路径>\t使用指定的配置文件启动服务器\n");
-	printf("\t使用 %s 交互生成配置文件\n",Config_Script_Command);
+	printf("\t在系统命令行使用 %s 交互生成配置文件\n",Config_Script_Command);
 	printf("\n支持的可选参数(仅可用于通过命令行参数启动服务器方式):\n");
 	printf("\t--noinput\t无命令控制\n");
 }
@@ -57,7 +57,7 @@ int main(int argc, char *argv[])
 	signal(SIGSEGV, sighandle);
 	signal(SIGPIPE, SIG_IGN);
 	Version = (char *)malloc(1024);
-	sprintf(Version, "Version:2.0.0\n编译时间:%s\n编译器版本:%s\n", __DATE__, __VERSION__);
+	sprintf(Version, "Version:2.2.0\n编译时间:%s\n编译器版本:%s\n", __DATE__, __VERSION__);
 	char noinput_sign = 0;
 	if (argc == 1)
 	{
