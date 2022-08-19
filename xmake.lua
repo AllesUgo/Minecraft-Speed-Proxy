@@ -1,3 +1,5 @@
+add_requires("cjson")
+add_packages("cjson")
 add_rules("mode.debug", "mode.release")
 set_optimize("fastest")
 add_ldflags("-static")
