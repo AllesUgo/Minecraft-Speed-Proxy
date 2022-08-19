@@ -20,6 +20,7 @@ bash <(curl -fsSL https://fastly.jsdelivr.net/gh/AllesUgo/Minecraft-Speed-Proxy@
 4.进入包含 `Makefile`的目录，输入 `make或xmake`等待编译完成
 编译完成后已经程序已经可以运行，可以使用 `sudo make install`来将其放在 `/usr/bin/`目录中以在任何目录环境和用户下使用该程序
 
+
 ## 如何使用本程序
 
 1.在包含 `minecraftspeedproxy`的目录输入 `./minecraftspeedproxy`可获取参数列表
