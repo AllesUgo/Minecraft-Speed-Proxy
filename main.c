@@ -171,6 +171,9 @@ int main(int argc, char *argv[])
 		}
 	}
 
+	FILE *playerLog=fopen("player.log","a");
+	log_add_fp(playerLog, LOG_PLAYER);
+
 	// printf("[%s] [I] PID:%d 远程服务器:%s:%d 本地监听端口%d\n", gettime().time, getpid(), remoteServerAddress, Remote_Port, LocalPort);
 	log_info("PID:%d 远程服务器:%s:%d 本地监听端口%d", getpid(), remoteServerAddress, Remote_Port, LocalPort);
 	//读取motd
@@ -222,6 +225,7 @@ int main(int argc, char *argv[])
 		if (errno == 98)
 			// printf("[%s] [E] 绑定端口%d失败，端口已被占用\n", gettime().time, LocalPort);
 			log_error("绑定端口%d失败，端口已被占用", LocalPort);
+		fclose(playerLog);
 		return 1;
 	}
 	//循环等待用户连接
@@ -252,6 +256,7 @@ int main(int argc, char *argv[])
 		}
 		pthread_detach(pid);
 	}
+	fclose(playerLog);
 }
 int ReadConfig(const char *filepath, char **remoteserveraddress, int *remoteport, int *localport, char *noinput_sign)
 {

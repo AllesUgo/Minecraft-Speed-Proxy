@@ -11,6 +11,7 @@
 #include <errno.h>
 #include "cJSON.h"
 #include "CheckLogin.h"
+#include "log.h"
 #include"websocket.h"
 
 typedef struct ONLINE_LINK
@@ -430,7 +431,8 @@ void removeip(int sock)
     {
         //当前没有在线玩家
         pthread_mutex_unlock(&O_lock);
-        printf("[W] 试图移除非在线玩家\n");
+        // printf("[W] 试图移除非在线玩家\n");
+        log_warn("试图移除非在线玩家");
         return;
     }
     else
@@ -443,6 +445,7 @@ void removeip(int sock)
             free(temp);
 
             pthread_mutex_unlock(&O_lock);
+            log_player("移除了玩家:%s于IP:%s的连接", temp->username, temp->ip);
             return;
         }
         while (temp->next)
@@ -455,11 +458,13 @@ void removeip(int sock)
                 free(a);
 
                 pthread_mutex_unlock(&O_lock);
+                log_player("移除了玩家:%s于IP:%s的连接", temp->username, temp->ip);
                 return;
             }
             temp = temp->next;
         }
         pthread_mutex_unlock(&O_lock);
+        log_player("移除了玩家:%s于IP:%s的连接", temp->username, temp->ip);
         return;
     }
 }
@@ -479,6 +484,7 @@ void adduser(int sock, const char *username)
         temp = temp->next;
     }
     pthread_mutex_unlock(&O_lock);
+    log_player("玩家%s登陆于IP:%s的连接", username, temp->ip);
     return;
 }
 void addip(int sock, const char *IP)
