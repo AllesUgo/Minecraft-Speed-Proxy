@@ -10,6 +10,7 @@
 char *Version;
 char *remoteServerAddress;
 const char *Defalut_Configfile_Path = "/etc/minecraftspeedproxy/config.json";
+const char *Config_Script_Command = "bash <(curl -fsSL https://fastly.jsdelivr.net/gh/AllesUgo/Minecraft-Speed-Proxy@master/scripts/config.sh )";
 int LocalPort;
 int Remote_Port;
 char *jdata;
@@ -25,6 +26,7 @@ void printhelp(void)
 	printf("\t--help\t获取帮助\n");
 	printf("\t-a\t在默认位置%s生成默认配置文件\n",Defalut_Configfile_Path);
 	printf("\t-c\t<配置文件路径>\t使用指定的配置文件启动服务器\n");
+	printf("\t使用 %s 交互生成配置文件\n",Config_Script_Command);
 	printf("\n支持的可选参数(仅可用于通过命令行参数启动服务器方式):\n");
 	printf("\t--noinput\t无命令控制\n");
 }
@@ -61,6 +63,7 @@ int main(int argc, char *argv[])
 		if (0 != ReadConfig(Defalut_Configfile_Path, &remoteServerAddress, &Remote_Port, &LocalPort, &noinput_sign))
 		{
 			printf("配置文件加载失败，可使用 -a参数来默认生成一个配置文件%s\n", Defalut_Configfile_Path);
+			printf("\t或使用 %s 交互生成配置文件\n",Config_Script_Command);
 			printf("使用参数--help以获取使用帮助\n");
 			return 1;
 		}
