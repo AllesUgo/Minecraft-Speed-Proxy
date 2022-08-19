@@ -445,7 +445,11 @@ void removeip(int sock)
             free(temp);
 
             pthread_mutex_unlock(&O_lock);
-            log_player("移除了玩家:%s于IP:%s的连接", temp->username, temp->ip);
+            //if temp->username != "Not-Login" log
+            if (strcmp(temp->username, "Not-Login")!=0)
+            {
+                log_player("移除了玩家:%s于IP:%s的连接", temp->username, temp->ip);
+            }
             return;
         }
         while (temp->next)
@@ -458,13 +462,19 @@ void removeip(int sock)
                 free(a);
 
                 pthread_mutex_unlock(&O_lock);
-                log_player("移除了玩家:%s于IP:%s的连接", temp->username, temp->ip);
+                if (strcmp(temp->username, "Not-Login")!=0)
+                {
+                    log_player("移除了玩家:%s于IP:%s的连接", temp->username, temp->ip);
+                }
                 return;
             }
             temp = temp->next;
         }
         pthread_mutex_unlock(&O_lock);
-        log_player("移除了玩家:%s于IP:%s的连接", temp->username, temp->ip);
+        if (strcmp(temp->username, "Not-Login")!=0)
+        {
+            log_player("移除了玩家:%s于IP:%s的连接", temp->username, temp->ip);
+        }
         return;
     }
 }
