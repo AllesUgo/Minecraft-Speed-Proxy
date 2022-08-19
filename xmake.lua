@@ -7,6 +7,7 @@ add_ldflags("-static")
 target("log")
     set_kind("static")
     add_files("log.c")
+    add_cflags("-DLOG_USE_COLOR")
 
 target("deps")
     set_kind("static")

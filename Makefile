@@ -1,5 +1,5 @@
 CXX=gcc
-LINKLIBS=-lpthread -lm
+LINKLIBS=-lpthread -lm -DLOG_USE_COLOR
 OUTPUT=minecraftspeedproxy
 
 
