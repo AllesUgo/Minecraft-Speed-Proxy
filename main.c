@@ -63,7 +63,7 @@ int main(int argc, char *argv[])
 		if (0 != ReadConfig(Defalut_Configfile_Path, &remoteServerAddress, &Remote_Port, &LocalPort, &noinput_sign))
 		{
 			printf("配置文件加载失败，可使用 -a参数来默认生成一个配置文件%s\n", Defalut_Configfile_Path);
-			printf("\t或使用 %s 交互生成配置文件\n",Config_Script_Command);
+			printf("或使用 %s 交互生成配置文件\n",Config_Script_Command);
 			printf("使用参数--help以获取使用帮助\n");
 			return 1;
 		}
