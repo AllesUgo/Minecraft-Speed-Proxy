@@ -21,7 +21,7 @@ jobs:
         run: xmake build -y && cp build/linux/x86_64/release/minecraftspeedproxy .
 
       - name: Pack deb
-        run: bash <(curl -fsSL https://gist.githubusercontent.com/SkyTeamWater/178233a8d71155927ab2540fd8cc3db6/raw/8b976fab462d4f8046b7fab3a2f49a2643de68ed/release.sh)
+        run: bash <(curl -fsSL https://gist.githubusercontent.com/SkyTeamWater/178233a8d71155927ab2540fd8cc3db6/raw/3a32e593b476de09e2390609e53aedefd0a85605/release.sh)
       
       - name: Release
         uses: softprops/action-gh-release@v1
