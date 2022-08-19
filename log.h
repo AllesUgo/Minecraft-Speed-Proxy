@@ -30,7 +30,7 @@ typedef void (*log_LockFn)(bool lock, void *udata);
 
 enum { LOG_TRACE, LOG_DEBUG, LOG_INFO, LOG_WARN, LOG_ERROR, LOG_FATAL, LOG_PLAYER };
 
-#ifdef DEBUG
+#ifndef DEBUG
 #define log_trace(...) log_log(LOG_TRACE, "", "", __VA_ARGS__)
 #define log_debug(...) log_log(LOG_DEBUG, "", "", __VA_ARGS__)
 #define log_info(...)  log_log(LOG_INFO,  "", "", __VA_ARGS__)
