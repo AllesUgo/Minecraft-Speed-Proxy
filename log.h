@@ -31,13 +31,13 @@ typedef void (*log_LockFn)(bool lock, void *udata);
 enum { LOG_TRACE, LOG_DEBUG, LOG_INFO, LOG_WARN, LOG_ERROR, LOG_FATAL, LOG_PLAYER };
 
 #ifndef DEBUG
-#define log_trace(...) log_log(LOG_TRACE, "", "", __VA_ARGS__)
-#define log_debug(...) log_log(LOG_DEBUG, "", "", __VA_ARGS__)
-#define log_info(...)  log_log(LOG_INFO,  "", "", __VA_ARGS__)
-#define log_warn(...)  log_log(LOG_WARN,  "", "", __VA_ARGS__)
-#define log_error(...) log_log(LOG_ERROR, "", "", __VA_ARGS__)
-#define log_fatal(...) log_log(LOG_FATAL, "", "", __VA_ARGS__)
-#define log_player(...) log_log(LOG_PLAYER, "", "", __VA_ARGS__)
+#define log_trace(...) log_log(LOG_TRACE, "", pthread_self(), __VA_ARGS__)
+#define log_debug(...) log_log(LOG_DEBUG, "", pthread_self(), __VA_ARGS__)
+#define log_info(...)  log_log(LOG_INFO,  "", pthread_self(), __VA_ARGS__)
+#define log_warn(...)  log_log(LOG_WARN,  "", pthread_self(), __VA_ARGS__)
+#define log_error(...) log_log(LOG_ERROR, "", pthread_self(), __VA_ARGS__)
+#define log_fatal(...) log_log(LOG_FATAL, "", pthread_self(), __VA_ARGS__)
+#define log_player(...) log_log(LOG_PLAYER, "", pthread_self(), __VA_ARGS__)
 #else
 #define log_trace(...) log_log(LOG_TRACE, __FILE__, __LINE__, __VA_ARGS__)
 #define log_debug(...) log_log(LOG_DEBUG, __FILE__, __LINE__, __VA_ARGS__)
