@@ -25,6 +25,10 @@ target("minecraftspeedproxy")
     
     add_deps("deps")
 
+    on_install(function(target) 
+	os.cp(path.join("$(buildir)", "minecraftspeedproxy"), path.join("usr", "bin"))
+    end)
+
 --
 -- If you want to known more usage about xmake, please see https://xmake.io
 --
