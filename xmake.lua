@@ -1,3 +1,4 @@
+VERSION = "v2.2.0"
 add_requires("cjson")
 add_packages("cjson")
 add_rules("mode.debug", "mode.release")
@@ -36,6 +37,8 @@ target("minecraftspeedproxy")
     on_uninstall(function (target)
 	os.rm(path.join("usr", "bin", "minecraftspeedproxy"))
     end)
+
+    add_cflags("-DVERSION=\"$(VERSION)\"")
 
 --
 -- If you want to known more usage about xmake, please see https://xmake.io

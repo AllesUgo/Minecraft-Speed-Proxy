@@ -8,6 +8,7 @@
 #include "cJSON.h"
 #include "log.h"
 
+const char *DVERSION = VERSION;
 char *Version;
 char *remoteServerAddress;
 const char *Defalut_Configfile_Path = "/etc/minecraftspeedproxy/config.json";
@@ -58,7 +59,7 @@ int main(int argc, char *argv[])
 	signal(SIGSEGV, sighandle);
 	signal(SIGPIPE, SIG_IGN);
 	Version = (char *)malloc(1024);
-	sprintf(Version, "Version:2.2.0\n编译时间:%s\n编译器版本:%s\n", __DATE__, __VERSION__);
+	sprintf(Version, "Version:%s\n编译时间:%s\n编译器版本:%s\n", DVERSION, __DATE__, __VERSION__);
 	char noinput_sign = 0;
 	if (argc == 1)
 	{
