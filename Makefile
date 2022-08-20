@@ -1,9 +1,9 @@
 CXX=gcc
-LINKLIBS=-lpthread -lm -DLOG_USE_COLOR
+LINKLIBS=-lpthread -lm 
 OUTPUT=minecraftspeedproxy
 
 
-CARGVS=-c
+CARGVS=-c  -DLOG_USE_COLOR
 ALLARGV=-O3
 DEBUG=
 minecraftspeedplus:CheckLogin.o cJSON.o client.o log.o main.o mempool.o online.o remote.o sending.o unpack.o varint.o websocket.o

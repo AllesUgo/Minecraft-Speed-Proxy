@@ -12,7 +12,7 @@
 #include "cJSON.h"
 #include "CheckLogin.h"
 #include "log.h"
-#include"websocket.h"
+#include "websocket.h"
 
 typedef struct ONLINE_LINK
 {
@@ -26,14 +26,16 @@ typedef struct ONLINE_LINK
 } OL_L;
 pthread_mutex_t O_lock;
 OL_L *head;
-extern char*Version;
+extern char *Version;
+int OnlineNumber=0;
 void printonline();
 void kickplayer(const char *playername);
 void kicksock(int sock);
+int GetOnlinePlayerNumber();
 void *thread(void *a)
 {
-    char *inputstr=(char*)malloc(1024*1024);
-    char *cmd=(char*)malloc(1024);
+    char *inputstr = (char *)malloc(1024 * 1024);
+    char *cmd = (char *)malloc(1024);
     char *ptr;
     while (1)
     {
@@ -51,7 +53,7 @@ void *thread(void *a)
         {
             printf("命令列表:\nhelp\t查看帮助\nstop\t退出程序\nmemuse\t查看内存使用情况\nlist\t列出在线玩家\npid\t获取当前进程pid\nkick --help获取kick命令帮助\nwhitelist --help获取白名单命令帮助\nban --help获取封禁命令帮助\npardon --help获取接触封禁命令帮助\n");
         }
-        else if (!strcmp(cmd,"version"))
+        else if (!strcmp(cmd, "version"))
         {
             puts(Version);
         }
@@ -127,7 +129,6 @@ void *thread(void *a)
                     printf("已解除封禁%s\n", cmd);
                     break;
                 }
-                
             }
             continue;
         PARDONCMDERROR:
@@ -158,10 +159,9 @@ void *thread(void *a)
                     break;
 
                 default:
-                    printf("已封禁%s,若要将%s立即踢出服务器请使用kick %s,解除封禁请使用pardon命令\n", cmd,cmd,cmd);
+                    printf("已封禁%s,若要将%s立即踢出服务器请使用kick %s,解除封禁请使用pardon命令\n", cmd, cmd, cmd);
                     break;
                 }
-                
             }
             continue;
         BANCMDERROR:
@@ -292,7 +292,6 @@ void *thread(void *a)
             {
             KICKPLAYERCMDERROR:
                 printf("\n参数错误,使用kick --help获取帮助\n");
-                
             }
         }
         else
@@ -311,7 +310,7 @@ void kicksock(int sock)
         if (sock == temp->sock)
         {
             successinfo = 1;
-            
+
             if (0 == shutdown(temp->sock, SHUT_RDWR))
             {
                 printf("已关闭IP=%s,username=%s玩家的连接\n", temp->ip, temp->username);
@@ -441,15 +440,16 @@ void removeip(int sock)
         if (temp->sock == sock)
         {
 
-            head = temp->next;
-            free(temp);
-
-            pthread_mutex_unlock(&O_lock);
-            //if temp->username != "Not-Login" log
-            if (strcmp(temp->username, "Not-Login")!=0)
+            if (strcmp(temp->username, "Not-Login") != 0)
             {
+                OnlineNumber-=1;
                 log_player("移除了玩家:%s于IP:%s的连接", temp->username, temp->ip);
             }
+            head = temp->next;
+            free(temp);
+            
+            pthread_mutex_unlock(&O_lock);
+            // if temp->username != "Not-Login" log
             return;
         }
         while (temp->next)
@@ -458,23 +458,20 @@ void removeip(int sock)
             {
 
                 OL_L *a = temp->next;
+                if (strcmp(temp->username, "Not-Login") != 0)
+                {
+                    OnlineNumber-=1;
+                    log_player("移除了玩家:%s于IP:%s的连接", a->username, a->ip);
+                }
                 temp->next = a->next;
                 free(a);
-
                 pthread_mutex_unlock(&O_lock);
-                if (strcmp(temp->username, "Not-Login")!=0)
-                {
-                    log_player("移除了玩家:%s于IP:%s的连接", temp->username, temp->ip);
-                }
+                
                 return;
             }
             temp = temp->next;
         }
         pthread_mutex_unlock(&O_lock);
-        if (strcmp(temp->username, "Not-Login")!=0)
-        {
-            log_player("移除了玩家:%s于IP:%s的连接", temp->username, temp->ip);
-        }
         return;
     }
 }
@@ -488,13 +485,15 @@ void adduser(int sock, const char *username)
         if (temp->sock == sock)
         {
             strcpy(temp->username, username);
+            OnlineNumber+=1;
+            log_player("玩家%s登陆于IP:%s的连接", username, temp->ip);
             pthread_mutex_unlock(&O_lock);
             return;
         }
         temp = temp->next;
     }
+    ////////////////
     pthread_mutex_unlock(&O_lock);
-    log_player("玩家%s登陆于IP:%s的连接", username, temp->ip);
     return;
 }
 void addip(int sock, const char *IP)
@@ -537,4 +536,9 @@ void addip(int sock, const char *IP)
         pthread_mutex_unlock(&O_lock);
         return;
     }
+}
+
+int GetOnlinePlayerNumber()
+{
+    return OnlineNumber;
 }

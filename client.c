@@ -16,6 +16,7 @@ extern int LocalPort;
 extern int Remote_Port;
 extern char *jdata;
 
+
 void *DealClient(void *InputArg);
 void adduser(int sock, const char *username);
 void *DealRemote(void *InputArg);
@@ -207,7 +208,6 @@ void *DealClient(void *InputArg)
     ACCEPTWHILE:
         spack = InitSending(remoteserver.sock, 2000);
         pthread_create(&sendingthread, NULL, SendingThread, &spack);
-        fflush(stdout);
         DataLink_t *temp = spack.head;
         
         while (1)
@@ -215,8 +215,6 @@ void *DealClient(void *InputArg)
 
             stackdata = ML_Malloc(&spack.pool,512);
             rsnum = read(client.sock, stackdata, 512);
-            //printf("#");
-            fflush(stdout);
             if (rsnum <= 0)
             {
                 ML_Free(&spack.pool, stackdata);
@@ -283,7 +281,6 @@ int SendResponse(WS_Connection_t client, char *jdata, int pro)
     }
     cJSON *temp = cJSON_CreateNumber(pro);
     cJSON_ReplaceItemInObject(version, "protocol", temp);
-    // cJSON_ReplaceItemInObject(json,"version",version);
     char *jjdata = cJSON_Print(json);
     cJSON_Delete(json);
     char *data = (char *)malloc(strlen(jjdata) + 32);
