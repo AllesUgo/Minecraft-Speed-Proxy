@@ -3,11 +3,11 @@ add_packages("cjson")
 add_rules("mode.debug", "mode.release")
 set_optimize("fastest")
 add_ldflags("-static")
+add_defines("VERSION=\"v2.2.0\"", "LOG_USE_COLOR")
 
 target("log")
     set_kind("static")
     add_files("log.c")
-    add_cflags("-DLOG_USE_COLOR")
 
 target("deps")
     set_kind("static")
@@ -36,8 +36,6 @@ target("minecraftspeedproxy")
     on_uninstall(function (target)
 	os.rm(path.join("usr", "bin", "minecraftspeedproxy"))
     end)
-
-    add_cflags("-DVERSION=\"v2.2.0\"")
 
 --
 -- If you want to known more usage about xmake, please see https://xmake.io
