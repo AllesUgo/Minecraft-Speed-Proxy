@@ -37,6 +37,8 @@ target("minecraftspeedproxy")
 	os.rm(path.join("usr", "bin", "minecraftspeedproxy"))
     end)
 
+    add_cflags("-DVERSION=\"v2.2.0\"")
+
 --
 -- If you want to known more usage about xmake, please see https://xmake.io
 --
