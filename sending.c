@@ -51,8 +51,9 @@ DataLink_t *UpSendingData(SendingPack_t *pack, DataLink_t *link, void *data, siz
     pthread_spin_lock(&(pack->spinlock));
     pack->datanum += 1;
     pthread_spin_unlock(&(pack->spinlock));
+    DataLink_t *backup=link->next;
     pthread_mutex_unlock(&(link->lock));
-    return link->next;
+    return backup;
 }
 
 void *SendingThread(void *input)
