@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <pthread.h>
+#include <setjmp.h>
 #include <string.h>
+#include <assert.h>
 #include <errno.h>
 #include "log.h"
 #include "websocket.h"
@@ -15,7 +17,7 @@ extern char *remoteServerAddress;
 extern int LocalPort;
 extern int Remote_Port;
 extern char *jdata;
-
+extern pthread_key_t Thread_Key;
 
 void *DealClient(void *InputArg);
 void adduser(int sock, const char *username);
@@ -42,6 +44,9 @@ void printdata(char *data, int datasize)
 
 void *DealClient(void *InputArg)
 {
+    //设置线程独享资源
+    jmp_buf jmp;
+    pthread_setspecific(Thread_Key, &jmp);
     //接收多线程传参
     WS_Connection_t client = *((WS_Connection_t *)InputArg);
     free(InputArg);
@@ -78,9 +83,22 @@ void *DealClient(void *InputArg)
     void *stackdata;
     SendingPack_t spack;
     pthread_t sendingthread;
+    switch (setjmp(jmp))
+    {
+    case SIGABRT:
+        log_error("线程异常，已放弃");
+        goto CLOSECONNECT;
+        break;
+    case SIGSEGV:
+        log_error("线程段错误，尝试恢复，本恢复可能造成部分资源无法完全释放");
+        goto CLOSECONNECT;
+        break;
+    default:
+        break;
+    }
     while (1)
     {
-
+        
         if (logined == 0)
         {
             //还没有登录
@@ -88,6 +106,7 @@ void *DealClient(void *InputArg)
             {
                 //还没有握手,先握手
                 memset(data, 0, 4096);
+                
                 int handshakepacksize = RecvFullPack(client, data, 4096);
 
                 if (handshakepacksize <= 0)
@@ -209,15 +228,16 @@ void *DealClient(void *InputArg)
         spack = InitSending(remoteserver.sock, 2000);
         pthread_create(&sendingthread, NULL, SendingThread, &spack);
         DataLink_t *temp = spack.head;
-        
+
         while (1)
         {
 
-            stackdata = ML_Malloc(&spack.pool,512);
+            stackdata = ML_Malloc(&spack.pool, 512);
             rsnum = read(client.sock, stackdata, 512);
             if (rsnum <= 0)
             {
                 ML_Free(&spack.pool, stackdata);
+                
                 pthread_mutex_unlock(&(temp->lock));
                 shutdown(client.sock, SHUT_RDWR);
                 shutdown(remoteserver.sock, SHUT_RDWR);
@@ -233,12 +253,11 @@ void *DealClient(void *InputArg)
                 break;
             }
         }
-
         pthread_join(sendingthread, NULL); //等待发送线程回收
         pthread_join(pid, NULL);           //等待服务线程资源回收
         WS_CloseConnection(&remoteserver);
         pthread_spin_destroy(&(spack.spinlock));
-        if (NULL!=ML_CheekMemLeak(spack.pool))
+        if (NULL != ML_CheekMemLeak(spack.pool))
         {
             printf("内存泄露\n");
         }

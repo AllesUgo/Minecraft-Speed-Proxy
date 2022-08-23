@@ -125,10 +125,11 @@ void ML_Free(ML_Pool_t *pool, void *ptr)
 	Link_t *head = (Link_t *)(pool->head);
 	if (head == NULL || ptr == NULL)
 	{
-		fputs("试图从释放内存池中没有的内存", stderr);
+		fputs("试图从释放内存池中没有的内存\n", stderr);
 		fflush(stdout);
 		fflush(stderr);
-		exit(1);
+		pthread_mutex_unlock(&(pool->lock));
+		return;
 	}
 	size_t cache_size = 0;
 	Link_t *temp = head;
@@ -147,10 +148,11 @@ void ML_Free(ML_Pool_t *pool, void *ptr)
 	}
 	if (success == false)
 	{
-		fputs("试图从释放内存池中没有的内存", stderr);
+		fputs("试图从释放内存池中没有的内存\n", stderr);
 		fflush(stdout);
 		fflush(stderr);
-		exit(1);
+		pthread_mutex_unlock(&(pool->lock));
+		return;
 	}
 	if (cache_size > pool->max_freetemp)
 	{

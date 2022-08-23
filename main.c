@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <signal.h>
+#include <setjmp.h>
 #include "websocket.h"
 #include "cJSON.h"
 #include "log.h"
@@ -14,6 +15,7 @@ char *remoteServerAddress;
 const char *Defalut_Configfile_Path = "/etc/minecraftspeedproxy/config.json";
 const char *Config_Script_Command = "bash <(curl -fsSL https://fastly.jsdelivr.net/gh/AllesUgo/Minecraft-Speed-Proxy@master/scripts/config.sh )";
 int LocalPort;
+pthread_key_t Thread_Key;
 int Remote_Port;
 char *jdata;
 void OnlineControl_Init();
@@ -43,12 +45,17 @@ void sighandle(int sig)
 		break;
 	case SIGSEGV:
 		// printf("[%s] [E] 服务器内部错误，请重新启动服务进程，您也可以将error.log发送给开发人员\n", gettime().time);
-		log_error("服务器内部错误，请重新启动服务进程，您也可以将error.log发送给开发人员");
+		log_error("服务器内部错误，建议重新启动服务进程，您也可以将error.log发送给开发人员");
 		system("date >>error.log");
 		system("uname -a >>error.log");
 		system("echo ulimit: >>error.log");
 		system("ulimit -s>>error.log");
-		exit(1);
+		longjmp(*(jmp_buf*)(pthread_getspecific(Thread_Key)),SIGSEGV);
+		break;
+	case SIGABRT:
+		log_error("出现错误，尝试恢复");
+		longjmp(*(jmp_buf*)(pthread_getspecific(Thread_Key)),SIGABRT);
+		break;
 	default:
 		break;
 	}
@@ -56,6 +63,7 @@ void sighandle(int sig)
 int main(int argc, char *argv[])
 {
 	signal(SIGINT, sighandle);
+	signal(SIGABRT, sighandle);
 	signal(SIGSEGV, sighandle);
 	signal(SIGPIPE, SIG_IGN);
 	Version = (char *)malloc(1024);
@@ -230,6 +238,8 @@ int main(int argc, char *argv[])
 		fclose(playerLog);
 		return 1;
 	}
+	//初始化线程专享空间
+	pthread_key_create(&Thread_Key,NULL);
 	//循环等待用户连接
 	WS_Connection_t *client;
 	pthread_t pid;
@@ -245,7 +255,7 @@ int main(int argc, char *argv[])
 			log_warn("连接建立失败:%s", strerror(errno));
 			free(client);
 			continue;
-		}
+		}	
 		addip(client->sock, client->addr);
 		if (0 != pthread_create(&pid, NULL, DealClient, client))
 		{
