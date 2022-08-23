@@ -5,7 +5,7 @@ OUTPUT=minecraftspeedproxy
 VERSION=v2.2.0
 CARGVS=-c -DLOG_USE_COLOR -DVERSION=\"$(VERSION)\"
 ALLARGV=-O3
-DEBUG=
+DEBUG= 
 minecraftspeedplus:CheckLogin.o cJSON.o client.o log.o main.o mempool.o online.o remote.o sending.o unpack.o varint.o websocket.o
 	$(CXX) CheckLogin.o cJSON.o client.o log.o main.o mempool.o online.o remote.o sending.o unpack.o varint.o websocket.o $(DEBUG) $(LINKLIBS) $(DEBUG) $(ALLARGV) -o $(OUTPUT)
 CheckLogin.o:CheckLogin.h CheckLogin.c
