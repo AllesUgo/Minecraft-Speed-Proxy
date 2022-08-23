@@ -2,7 +2,7 @@ CXX=gcc
 LINKLIBS=-lpthread -lm 
 OUTPUT=minecraftspeedproxy
 
-VERSION=v2.2.0
+VERSION=v2.2.1
 CARGVS=-c -DLOG_USE_COLOR -DVERSION=\"$(VERSION)\"
 ALLARGV=-O3
 DEBUG= 
