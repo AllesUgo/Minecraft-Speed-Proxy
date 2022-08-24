@@ -19,7 +19,6 @@ DataLink_t *UpSendingData(SendingPack_t *pack, DataLink_t *link, void *data, siz
 void *DealRemote(void *InputArg);
 void *DealRemote(void *InputArg)
 {
-    printf("启动成功\n");
     //设置线程独享资源
     jmp_buf jmp;
     pthread_setspecific(Thread_Key, &jmp);

@@ -466,7 +466,6 @@ void removeip(int sock)
                 temp->next = a->next;
                 free(a);
                 pthread_mutex_unlock(&O_lock);
-                
                 return;
             }
             temp = temp->next;
@@ -527,7 +526,7 @@ void addip(int sock, const char *IP)
         temp = head;
         temp = (OL_L *)malloc(sizeof(OL_L));
         strcpy(temp->ip, IP);
-        strcpy(temp->username, "Not Login");
+        strcpy(temp->username, "Not-Login");
         temp->sock = sock;
         temp->starttime = time(NULL);
 

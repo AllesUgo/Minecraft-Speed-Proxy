@@ -32,7 +32,6 @@ int varint_encoding_length(unsigned long long n)
 
 char *varint_encode(unsigned long long n, char *buf, int len, unsigned char *bytes)
 {
-  assert(1<0);
   char *ptr = buf;
   while (n & MSBALL)
   {

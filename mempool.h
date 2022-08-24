@@ -4,7 +4,7 @@
 #include<pthread.h>
 #define ML_FAIL -1
 #define ML_SUCCESS 0
-
+#define MEMPOOL_DISABLE
 
 typedef struct MEMPOOLHEAD {
 	char canuse;

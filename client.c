@@ -98,7 +98,7 @@ void *DealClient(void *InputArg)
     }
     while (1)
     {
-        
+
         if (logined == 0)
         {
             //还没有登录
@@ -106,7 +106,7 @@ void *DealClient(void *InputArg)
             {
                 //还没有握手,先握手
                 memset(data, 0, 4096);
-                
+
                 int handshakepacksize = RecvFullPack(client, data, 4096);
 
                 if (handshakepacksize <= 0)
@@ -173,6 +173,8 @@ void *DealClient(void *InputArg)
                         {
 
                         case CHECK_LOGIN_SUCCESS:
+                            char message[128];
+                            int packsize = BuildHandPack(hp, remoteServerAddress, message, 128);
                             if (0 != WS_ConnectServer(remoteServerAddress, Remote_Port, &remoteserver))
                             {
                                 // printf("[%s] [E] 无法连接远程服务器，原因是%s\n", gettime().time, strerror(errno));
@@ -195,11 +197,8 @@ void *DealClient(void *InputArg)
                             strcpy(hp.Address, remoteServerAddress);
                             hp.port = Remote_Port;
                             hp.nextstate = 2;
-                            char *message = (char *)malloc(128);
-                            int packsize = BuildHandPack(hp, remoteServerAddress, message, 128);
                             WS_Send(&remoteserver, message, packsize);
                             WS_Send(&remoteserver, data, datasize);
-                            free(message);
                             adduser(client.sock, username);
                             goto ACCEPTWHILE;
 
@@ -228,16 +227,13 @@ void *DealClient(void *InputArg)
         spack = InitSending(remoteserver.sock, 2000);
         pthread_create(&sendingthread, NULL, SendingThread, &spack);
         DataLink_t *temp = spack.head;
-
         while (1)
         {
-
             stackdata = ML_Malloc(&spack.pool, 512);
             rsnum = read(client.sock, stackdata, 512);
             if (rsnum <= 0)
             {
                 ML_Free(&spack.pool, stackdata);
-                
                 pthread_mutex_unlock(&(temp->lock));
                 shutdown(client.sock, SHUT_RDWR);
                 shutdown(remoteserver.sock, SHUT_RDWR);
@@ -257,7 +253,7 @@ void *DealClient(void *InputArg)
         pthread_join(pid, NULL);           //等待服务线程资源回收
         WS_CloseConnection(&remoteserver);
         pthread_spin_destroy(&(spack.spinlock));
-        if (NULL != ML_CheekMemLeak(spack.pool))
+        if (ML_SUCCESS != ML_DestoryMem(&spack.pool))
         {
             printf("内存泄露\n");
         }
@@ -284,8 +280,6 @@ int SendResponse(WS_Connection_t client, char *jdata, int pro)
     cJSON *json = cJSON_Parse(jdata);
     if (json == NULL)
     {
-        //数据格式错误!
-        // printf("[%s] [W] motd.json数据格式错误\n", gettime().time);
         log_warn("motd.json数据格式错误");
         return -3;
     }
