@@ -17,7 +17,8 @@ bash <(curl -fsSL https://fastly.jsdelivr.net/gh/AllesUgo/Minecraft-Speed-Proxy@
     例如：`sudo apt update`  
     `sudo apt install make gcc`  
 
-4.进入包含 `Makefile`的目录，输入 `make或xmake`等待编译完成
+4.获取最新version `version=$(git describe --tags) && version1=${version#v} && export VERSION=${version1%%-*}`
+5.进入包含 `Makefile`的目录，输入 `make或xmake`等待编译完成
 编译完成后已经程序已经可以运行，可以使用 `sudo make install`来将其放在 `/usr/bin/`目录中以在任何目录环境和用户下使用该程序
 
 

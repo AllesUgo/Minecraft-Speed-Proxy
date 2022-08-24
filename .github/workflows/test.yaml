@@ -12,13 +12,19 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: Set up xmake
-        run: bash <(curl -fsSL https://xmake.io/shget.text)
+        run: sudo add-apt-repository ppa:xmake-io/xmake && sudo apt update && sudo apt install xmake
       
       - name: Install deps
-        run: sudo apt update && sudo apt upgrade -y && sudo apt-get install manpages-posix-dev glibc-doc manpages-posix build-essential -y
+        run: sudo apt update && sudo apt upgrade -y && sudo apt-get install manpages-posix-dev glibc-doc manpages-posix build-essential git -y
+
+      - name: Get version
+        run: git fetch --tags && version=$(git describe --tags) && version1=${version#v} && export VERSION=${version1%%-*}
 
       - name: Build with xmake
         run: xmake build -y
       
       - name: Build with Makefile
         run: make
+
+      - name: Echo Version
+        run: ./minecraftspeedproxy --version

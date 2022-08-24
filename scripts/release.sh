@@ -1,7 +1,3 @@
-version=$(git describe --tags)
-version1=${version#v}
-VERSION=${version1%%-*}
-
 mkdir -p deb/DEBIAN
 mkdir -p deb/lib/systemd/system
 mkdir -p deb/usr/bin
