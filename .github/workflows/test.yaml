@@ -11,9 +11,10 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Set up xmake
-        run: sudo add-apt-repository ppa:xmake-io/xmake && sudo apt update && sudo apt install xmake
-      
+      - uses: xmake-io/github-action-setup-xmake@v1
+        with:
+          xmake-version: branch@dev
+
       - name: Install deps
         run: sudo apt update && sudo apt upgrade -y && sudo apt-get install manpages-posix-dev glibc-doc manpages-posix build-essential git -y
 
