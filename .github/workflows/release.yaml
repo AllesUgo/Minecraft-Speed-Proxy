@@ -15,7 +15,7 @@ jobs:
         run: bash <(curl -fsSL https://xmake.io/shget.text)
       
       - name: Install deps
-        run: sudo apt-get install manpages-posix-dev glibc-doc manpages-posix build-essential -y
+        run: sudo apt update && sudo apt upgrade -y && sudo apt-get install manpages-posix-dev glibc-doc manpages-posix build-essential -y
 
       - name: Build
         run: xmake build -y && cp build/linux/x86_64/release/minecraftspeedproxy .

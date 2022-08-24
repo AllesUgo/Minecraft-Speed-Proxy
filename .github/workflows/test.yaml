@@ -1,0 +1,24 @@
+name: Build and release
+
+on:
+  pull_request:
+  push:
+
+jobs:
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up xmake
+        run: bash <(curl -fsSL https://xmake.io/shget.text)
+      
+      - name: Install deps
+        run: sudo apt update && sudo apt upgrade -y && sudo apt-get install manpages-posix-dev glibc-doc manpages-posix build-essential -y
+
+      - name: Build with xmake
+        run: xmake build -y
+      
+      - name: Build with Makefile
+        run: make
