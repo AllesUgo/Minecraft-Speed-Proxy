@@ -17,11 +17,8 @@ jobs:
       - name: Install deps
         run: sudo apt update && sudo apt upgrade -y && sudo apt-get install manpages-posix-dev glibc-doc manpages-posix build-essential git -y
 
-      - name: Get version
-        run: git fetch --depth=1000000 && version=$(git describe --tags) && version1=${version#v} && export VERSION=${version1%%-*}
-
       - name: Build
-        run: xmake build -y && cp build/linux/x86_64/release/minecraftspeedproxy .
+        run: git fetch --depth=1000000 && version=$(git describe --tags) && version1=${version#v} && export VERSION=${version1%%-*} && xmake build -y && cp build/linux/x86_64/release/minecraftspeedproxy .
 
       - name: Pack deb
         run: bash <(curl -fsSL https://fastly.jsdelivr.net/gh/AllesUgo/Minecraft-Speed-Proxy@master/scripts/release.sh)

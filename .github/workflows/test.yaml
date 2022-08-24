@@ -17,14 +17,11 @@ jobs:
       - name: Install deps
         run: sudo apt update && sudo apt upgrade -y && sudo apt-get install manpages-posix-dev glibc-doc manpages-posix build-essential git -y
 
-      - name: Get version
-        run: git fetch --depth=1000000 && version=$(git describe --tags) && version1=${version#v} && export VERSION=${version1%%-*}
-
       - name: Build with xmake
-        run: xmake build -y
+        run: git fetch --depth=1000000 && version=$(git describe --tags) && version1=${version#v} && export VERSION=${version1%%-*} && xmake build -y
       
       - name: Build with Makefile
-        run: make
+        run: git fetch --depth=1000000 && version=$(git describe --tags) && version1=${version#v} && export VERSION=${version1%%-*} && make
 
       - name: Echo Version
         run: ./minecraftspeedproxy --version
