@@ -18,7 +18,7 @@ jobs:
         run: sudo apt update && sudo apt upgrade -y && sudo apt-get install manpages-posix-dev glibc-doc manpages-posix build-essential git -y
 
       - name: Get version
-        run: git fetch --tags && version=$(git describe --tags) && version1=${version#v} && export VERSION=${version1%%-*}
+        run: git fetch --depth=1000000 && version=$(git describe --tags) && version1=${version#v} && export VERSION=${version1%%-*}
 
       - name: Build with xmake
         run: xmake build -y
