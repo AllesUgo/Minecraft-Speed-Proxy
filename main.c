@@ -46,10 +46,15 @@ void sighandle(int sig)
 	case SIGSEGV:
 		// printf("[%s] [E] 服务器内部错误，请重新启动服务进程，您也可以将error.log发送给开发人员\n", gettime().time);
 		log_error("服务器内部错误，建议重新启动服务进程，您也可以将error.log发送给开发人员");
-		system("date >>error.log");
-		system("uname -a >>error.log");
-		system("echo ulimit: >>error.log");
-		system("ulimit -s>>error.log");
+		int ret;
+		ret=system("date >>error.log");
+		ret=system("uname -a >>error.log");
+		ret=system("echo ulimit: >>error.log");
+		ret=system("ulimit -s>>error.log");
+		if (ret!=0)
+		{
+			log_warn("log日志保存可能失败");
+		}
 		longjmp(*(jmp_buf*)(pthread_getspecific(Thread_Key)),SIGSEGV);
 		break;
 	case SIGABRT:
@@ -217,7 +222,10 @@ int main(int argc, char *argv[])
 		filesize = ftell(fp);
 		fseek(fp, 0L, SEEK_SET);
 		jdata = (char *)malloc(filesize);
-		fread(jdata, filesize, 1, fp);
+		if (0==fread(jdata, filesize, 1, fp))
+		{
+			log_warn("读取motd.json异常\n");
+		}
 		fclose(fp);
 	}
 	if (noinput_sign == 0)

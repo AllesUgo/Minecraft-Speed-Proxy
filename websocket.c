@@ -12,10 +12,10 @@ int WS_WaitClient(WS_ServerPort_t serverport, WS_Connection_t* connection)
 	//Windows Linux通用
 	WS_Connection_t client;
 	struct sockaddr_in remoteAddr;
-	int nAddrlen = sizeof(remoteAddr);
+	socklen_t nAddrlen = (unsigned int)sizeof(remoteAddr);
 	client.sock = accept(serverport, (struct sockaddr*)&remoteAddr, &nAddrlen);//连接客户端
 	if (client.sock<=0) return -1;
-	strncpy(client.addr, inet_ntoa(remoteAddr.sin_addr), IP_LEN);
+	strcpy(client.addr, inet_ntoa(remoteAddr.sin_addr));
 	memcpy(connection, &client, sizeof(client));
 	return 0;
 }
@@ -147,7 +147,6 @@ int WS_ConnectServer(const char* address, int port, WS_Connection_t* connection)
 {
 	WS_Connection_t server;
 	server.sock = 0;
-	int IP;
 	//解析域名
 	struct hostent* host = gethostbyname(address);
 	if (!host)

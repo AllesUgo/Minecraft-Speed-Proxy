@@ -10,9 +10,9 @@ void ReadUserName(char*data,char *username);
 int BuildHandPack(HandPack pack,const char *serveraddr,char*outputdata,int maxsize)
 {
     char packsize[10];
-    char packvint;
+    unsigned char packvint;
     char prosize[10];
-    char provint;
+    unsigned char provint;
     char *str=(char*)malloc(strlen(serveraddr)+10);
     int strl=BuildString(serveraddr,str,strlen(serveraddr)+10);
     varint_encode(pack.protocol,prosize,10,&provint);
@@ -45,7 +45,7 @@ int BuildHandPack(HandPack pack,const char *serveraddr,char*outputdata,int maxsi
 void ReadUserName(char*data,char *username)
 {
     char *p=data;
-    char vil;
+    unsigned char vil;
     varint_decode(p,10,&vil);
     p+=vil;
     //获取字符串长度
@@ -58,7 +58,7 @@ void ReadUserName(char*data,char *username)
 int BuildString(const char *str, char *outputdata, int maxsize)
 {
     int strl = strlen(str);
-    char vil;
+    unsigned char vil;
     char temp[10];
     varint_encode(strl, temp, 10, &vil);
     if (vil + strl > maxsize)
@@ -72,7 +72,7 @@ int BuildString(const char *str, char *outputdata, int maxsize)
 
 int ReadString(char *data, int datasize, char *output, int outputmaxsize)
 {
-    char vl;
+    unsigned char vl;
     int strl = varint_decode(data, datasize, &vl);
     if (vl + strl > datasize)
     {
@@ -90,8 +90,8 @@ int ParseHandlePack(HandPack *outputpack, char *data, int maxsize)
 {
     HandPack pack;
     char *p = data;
-    char lt;
-    int packsize = varint_decode(data, maxsize, &lt);
+    unsigned char lt;
+    varint_decode(data, maxsize, &lt);
     
     //获取协议号
     p += lt+1;
@@ -116,9 +116,8 @@ int ParseHandlePack(HandPack *outputpack, char *data, int maxsize)
 int GetPackID(char *data, int datasize)
 {
     //获取包长度
-    char *p = data;
-    char length;
-    int packsize = varint_decode(data, datasize, &length); //获取包大小
+    unsigned char length;
+    varint_decode(data, datasize, &length); //获取包大小
     datasize -= length;
     if (datasize <= 0)
     {
@@ -137,7 +136,7 @@ int RecvFullPack(WS_Connection_t client, char *data, int maxsize)
     {
         return -1;
     }
-    char ss;
+    unsigned char ss;
     int packsize = varint_decode(pack, 2, &ss); //获取数据包大小
     //继续读取完整数据包
     int needread = ss + packsize; //整个数据包大小

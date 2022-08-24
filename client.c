@@ -76,10 +76,7 @@ void *DealClient(void *InputArg)
     char logined = 0;
     int statusmode = 0;
     char *handpackdata = (char *)malloc(4096);
-    char connected = 0;
-    int handpacksize;
     HandPack hp;
-    int cancelid;
     void *stackdata;
     SendingPack_t spack;
     pthread_t sendingthread;
@@ -159,20 +156,20 @@ void *DealClient(void *InputArg)
                     if (statusmode == 1)
                     {
                         // request包
-                        int i = SendResponse(client, jdata, hp.protocol);
+                        SendResponse(client, jdata, hp.protocol);
                         continue;
                     }
                     else
                     {
                         //登录包
-                        char vil;
+                        unsigned char vil;
                         varint_decode(data, datasize, &vil);
                         char username[20];
                         ReadString(data + vil + 1, datasize - vil, username, 20);
                         switch (CL_Check(username))
                         {
-
                         case CHECK_LOGIN_SUCCESS:
+                        {
                             char message[128];
                             int packsize = BuildHandPack(hp, remoteServerAddress, message, 128);
                             if (0 != WS_ConnectServer(remoteServerAddress, Remote_Port, &remoteserver))
@@ -201,7 +198,7 @@ void *DealClient(void *InputArg)
                             WS_Send(&remoteserver, data, datasize);
                             adduser(client.sock, username);
                             goto ACCEPTWHILE;
-
+                        }
                         case CHECK_LOGIN_BANNED:
                             SendKick(client, "您已被加速服务器封禁");
                             goto CLOSECONNECT;
@@ -303,7 +300,7 @@ int SendResponse(WS_Connection_t client, char *jdata, int pro)
         free(jjdata);
         return -1;
     }
-    char vil;
+    unsigned char vil;
     char vi[10];
     varint_encode(datapacksize + 1, vi, 10, &vil);
     char *message = (char *)malloc(strlen(jjdata) + 32);
@@ -334,7 +331,7 @@ void SendKick(WS_Connection_t client, const char *reason)
     char *data = (char *)malloc(strlen(str) + 20);
     int strl = BuildString(str, data, strlen(str) + 20);
     char *message = (char *)malloc(strlen(str) + 30);
-    char vil;
+    unsigned char vil;
     char vi[10];
     varint_encode(strl + 1, vi, 10, &vil);
     memcpy(message, vi, vil);

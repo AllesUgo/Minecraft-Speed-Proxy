@@ -26,7 +26,6 @@ void *DealRemote(void *InputArg)
     Rcpack *pack = ((Rcpack *)InputArg);
     WS_Connection_t server = pack->server;
     WS_Connection_t client = pack->client;
-    char data[8192];
     switch (setjmp(jmp))
     {
     case SIGABRT:
