@@ -9,7 +9,7 @@ jobs:
   build-with-gcc:
     strategy:
       matrix:
-        os: [ubuntu-18.04, ubuntu-20.04, ubuntu-22.04]
+        os: [ubuntu-18.04 ,ubuntu-20.04, ubuntu-22.04]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v2
@@ -19,7 +19,7 @@ jobs:
           xmake-version: branch@dev
 
       - name: Install deps
-        run: sudo apt update && sudo apt upgrade -y && sudo apt-get install manpages-posix-dev glibc-doc manpages-posix build-essential git -y
+        run: sudo apt update && sudo apt-get install manpages-posix-dev glibc-doc manpages-posix build-essential -y
 
       - name: Build with xmake
         run: git fetch --depth=1000000 && version=$(git describe --tags) && version1=${version#v} && export VERSION=${version1%%-*} && xmake f --cc=gcc -y && xmake build -y && ./build/linux/x86_64/release/minecraftspeedproxy --version
@@ -40,7 +40,7 @@ jobs:
           xmake-version: branch@dev
       
       - name: Install deps
-        run: sudo apt update && sudo apt upgrade -y && sudo apt-get install manpages-posix-dev glibc-doc manpages-posix build-essential git clang -y
+        run: sudo apt update && sudo apt-get install manpages-posix-dev glibc-doc manpages-posix build-essential clang -y
       
       - name: Build with xmake
         run: git fetch --depth=1000000 && version=$(git describe --tags) && version1=${version#v} && export VERSION=${version1%%-*} && xmake f --cc=clang -y && xmake build -y && ./build/linux/x86_64/release/minecraftspeedproxy --version
