@@ -1,4 +1,4 @@
-name: Build and release
+name: Test commit and pr
 
 on:
   pull_request:
