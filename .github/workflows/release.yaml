@@ -7,18 +7,19 @@ on:
 jobs:
 
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v2
 
-      - name: Set up xmake
-        run: bash <(curl -fsSL https://xmake.io/shget.text)
-      
+      - uses: xmake-io/github-action-setup-xmake@v1
+        with:
+          xmake-version: branch@dev
+
       - name: Install deps
-        run: sudo apt-get install manpages-posix-dev glibc-doc manpages-posix build-essential -y
+        run: sudo apt update && sudo apt upgrade -y && sudo apt-get install manpages-posix-dev glibc-doc manpages-posix build-essential git -y
 
       - name: Build
-        run: xmake build -y && cp build/linux/x86_64/release/minecraftspeedproxy .
+        run: git fetch --depth=1000000 && version=$(git describe --tags) && version1=${version#v} && export VERSION=${version1%%-*} && xmake build -y && cp build/linux/x86_64/release/minecraftspeedproxy .
 
       - name: Pack deb
         run: bash <(curl -fsSL https://fastly.jsdelivr.net/gh/AllesUgo/Minecraft-Speed-Proxy@master/scripts/release.sh)

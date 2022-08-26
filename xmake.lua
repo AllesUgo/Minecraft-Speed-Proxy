@@ -3,7 +3,7 @@ add_packages("cjson")
 add_rules("mode.debug", "mode.release")
 set_optimize("fastest")
 add_ldflags("-static")
-add_defines("VERSION=\"v2.2.3\"", "LOG_USE_COLOR")
+add_defines("VERSION=\"v$(env VERSION)\"", "LOG_USE_COLOR")
 
 target("log")
     set_kind("static")
