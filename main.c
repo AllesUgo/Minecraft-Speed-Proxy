@@ -9,6 +9,7 @@
 #include "cJSON.h"
 #include "log.h"
 
+
 const char *DVERSION = VERSION;
 char *Version;
 char *remoteServerAddress;

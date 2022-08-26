@@ -269,7 +269,13 @@ int CL_WhiteListRemove(const char *playername)
         return -2;
     char successinfo = 0;
     pthread_mutex_lock(&lock);
+    if (Whitelist_head==NULL)
+    {
+        pthread_mutex_unlock(&lock);
+        return -1;
+    }
     Link_t *temp = Whitelist_head;
+    
     //先检查第一项
     if (!strcmp(temp->username, playername))
     {
@@ -339,6 +345,11 @@ int CL_BanListRemove(const char *playername)
 {
     char successinfo = 0;
     pthread_mutex_lock(&lock);
+    if (Ban_head==NULL)
+    {
+        pthread_mutex_unlock(&lock);
+        return -1;
+    }
     Link_t *temp = Ban_head;
     //先检查第一项
     if (!strcmp(temp->username, playername))
