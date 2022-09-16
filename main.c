@@ -8,7 +8,7 @@
 #include "websocket.h"
 #include "cJSON.h"
 #include "log.h"
-
+#include "CheckLogin.h"
 
 const char *DVERSION = VERSION;
 char *Version;
@@ -29,11 +29,12 @@ void printhelp(void)
 {
 	printf("minecraftspeedproxy\n\t <远程服务器地址> <远程服务器端口> <本地监听端口> [可选参数]\t启动服务器\n\t--version\t显示版本信息\n");
 	printf("\t--help\t获取帮助\n");
-	printf("\t-a\t在默认位置%s生成默认配置文件\n",Defalut_Configfile_Path);
-	printf("\t-c <配置文件路径>\t使用指定的配置文件启动服务器\n");
-	printf("\t在系统命令行使用 %s 交互生成配置文件\n",Config_Script_Command);
+	printf("\t-a\t在默认位置%s生成默认配置文件\n", Defalut_Configfile_Path);
+	printf("\t-c\t<配置文件路径>\t使用指定的配置文件启动服务器\n");
+	printf("\t在系统命令行使用 %s 交互生成配置文件\n", Config_Script_Command);
 	printf("\n支持的可选参数(仅可用于通过命令行参数启动服务器方式):\n");
 	printf("\t--noinput\t无命令控制\n");
+	printf("\t--enable-whitelist\t默认启用白名单\n");
 }
 void sighandle(int sig)
 {
@@ -48,19 +49,19 @@ void sighandle(int sig)
 		// printf("[%s] [E] 服务器内部错误，请重新启动服务进程，您也可以将error.log发送给开发人员\n", gettime().time);
 		log_error("服务器内部错误，建议重新启动服务进程，您也可以将error.log发送给开发人员");
 		int ret;
-		ret=system("date >>error.log");
-		ret=system("uname -a >>error.log");
-		ret=system("echo ulimit: >>error.log");
-		ret=system("ulimit -s>>error.log");
-		if (ret!=0)
+		ret = system("date >>error.log");
+		ret = system("uname -a >>error.log");
+		ret = system("echo ulimit: >>error.log");
+		ret = system("ulimit -s>>error.log");
+		if (ret != 0)
 		{
 			log_warn("log日志保存可能失败");
 		}
-		longjmp(*(jmp_buf*)(pthread_getspecific(Thread_Key)),SIGSEGV);
+		longjmp(*(jmp_buf *)(pthread_getspecific(Thread_Key)), SIGSEGV);
 		break;
 	case SIGABRT:
 		log_error("出现错误，尝试恢复");
-		longjmp(*(jmp_buf*)(pthread_getspecific(Thread_Key)),SIGABRT);
+		longjmp(*(jmp_buf *)(pthread_getspecific(Thread_Key)), SIGABRT);
 		break;
 	default:
 		break;
@@ -81,7 +82,7 @@ int main(int argc, char *argv[])
 		if (0 != ReadConfig(Defalut_Configfile_Path, &remoteServerAddress, &Remote_Port, &LocalPort, &noinput_sign))
 		{
 			printf("配置文件加载失败，可使用 -a参数来默认生成一个配置文件%s\n", Defalut_Configfile_Path);
-			printf("或使用 %s 交互生成配置文件\n",Config_Script_Command);
+			printf("或使用 %s 交互生成配置文件\n", Config_Script_Command);
 			printf("使用参数--help以获取使用帮助\n");
 			return 1;
 		}
@@ -102,42 +103,49 @@ int main(int argc, char *argv[])
 		}
 		else if (!strcmp(argv[1], "-a"))
 		{
-			if (0!=access("/etc/minecraftspeedproxy/",F_OK))
+			if (0 != access("/etc/minecraftspeedproxy/", F_OK))
 			{
-				if (0!=mkdir("/etc/minecraftspeedproxy/",0777))
+				if (0 != mkdir("/etc/minecraftspeedproxy/", 0777))
 				{
-				printf("创建目录/etc/minecraftspeedproxy/失败:%s\n",strerror(errno));
-				if (errno==13)
-				{
-					printf("请检查是否拥有/etc/目录的读写权限\n");
-				}
-				
-				return 1;
+					printf("创建目录/etc/minecraftspeedproxy/失败:%s\n", strerror(errno));
+					if (errno == 13)
+					{
+						printf("请检查是否拥有/etc/目录的读写权限\n");
+					}
+
+					return 1;
 				}
 			}
-			cJSON*temp=cJSON_CreateObject();
-			cJSON_AddStringToObject(temp,"Address","mc.hypixel.net");
-			cJSON_AddNumberToObject(temp,"RemotePort",25565);
-			cJSON_AddNumberToObject(temp,"LocalPort",25565);
-			cJSON_AddBoolToObject(temp,"AllowInput",cJSON_True);
-			char *jsonstr=cJSON_Print(temp);
+			cJSON *temp = cJSON_CreateObject();
+			cJSON_AddStringToObject(temp, "Address", "mc.hypixel.net");
+			cJSON_AddNumberToObject(temp, "RemotePort", 25565);
+			cJSON_AddNumberToObject(temp, "LocalPort", 25565);
+			cJSON_AddBoolToObject(temp, "DefaultEnableWhitelist", cJSON_False);
+			cJSON_AddBoolToObject(temp, "AllowInput", cJSON_True);
+			char *jsonstr = cJSON_Print(temp);
 			cJSON_Delete(temp);
-			FILE*fp=fopen(Defalut_Configfile_Path,"w");
-			if (fp==NULL)
+			FILE *fp = fopen(Defalut_Configfile_Path, "w");
+			if (fp == NULL)
 			{
-				printf("无法打开%s,原因:%s\n",Defalut_Configfile_Path,strerror(errno));
+				printf("无法打开%s,原因:%s\n", Defalut_Configfile_Path, strerror(errno));
 				free(jsonstr);
-				if (errno==13)
+				if (errno == 13)
 				{
 					printf("请检查是否拥有/etc/minecraftspeedproxy/目录的读写权限\n");
 				}
 				return 1;
 			}
-			fprintf(fp,"%s\n",jsonstr);
+			fprintf(fp, "%s\n", jsonstr);
 			free(jsonstr);
 			fclose(fp);
-			printf("生成配置文件成功:%s\n",Defalut_Configfile_Path);
+			printf("生成配置文件成功:%s\n", Defalut_Configfile_Path);
 			return 0;
+		}
+		else
+		{
+			printf("参数错误\n");
+			printhelp();
+			return 1;
 		}
 	}
 	else if (argc < 3)
@@ -175,6 +183,18 @@ int main(int argc, char *argv[])
 				noinput_sign = 1;
 				printf("禁用命令行控制\n");
 			}
+			else if (!strcmp(argv[i], "--enable-whitelist"))
+			{
+				switch (CL_EnableWhiteList())
+				{
+				case 0:
+					log_info("白名单开启成功");
+					break;
+				default:
+					log_error("白名单开启失败");
+					break;
+				}
+			}
 			else
 			{
 				printf("未知的参数 %s\n", argv[i]);
@@ -187,7 +207,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	FILE *playerLog=fopen("player.log","a");
+	FILE *playerLog = fopen("player.log", "a");
 	log_add_fp(playerLog, LOG_PLAYER);
 
 	// printf("[%s] [I] PID:%d 远程服务器:%s:%d 本地监听端口%d\n", gettime().time, getpid(), remoteServerAddress, Remote_Port, LocalPort);
@@ -223,7 +243,7 @@ int main(int argc, char *argv[])
 		filesize = ftell(fp);
 		fseek(fp, 0L, SEEK_SET);
 		jdata = (char *)malloc(filesize);
-		if (0==fread(jdata, filesize, 1, fp))
+		if (0 == fread(jdata, filesize, 1, fp))
 		{
 			log_warn("读取motd.json异常\n");
 		}
@@ -242,13 +262,19 @@ int main(int argc, char *argv[])
 	if (server == 0)
 	{
 		if (errno == 98)
-			// printf("[%s] [E] 绑定端口%d失败，端口已被占用\n", gettime().time, LocalPort);
+		{
 			log_error("绑定端口%d失败，端口已被占用", LocalPort);
+		}
+		else if (errno == 13)
+		{
+			log_error("绑定端口%d失败，请检查是否有权限绑定该端口，使用root权限运行本程序可能会解决该问题",LocalPort);
+		}
+
 		fclose(playerLog);
 		return 1;
 	}
 	//初始化线程专享空间
-	pthread_key_create(&Thread_Key,NULL);
+	pthread_key_create(&Thread_Key, NULL);
 	//循环等待用户连接
 	WS_Connection_t *client;
 	pthread_t pid;
@@ -264,7 +290,7 @@ int main(int argc, char *argv[])
 			log_warn("连接建立失败:%s", strerror(errno));
 			free(client);
 			continue;
-		}	
+		}
 		addip(client->sock, client->addr);
 		if (0 != pthread_create(&pid, NULL, DealClient, client))
 		{
@@ -352,12 +378,35 @@ int ReadConfig(const char *filepath, char **remoteserveraddress, int *remoteport
 	}
 	else
 	{
-		if (temp->valueint == 0)
+		if (temp->type == cJSON_False)
 		{
 			*noinput_sign = 1;
 			// printf("禁用命令行控制\n");
 			log_info("禁用命令行控制");
 		}
+	}
+	temp = cJSON_GetObjectItem(json, "DefaultEnableWhitelist");
+	if (temp == NULL || (temp->type != cJSON_True && temp->type != cJSON_False))
+	{
+		// printf("配置文件错误，不存在AllowInput或其键值没有使用布尔值,默认开启命令行控制\n");
+		log_warn("配置文件错误，不存在DefaultEnableWhitelist或其键值没有使用布尔值,默认关闭白名单功能");
+	}
+	else
+	{
+		if (temp->type == cJSON_True)
+		{
+			switch (CL_EnableWhiteList())
+			{
+			case 0:
+				log_info("白名单开启成功");
+				break;
+			default:
+				log_error("白名单开启失败");
+				break;
+			}
+		}
+		else
+			log_info("白名单默认关闭");
 	}
 	cJSON_Delete(json);
 	return 0;
