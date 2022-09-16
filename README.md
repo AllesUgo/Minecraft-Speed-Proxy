@@ -11,7 +11,7 @@ bash <(curl -fsSL https://fastly.jsdelivr.net/gh/AllesUgo/Minecraft-Speed-Proxy@
 
 ## 如何编译并运行
 
-1.安装[xmake](https://github.com/xmake-io/xmake),`bash <(curl -fsSL https://xmake.io/shget.text)`  
+1.安装[xmake](https://github.com/xmake-io/xmake) (可选),`bash <(curl -fsSL https://xmake.io/shget.text)`  
 2.克隆仓库到你的Linux服务器上  
 3.在Linux上安装gcc和make  
     例如：`sudo apt update`  

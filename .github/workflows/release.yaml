@@ -22,7 +22,7 @@ jobs:
         run: git fetch --depth=1000000 && version=$(git describe --tags) && version1=${version#v} && export VERSION=${version1%%-*} && xmake build -y && cp build/linux/x86_64/release/minecraftspeedproxy .
 
       - name: Pack deb
-        run: bash <(curl -fsSL https://fastly.jsdelivr.net/gh/AllesUgo/Minecraft-Speed-Proxy@master/scripts/release.sh)
+        run: bash <(curl -fsSL https://raw.githubusercontent.com/AllesUgo/Minecraft-Speed-Proxy/master/scripts/release.sh)
       
       - name: Release
         uses: softprops/action-gh-release@v1
