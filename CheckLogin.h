@@ -16,4 +16,5 @@ int CL_WhiteListAdd(const char*playername);
 int CL_WhiteListRemove(const char*playername);
 int CL_BanListAdd(const char*playername);
 int CL_BanListRemove(const char*playername);
+int CL_TryLoadDlfcn(const char*path);
 #endif

@@ -18,6 +18,7 @@ const char *Config_Script_Command = "bash <(curl -fsSL https://fastly.jsdelivr.n
 int LocalPort;
 pthread_key_t Thread_Key;
 int Remote_Port;
+char DlCheck = 0;
 char *jdata;
 void OnlineControl_Init();
 void *DealClient(void *InputArg);
@@ -79,6 +80,7 @@ int main(int argc, char *argv[])
 	if (argc == 1)
 	{
 		printf("默认加载%s\n", Defalut_Configfile_Path);
+		DlCheck = CL_TryLoadDlfcn("./check.so");
 		if (0 != ReadConfig(Defalut_Configfile_Path, &remoteServerAddress, &Remote_Port, &LocalPort, &noinput_sign))
 		{
 			printf("配置文件加载失败，可使用 -a参数来默认生成一个配置文件%s\n", Defalut_Configfile_Path);
@@ -158,6 +160,7 @@ int main(int argc, char *argv[])
 	{
 		if (!strcmp(argv[1], "-c"))
 		{
+			DlCheck = CL_TryLoadDlfcn("./check.so");
 			if (0 != ReadConfig(argv[2], &remoteServerAddress, &Remote_Port, &LocalPort, &noinput_sign))
 			{
 				return 1;
@@ -171,6 +174,7 @@ int main(int argc, char *argv[])
 	}
 	else if (argc >= 4)
 	{
+		DlCheck = CL_TryLoadDlfcn("./check.so");
 		remoteServerAddress = (char *)malloc(strlen(argv[1] + 1));
 		strcpy(remoteServerAddress, argv[1]);
 		sscanf(argv[2], "%d", &Remote_Port);
@@ -185,6 +189,8 @@ int main(int argc, char *argv[])
 			}
 			else if (!strcmp(argv[i], "--enable-whitelist"))
 			{
+				if (DlCheck!=1)
+				{
 				switch (CL_EnableWhiteList())
 				{
 				case 0:
@@ -193,6 +199,11 @@ int main(int argc, char *argv[])
 				default:
 					log_error("白名单开启失败");
 					break;
+				}
+				}
+				else
+				{
+					log_info("自定义登录检查组件已加载，忽略参数--enable-whitelist");
 				}
 			}
 			else
@@ -267,7 +278,7 @@ int main(int argc, char *argv[])
 		}
 		else if (errno == 13)
 		{
-			log_error("绑定端口%d失败，请检查是否有权限绑定该端口，使用root权限运行本程序可能会解决该问题",LocalPort);
+			log_error("绑定端口%d失败，请检查是否有权限绑定该端口，使用root权限运行本程序可能会解决该问题", LocalPort);
 		}
 
 		fclose(playerLog);
@@ -393,20 +404,26 @@ int ReadConfig(const char *filepath, char **remoteserveraddress, int *remoteport
 	}
 	else
 	{
-		if (temp->type == cJSON_True)
+		if (DlCheck !=1)
 		{
-			switch (CL_EnableWhiteList())
+			if (temp->type == cJSON_True)
 			{
-			case 0:
-				log_info("白名单开启成功");
-				break;
-			default:
-				log_error("白名单开启失败");
-				break;
+				switch (CL_EnableWhiteList())
+				{
+				case 0:
+					log_info("白名单开启成功");
+					break;
+				default:
+					log_error("白名单开启失败");
+					break;
+				}
 			}
+			else
+				log_info("白名单默认关闭");
+		}else
+		{
+			log_info("使用自定义组件检查登录，忽略内置白名单初始化");
 		}
-		else
-			log_info("白名单默认关闭");
 	}
 	cJSON_Delete(json);
 	return 0;

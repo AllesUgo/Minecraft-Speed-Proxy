@@ -3,13 +3,16 @@
 #include <string.h>
 #include <errno.h>
 #include <pthread.h>
+#include <dlfcn.h>
 #include "CheckLogin.h"
 #include "log.h"
 #define ON 1
 #define OFF 0
+typedef int (*dlfcn)(const char*username);
 Link_t *Whitelist_head = NULL;
 Link_t *Ban_head = NULL;
 pthread_mutex_t lock;
+dlfcn func=NULL;
 const char *Whitelist_file = "whitelist.txt";
 const char *Banlist_file = "banned-players.txt";
 char Whitelist_switch = OFF;
@@ -23,9 +26,17 @@ int Save(const char *filename, Link_t *link);
 int CL_WhiteListRemove(const char *playername);
 int CL_BanListAdd(const char *playername);
 int CL_BanListRemove(const char *playername);
+int CL_TryLoadDlfcn(const char*path);
 int CL_Check(const char *username)
 {
     pthread_mutex_lock(&lock);
+    if (func!=NULL)
+    {
+        //使用自定义组件检查登录
+        int i=func(username);
+        pthread_mutex_unlock(&lock);
+        return i;
+    }
     //检查是否被ban
     Link_t *temp = Ban_head;
     while (temp != NULL)
@@ -386,4 +397,22 @@ int CL_BanListRemove(const char *playername)
         log_warn("写入封禁列表文件失败，原因是%s,本次更改将在程序重启后失效", strerror(errno));
     }
     return 0;
+}
+int CL_TryLoadDlfcn(const char*path)
+{
+    //尝试加载动态库
+    void*handle=dlopen(path,RTLD_NOW);
+    if (handle==NULL)
+    {
+        log_info("未找到可用的自定义登陆检查组件");
+        return 0;
+    }
+    func=dlsym(handle,"check");
+    if (func==NULL)
+    {
+        log_error("无法在自定义组件%s中加载check函数,原因是%s",path,dlerror());
+        return -1;
+    }
+    log_info("自定义登录检查组件加载成功");
+    return 1;
 }

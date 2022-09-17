@@ -206,7 +206,7 @@ void *DealClient(void *InputArg)
                             SendKick(client, "服务器已开启白名单");
                             goto CLOSECONNECT;
                         default:
-                            SendKick(client, "未知错误");
+                            SendKick(client, "代理服务器拒绝连接");
                             goto CLOSECONNECT;
                         }
                     }
