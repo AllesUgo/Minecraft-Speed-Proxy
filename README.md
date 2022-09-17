@@ -12,11 +12,11 @@ bash <(curl -fsSL https://fastly.jsdelivr.net/gh/AllesUgo/Minecraft-Speed-Proxy@
 # 如何编译并运行
 ## 通过make命令安装
 1.克隆仓库到你的Linux服务器上  
-2.在Linux上安装gcc和make  
+2.在Linux上安装linux c编译工具包
     例如：
     
     sudo apt update
-    sudo apt install make gcc
+    sudo apt install build-essential
 3.进入包含 `Makefile`的目录，输入 `make`等待编译完成
 
 
@@ -24,11 +24,11 @@ bash <(curl -fsSL https://fastly.jsdelivr.net/gh/AllesUgo/Minecraft-Speed-Proxy@
 ## 通过xmake安装
 1.安装[xmake](https://github.com/xmake-io/xmake) ,`bash <(curl -fsSL https://xmake.io/shget.text)`, 或参考[xmake.io](https://xmake.io)使用更多方式安装  
 2.克隆仓库到你的Linux服务器上  
-3.在Linux上安装gcc
+3.在Linux上安装linux c编译工具包
     例如：
     
     sudo apt update
-    sudo apt install gcc
+    sudo apt install build-essential
 
 4.获取最新version `version=$(git describe --tags) && version1=${version#v} && export VERSION=${version1%%-*}`
 
