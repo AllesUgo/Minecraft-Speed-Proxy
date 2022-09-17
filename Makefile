@@ -34,7 +34,7 @@ websocket.o:websocket.c websocket.h
 
 clean:
 	rm ./*.o
-install:minecraftspeedplus
+install:minecraftspeedproxy
 	cp $(OUTPUT) /usr/bin/
 	@echo "输入$(OUTPUT)以运行程序"
 uninstall:/usr/bin/$(OUTPUT)
