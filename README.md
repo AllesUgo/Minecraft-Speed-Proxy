@@ -34,6 +34,8 @@ bash <(curl -fsSL https://fastly.jsdelivr.net/gh/AllesUgo/Minecraft-Speed-Proxy@
 
 5.进入包含 `xmake.lua`的目录，输入 `xmake`等待编译完成，生成的文件在`build`目录下寻找
 
+6.(可选步骤)编译完成后已经程序已经可以运行，可以使用 `xmake install --admin`来将其放在 `/usr/bin/`目录中以在任何目录环境和用户下使用该程
+
 
 
 # 如何使用本程序
