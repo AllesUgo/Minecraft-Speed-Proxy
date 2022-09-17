@@ -1,5 +1,5 @@
 CXX=gcc
-LINKLIBS=-lpthread -lm 
+LINKLIBS=-lpthread -lm -ldl
 OUTPUT=minecraftspeedproxy
 
 CARGVS=-c -DLOG_USE_COLOR -DVERSION=\"v$(VERSION)\"
