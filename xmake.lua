@@ -8,6 +8,10 @@ add_defines("VERSION=\"v$(env VERSION)\"", "LOG_USE_COLOR")
 target("log")
     set_kind("static")
     add_files("log.c")
+    on_install(function (target)
+    end)
+    on_uninstall(function (target)
+    end)
 
 target("deps")
     set_kind("static")
@@ -21,6 +25,10 @@ target("deps")
     add_files("sending.c")
     add_files("client.c")
     add_files("mempool.c")
+    on_install(function (target)
+    end)
+    on_uninstall(function (target)
+    end)
 
 target("minecraftspeedproxy")
     add_syslinks("pthread")
@@ -29,12 +37,11 @@ target("minecraftspeedproxy")
     
     add_deps("log", "deps")
 
-    on_install(function(target) 
-	os.cp(path.join("$(buildir)", "minecraftspeedproxy"), path.join("usr", "bin"))
+    on_install(function (target)
+	os.cp(path.join("$(buildir)", "$(os)", "$(arch)", "release", "minecraftspeedproxy"), path.join("/", "usr", "bin"))
     end)
-
     on_uninstall(function (target)
-	os.rm(path.join("usr", "bin", "minecraftspeedproxy"))
+	os.rm(path.join("/", "usr", "bin", "minecraftspeedproxy"))
     end)
 
 --
