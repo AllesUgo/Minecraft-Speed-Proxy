@@ -185,7 +185,7 @@ int main(int argc, char *argv[])
 			if (!strcmp(argv[i], "--noinput"))
 			{
 				noinput_sign = 1;
-				printf("禁用命令行控制\n");
+				log_info("禁用命令行控制");
 			}
 			else if (!strcmp(argv[i], "--enable-whitelist"))
 			{

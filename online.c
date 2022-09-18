@@ -358,7 +358,10 @@ void kickplayer(const char *playername)
 void OnlineControl_Init()
 {
     //加载封禁列表
-    CL_LoadBanList();
+    if (0!=CL_LoadBanList())
+    {
+        log_info("封禁玩家列表加载成功");
+    }
     pthread_t pid;
     pthread_create(&pid, NULL, thread, NULL);
     pthread_detach(pid);

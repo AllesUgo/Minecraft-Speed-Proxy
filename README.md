@@ -52,7 +52,12 @@ bash <(curl -fsSL https://fastly.jsdelivr.net/gh/AllesUgo/Minecraft-Speed-Proxy@
 3.运行中的命令支持请在运行后输入 `help`以获取
 
 4.更多参数请使用参数`--help`获取
+## 如何自定义motd
+服务器启动后会自动生成一个motd.json，直接修改motd.json即可
 
+motd中的协议号必须存在，但其值将会被服务器替换为与客户端相同的协议号
+
+motd中的在线人数会被显示在客户端，代理服务器不会对其进行修改
 ## 使用自定义登录检查组件
 程序支持自己实现对登录用户的检查，只需要简单的编写一个动态链接库即可实现
 
