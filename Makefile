@@ -3,7 +3,7 @@ LINKLIBS=-lpthread -lm -ldl
 OUTPUT=minecraftspeedproxy
 
 CARGVS=-c -DLOG_USE_COLOR -DVERSION=\"v$(VERSION)\"
-ALLARGV=-O3
+ALLARGV=-O3 -std=c99
 DEBUG= 
 minecraftspeedproxy:CheckLogin.o cJSON.o client.o log.o main.o mempool.o online.o remote.o sending.o unpack.o varint.o websocket.o
 	$(CXX) CheckLogin.o cJSON.o client.o log.o main.o mempool.o online.o remote.o sending.o unpack.o varint.o websocket.o $(DEBUG) $(LINKLIBS) $(DEBUG) $(ALLARGV) -o $(OUTPUT)
