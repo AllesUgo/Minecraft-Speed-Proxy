@@ -42,5 +42,9 @@ echo -----------------------------------------------
 read -p "请输入配置文件路径 > " configpath
 if [ -z $configpath ];then
 	configpath='/etc/minecraftspeedproxy/config.json'
+	if [ ! -d "$configpath" ];then
+		configpath='./config.json'
+		touch config.json
+	fi
 fi
-echo { \"Address\":\"$Address\", \"RemotePort\":\"$RemotePort\", \"LocalPort\":\"$LocalPort\", \"AllowInput\":\"$AllowInput\" } > $configpath
+echo { \"Address\":\"$Address\", \"RemotePort\":$RemotePort, \"LocalPort\":$LocalPort, \"AllowInput\":$AllowInput } > $configpath
