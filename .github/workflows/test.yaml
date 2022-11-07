@@ -22,10 +22,10 @@ jobs:
         run: sudo apt update && sudo apt-get install manpages-posix-dev glibc-doc manpages-posix build-essential -y
 
       - name: Build with xmake
-        run: git fetch --depth=1000000 && version=$(git describe --tags) && version1=${version#v} && export VERSION=${version1%%-*} && xmake f --cc=gcc -y && xmake build -y && ./build/linux/x86_64/release/minecraftspeedproxy --version
+        run: export VERSION=[ci]$(git rev-parse HEAD) && xmake f --cc=gcc -y && xmake build -y && ./build/linux/x86_64/release/minecraftspeedproxy --version
       
       - name: Build with Makefile
-        run: git fetch --depth=1000000 && version=$(git describe --tags) && version1=${version#v} && export VERSION=${version1%%-*} && make && ./minecraftspeedproxy --version
+        run: export VERSION=[ci]$(git rev-parse HEAD) && make -e CXX=gcc && ./minecraftspeedproxy --version
 
   build-with-clang:
     strategy:
@@ -43,7 +43,7 @@ jobs:
         run: sudo apt update && sudo apt-get install manpages-posix-dev glibc-doc manpages-posix build-essential clang -y
       
       - name: Build with xmake
-        run: git fetch --depth=1000000 && version=$(git describe --tags --always) && version1=${version#v} && export VERSION=${version1%%-*} && xmake f --cc=clang -y && xmake build -y && ./build/linux/x86_64/release/minecraftspeedproxy --version
+        run: export VERSION=[ci]$(git rev-parse HEAD) && xmake f --cc=clang -y && xmake build -y && ./build/linux/x86_64/release/minecraftspeedproxy --version
 
       - name: Build with Makefile
-        run: git fetch --depth=1000000 && version=$(git describe --tags --always) && version1=${version#v} && export VERSION=${version1%%-*} && make -e CXX=clang && ./minecraftspeedproxy --version
+        run: export VERSION=[ci]$(git rev-parse HEAD) && make -e CXX=clang && ./minecraftspeedproxy --version
