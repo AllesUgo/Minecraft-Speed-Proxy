@@ -23,7 +23,7 @@ jobs:
 
       - name: Pack deb
         run: bash <(curl -fsSL https://raw.githubusercontent.com/AllesUgo/Minecraft-Speed-Proxy/master/scripts/release.sh)
-      
+
       - name: Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
@@ -31,3 +31,26 @@ jobs:
           files: |
             Minecraft-Speed-Proxy-linux-amd64.deb
             minecraftspeedproxy
+
+  push-ghcr:
+    runs-on: ubuntu-22.04
+    env:
+      TZ: Asia/Shanghai
+      REGISTRY: ghcr.io
+    steps:
+      - uses: actions/checkout@v2
+      - name: Login
+        uses: docker/login-action@v1
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.PACKAGES_TOKEN }}
+      - name: Build && Push
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${{ needs.get-tags.outputs.tags }}
+            ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:latest
