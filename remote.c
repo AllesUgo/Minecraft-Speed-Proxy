@@ -42,40 +42,20 @@ void *DealRemote(void *InputArg)
     //直接进入接收循环
     register int rsnum; //收发的数据量
     //数据包
-    SendingPack_t spack = InitSending(client.sock, 2000);
-    pthread_t pid;
-    pthread_create(&pid, NULL, SendingThread, &spack);
     void *stackdata;
-    DataLink_t *temp = spack.head;
+    stackdata=malloc(512);
     while (1)
     {
-        stackdata = ML_Malloc(&spack.pool, 8192 * 4);
-        rsnum = read(server.sock, stackdata, 8192 * 4);
+        rsnum = read(server.sock, stackdata, 512);
 
         if (rsnum <= 0)
         {
-            ML_Free(&spack.pool, stackdata);
-            pthread_mutex_unlock(&(temp->lock));
+            free(stackdata);
             shutdown(client.sock, SHUT_RDWR);
             shutdown(server.sock, SHUT_RDWR);
             break;
         }
-        temp = UpSendingData(&spack, temp, stackdata, rsnum);
-        if (temp == NULL)
-        {
-            //另一侧连接已断开
-            ML_Free(&spack.pool, stackdata);
-            shutdown(client.sock, SHUT_RDWR);
-            shutdown(server.sock, SHUT_RDWR);
-            break;
-        }
+        send(client.sock,stackdata,rsnum,MSG_DONTWAIT);
     }
-    pthread_join(pid, NULL);
-    pthread_spin_destroy(&(spack.spinlock));
-    if (NULL != ML_CheekMemLeak(spack.pool))
-    {
-        printf("内存泄露\n");
-    }
-
     return NULL;
 }

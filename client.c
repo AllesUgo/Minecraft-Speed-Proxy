@@ -78,8 +78,6 @@ void *DealClient(void *InputArg)
     char *handpackdata = (char *)malloc(4096);
     HandPack hp;
     void *stackdata;
-    SendingPack_t spack;
-    pthread_t sendingthread;
     switch (setjmp(jmp))
     {
     case SIGABRT:
@@ -221,39 +219,22 @@ void *DealClient(void *InputArg)
         }
 
     ACCEPTWHILE:
-        spack = InitSending(remoteserver.sock, 2000);
-        pthread_create(&sendingthread, NULL, SendingThread, &spack);
-        DataLink_t *temp = spack.head;
+        stackdata = malloc(512);
         while (1)
         {
-            stackdata = ML_Malloc(&spack.pool, 512);
+            
             rsnum = read(client.sock, stackdata, 512);
             if (rsnum <= 0)
             {
-                ML_Free(&spack.pool, stackdata);
-                pthread_mutex_unlock(&(temp->lock));
+                free(stackdata);
                 shutdown(client.sock, SHUT_RDWR);
                 shutdown(remoteserver.sock, SHUT_RDWR);
                 break;
             }
-            temp = UpSendingData(&spack, temp, stackdata, rsnum);
-            if (temp == NULL)
-            {
-                //另一侧连接已断开
-                ML_Free(&spack.pool, stackdata);
-                shutdown(client.sock, SHUT_RDWR);
-                shutdown(remoteserver.sock, SHUT_RDWR);
-                break;
-            }
+            send(remoteserver.sock,stackdata,rsnum,MSG_DONTWAIT);
         }
-        pthread_join(sendingthread, NULL); //等待发送线程回收
         pthread_join(pid, NULL);           //等待服务线程资源回收
         WS_CloseConnection(&remoteserver);
-        pthread_spin_destroy(&(spack.spinlock));
-        if (ML_SUCCESS != ML_DestoryMem(&spack.pool))
-        {
-            printf("内存泄露\n");
-        }
     }
 CLOSECONNECT:
     //断开连接并且回收资源
