@@ -1,8 +1,11 @@
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <pthread.h>
 #include <string.h>
 #include <errno.h>
 #include <setjmp.h>
+#include <fcntl.h>
+#include <unistd.h>
 #include "log.h"
 #include "websocket.h"
 #include "RemoteClient.h"
@@ -20,6 +23,7 @@ void *DealRemote(void *InputArg);
 void *DealRemote(void *InputArg)
 {
     //设置线程独享资源
+    int fd[2];
     jmp_buf jmp;
     pthread_setspecific(Thread_Key, &jmp);
     //接收多线程传参
@@ -40,22 +44,37 @@ void *DealRemote(void *InputArg)
         break;
     }
     //直接进入接收循环
-    register int rsnum; //收发的数据量
-    //数据包
-    void *stackdata;
-    stackdata=malloc(512);
+    int rsnum; //收发的数据量
+    if (0!=pipe(fd))
+    {
+        log_error("创建管道失败");
+        goto CLOSE;
+    }
+    int flag = fcntl(fd[1], F_GETFL);
+    flag |= O_NONBLOCK;
+    fcntl(fd[1], F_SETFL, flag);
+    flag = fcntl(fd[0], F_GETFL);
+        flag |= O_NONBLOCK;
+        fcntl(fd[0], F_SETFL, flag);
     while (1)
     {
-        rsnum = read(server.sock, stackdata, 512);
-
+        rsnum = splice(server.sock,NULL,fd[1],NULL,65535,SPLICE_F_MOVE|SPLICE_F_NONBLOCK);
         if (rsnum <= 0)
         {
-            free(stackdata);
-            shutdown(client.sock, SHUT_RDWR);
-            shutdown(server.sock, SHUT_RDWR);
-            break;
+            close(fd[0]);
+            close(fd[1]);
+            goto CLOSE;
         }
-        send(client.sock,stackdata,rsnum,MSG_DONTWAIT);
+        rsnum= splice(fd[0],NULL,client.sock,NULL,65535,SPLICE_F_MOVE);
+        if (rsnum <= 0)
+        {
+            close(fd[0]);
+            close(fd[1]);
+            goto CLOSE;
+        }
     }
+CLOSE:
+    shutdown(client.sock, SHUT_RDWR);
+    shutdown(server.sock, SHUT_RDWR);
     return NULL;
 }
