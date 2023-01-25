@@ -23,6 +23,7 @@ void *DealRemote(void *InputArg);
 void *DealRemote(void *InputArg)
 {
     //设置线程独享资源
+    int fd[2];
     jmp_buf jmp;
     pthread_setspecific(Thread_Key, &jmp);
     //接收多线程传参
@@ -44,7 +45,6 @@ void *DealRemote(void *InputArg)
     }
     //直接进入接收循环
     int rsnum; //收发的数据量
-    int fd[2];
     if (0!=pipe(fd))
     {
         log_error("创建管道失败");

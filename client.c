@@ -53,7 +53,7 @@ void *DealClient(void *InputArg)
     WS_Connection_t client = *((WS_Connection_t *)InputArg);
     free(InputArg);
     WS_Connection_t remoteserver;
-
+    int fd[2];
     int opt = 6, err = 0;
     // err += setsockopt(remoteserver.sock, SOL_SOCKET, SO_PRIORITY, &opt, sizeof(opt)); /*设置s的优先级*/
     err += setsockopt(client.sock, SOL_SOCKET, SO_PRIORITY, &opt, sizeof(opt)); /*设置s的优先级*/
@@ -221,7 +221,6 @@ void *DealClient(void *InputArg)
         }
 
     ACCEPTWHILE:
-        int fd[2];
         if (0!=pipe(fd))
         {
             //管道创建失败
