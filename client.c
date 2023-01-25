@@ -56,6 +56,11 @@ void *DealClient(void *InputArg)
     int fd[2];
     int opt = 6, err = 0;
     // err += setsockopt(remoteserver.sock, SOL_SOCKET, SO_PRIORITY, &opt, sizeof(opt)); /*设置s的优先级*/
+    int flag = 1;
+    setsockopt(client.sock, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag));
+    flag=1;
+    setsockopt(remoteserver.sock, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag));
+    
     err += setsockopt(client.sock, SOL_SOCKET, SO_PRIORITY, &opt, sizeof(opt)); /*设置s的优先级*/
     if (err != 0)
     {
