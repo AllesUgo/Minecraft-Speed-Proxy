@@ -1,3 +1,5 @@
+#define _GNU_SOURCE
+#include <fcntl.h>
 #include <stdio.h>
 #include <pthread.h>
 #include <setjmp.h>
@@ -219,19 +221,44 @@ void *DealClient(void *InputArg)
         }
 
     ACCEPTWHILE:
-        stackdata = malloc(512);
+        int fd[2];
+        if (0!=pipe(fd))
+        {
+            //管道创建失败
+            log_error("创建管道失败");
+            shutdown(client.sock, SHUT_RDWR);
+            shutdown(remoteserver.sock, SHUT_RDWR);
+            pthread_join(pid, NULL);           //等待服务线程资源回收
+            WS_CloseConnection(&remoteserver);
+            goto CLOSECONNECT;
+        }
+        int flag = fcntl(fd[1], F_GETFL);
+        flag |= O_NONBLOCK;
+        fcntl(fd[1], F_SETFL, flag);
+        flag = fcntl(fd[0], F_GETFL);
+        flag |= O_NONBLOCK;
+        fcntl(fd[0], F_SETFL, flag);
         while (1)
         {
             
-            rsnum = read(client.sock, stackdata, 512);
+            rsnum=splice(client.sock,NULL,fd[1],NULL,65535,SPLICE_F_MOVE|SPLICE_F_NONBLOCK);
             if (rsnum <= 0)
             {
-                free(stackdata);
+                close(fd[1]);
+                close(fd[0]);
                 shutdown(client.sock, SHUT_RDWR);
                 shutdown(remoteserver.sock, SHUT_RDWR);
                 break;
             }
-            send(remoteserver.sock,stackdata,rsnum,MSG_DONTWAIT);
+            rsnum=splice(fd[0],NULL,remoteserver.sock,NULL,65535,SPLICE_F_MOVE);
+            if (rsnum <= 0)
+            {
+                close(fd[1]);
+                close(fd[0]);
+                shutdown(client.sock, SHUT_RDWR);
+                shutdown(remoteserver.sock, SHUT_RDWR);
+                break;
+            }
         }
         pthread_join(pid, NULL);           //等待服务线程资源回收
         WS_CloseConnection(&remoteserver);
