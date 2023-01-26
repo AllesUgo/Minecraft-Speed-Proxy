@@ -16,6 +16,7 @@ char *remoteServerAddress;
 const char *Defalut_Configfile_Path = "/etc/minecraftspeedproxy/config.json";
 const char *Config_Script_Command = "bash <(curl -fsSL https://fastly.jsdelivr.net/gh/AllesUgo/Minecraft-Speed-Proxy@master/scripts/config.sh )";
 int LocalPort;
+int IsOnlinePlayerNumberShow=0;
 pthread_key_t Thread_Key;
 int Remote_Port;
 char DlCheck = 0;
@@ -124,6 +125,7 @@ int main(int argc, char *argv[])
 			cJSON_AddNumberToObject(temp, "LocalPort", 25565);
 			cJSON_AddBoolToObject(temp, "DefaultEnableWhitelist", cJSON_False);
 			cJSON_AddBoolToObject(temp, "AllowInput", cJSON_True);
+			cJSON_AddBoolToObject(temp,"ShowOnlinePlayerNumber",cJSON_False);
 			char *jsonstr = cJSON_Print(temp);
 			cJSON_Delete(temp);
 			FILE *fp = fopen(Defalut_Configfile_Path, "w");
@@ -424,6 +426,26 @@ int ReadConfig(const char *filepath, char **remoteserveraddress, int *remoteport
 		{
 			log_info("使用自定义组件检查登录，忽略内置白名单初始化");
 		}
+	}
+	temp=cJSON_GetObjectItem(json,"ShowOnlinePlayerNumber");
+	if (temp==NULL||(temp->type!=cJSON_True&&temp->type!=cJSON_False))
+	{
+		IsOnlinePlayerNumberShow=0;
+		log_warn("配置文件中没有ShowOnlinePlayerNumber项或该项不为布尔类型，默认关闭客户端在线人数显示");
+	}
+	else
+	{
+		if (temp->type==cJSON_True)
+		{
+			IsOnlinePlayerNumberShow=1;
+			log_info("客户端在线人数显示已开启");
+		}
+		else
+		{
+			IsOnlinePlayerNumberShow=0;
+			log_info("客户端在线人数显示已关闭");
+		}
+
 	}
 	cJSON_Delete(json);
 	return 0;

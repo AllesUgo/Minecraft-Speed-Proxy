@@ -58,14 +58,14 @@ void *DealRemote(void *InputArg)
     fcntl(fd[0], F_SETFL, flag);
     while (1)
     {
-        rsnum = splice(server.sock, NULL, fd[1], NULL, 65535, SPLICE_F_MOVE | SPLICE_F_MORE | SPLICE_F_NONBLOCK);
+        rsnum = splice(server.sock, NULL, fd[1], NULL, 65535, SPLICE_F_MOVE | SPLICE_F_NONBLOCK);
         if (rsnum <= 0)
         {
             close(fd[0]);
             close(fd[1]);
             goto CLOSE;
         }
-        rsnum = splice(fd[0], NULL, client.sock, NULL, 65535, SPLICE_F_MORE | SPLICE_F_MOVE);
+        rsnum = splice(fd[0], NULL, client.sock, NULL, 65535, SPLICE_F_MOVE);
         if (rsnum <= 0)
         {
             close(fd[0]);

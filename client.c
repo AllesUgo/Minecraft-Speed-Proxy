@@ -19,6 +19,7 @@ extern char *remoteServerAddress;
 extern int LocalPort;
 extern int Remote_Port;
 extern char *jdata;
+extern int IsOnlinePlayerNumberShow;
 extern pthread_key_t Thread_Key;
 
 void *DealClient(void *InputArg);
@@ -238,7 +239,7 @@ void *DealClient(void *InputArg)
         while (1)
         {
 
-            rsnum = splice(client.sock, NULL, fd[1], NULL, 65535, SPLICE_F_MOVE | SPLICE_F_MORE | SPLICE_F_NONBLOCK);
+            rsnum = splice(client.sock, NULL, fd[1], NULL, 65535, SPLICE_F_MOVE | SPLICE_F_NONBLOCK);
             if (rsnum <= 0)
             {
                 close(fd[1]);
@@ -247,7 +248,7 @@ void *DealClient(void *InputArg)
                 shutdown(remoteserver.sock, SHUT_RDWR);
                 break;
             }
-            rsnum = splice(fd[0], NULL, remoteserver.sock, NULL, 65535, SPLICE_F_MORE | SPLICE_F_MOVE);
+            rsnum = splice(fd[0], NULL, remoteserver.sock, NULL, 65535, SPLICE_F_MOVE);
             if (rsnum <= 0)
             {
                 close(fd[1]);
@@ -290,12 +291,25 @@ int SendResponse(WS_Connection_t client, char *jdata, int pro)
     {
         cJSON_Delete(json);
         // 数据格式错误!
-        //  printf("[%s] [W] motd.json数据格式错误\n", gettime().time);
         log_warn("motd.json数据格式错误");
         return -3;
     }
+
     cJSON *temp = cJSON_CreateNumber(pro);
     cJSON_ReplaceItemInObject(version, "protocol", temp);
+    if (IsOnlinePlayerNumberShow == 1)
+    {
+        // 获取在线人数
+        cJSON *players = cJSON_GetObjectItem(json, "players");
+        if (players == NULL)
+        {
+            cJSON_Delete(json);
+            // 数据格式错误!
+            log_warn("motd.json数据格式错误,没有players项");
+            return -3;
+        }
+        cJSON_ReplaceItemInObject(players,"online",cJSON_CreateNumber(GetOnlinePlayerNumber()));
+    }
     char *jjdata = cJSON_Print(json);
     cJSON_Delete(json);
     char *data = (char *)malloc(strlen(jjdata) + 32);
