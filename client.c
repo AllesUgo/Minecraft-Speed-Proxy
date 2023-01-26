@@ -56,11 +56,6 @@ void *DealClient(void *InputArg)
     int fd[2];
     int opt = 6, err = 0;
     // err += setsockopt(remoteserver.sock, SOL_SOCKET, SO_PRIORITY, &opt, sizeof(opt)); /*设置s的优先级*/
-    int flag = 1;
-    setsockopt(client.sock, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag));
-    flag=1;
-    setsockopt(remoteserver.sock, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag));
-    
     err += setsockopt(client.sock, SOL_SOCKET, SO_PRIORITY, &opt, sizeof(opt)); /*设置s的优先级*/
     if (err != 0)
     {
@@ -113,23 +108,19 @@ void *DealClient(void *InputArg)
 
                 if (handshakepacksize <= 0)
                 {
-                    // printf("[%s] [%lu] [W] 握手包错误，无法完成握手\n", gettime().time, pthread_self());
                     log_warn("[%lu] 握手包错误，无法完成握手", pthread_self());
                     goto CLOSECONNECT;
                 }
                 if (GetPackID(data, handshakepacksize) != 0)
                 {
-                    // printf("[%s] [%lu] [W] 不是握手包，无法完成握手\n", gettime().time, pthread_self());
                     log_warn("[%lu] 不是握手包，无法完成握手", pthread_self());
                     goto CLOSECONNECT;
                 }
                 if (0 != ParseHandlePack(&hp, data, handshakepacksize))
                 {
-                    // printf("[%s] [%lu] [W] 握手包无法解析\n", gettime().time, pthread_self());
                     log_warn("[%lu] 握手包无法解析", pthread_self());
                     goto CLOSECONNECT;
                 }
-                // printf("[%s] [I] %s连接到服务器\n", gettime().time, client.addr);
                 log_info("%s连接到服务器", client.addr);
                 if (hp.nextstate == 1)
                 {
@@ -179,7 +170,6 @@ void *DealClient(void *InputArg)
                             int packsize = BuildHandPack(hp, remoteServerAddress, message, 128);
                             if (0 != WS_ConnectServer(remoteServerAddress, Remote_Port, &remoteserver))
                             {
-                                // printf("[%s] [E] 无法连接远程服务器，原因是%s\n", gettime().time, strerror(errno));
                                 log_error("无法连接远程服务器，原因是%s", strerror(errno));
                                 WS_CloseConnection(&client);
                                 removeip(client.sock);
@@ -190,15 +180,12 @@ void *DealClient(void *InputArg)
                             err += setsockopt(remoteserver.sock, SOL_SOCKET, SO_PRIORITY, &opt, sizeof(opt)); /*设置s的优先级*/
                             if (err != 0)
                             {
-                                // printf("[%s] [W] 优先级设置失败：%s\n", gettime().time, strerror(errno));
                                 log_warn("优先级设置失败：%s", strerror(errno));
                             }
                             int flag = 1;
                             setsockopt(client.sock, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag));
                             flag = 1;
-
                             setsockopt(remoteserver.sock, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag));
-
                             pack->client = client;
                             pack->server = remoteserver;
                             pthread_create(&pid, NULL, DealRemote, pack);
@@ -251,7 +238,7 @@ void *DealClient(void *InputArg)
         while (1)
         {
 
-            rsnum = splice(client.sock, NULL, fd[1], NULL, 65535, SPLICE_F_MOVE | SPLICE_F_NONBLOCK);
+            rsnum = splice(client.sock, NULL, fd[1], NULL, 65535, SPLICE_F_MOVE | SPLICE_F_MORE | SPLICE_F_NONBLOCK);
             if (rsnum <= 0)
             {
                 close(fd[1]);
@@ -260,7 +247,7 @@ void *DealClient(void *InputArg)
                 shutdown(remoteserver.sock, SHUT_RDWR);
                 break;
             }
-            rsnum = splice(fd[0], NULL, remoteserver.sock, NULL, 65535, SPLICE_F_MOVE);
+            rsnum = splice(fd[0], NULL, remoteserver.sock, NULL, 65535, SPLICE_F_MORE | SPLICE_F_MOVE);
             if (rsnum <= 0)
             {
                 close(fd[1]);
