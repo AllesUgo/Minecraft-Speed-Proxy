@@ -24,14 +24,60 @@ typedef struct ONLINE_LINK
     time_t starttime;
     struct ONLINE_LINK *next;
 } OL_L;
+struct ARGS_STRUCT
+{
+    unsigned int argc;
+    char **argv;
+};
 pthread_mutex_t O_lock;
 OL_L *head;
 extern char *Version;
-int OnlineNumber=0;
+extern int IsOnlinePlayerNumberShow;
+int OnlineNumber = 0;
 void printonline();
 void kickplayer(const char *playername);
 void kicksock(int sock);
 int GetOnlinePlayerNumber();
+struct ARGS_STRUCT ParseInputStr(const char *str)
+{
+    char *buffer = (char *)malloc(strlen(str) + 1);
+    char **argv = (char **)malloc((strlen(str) + 1) * sizeof(char **));
+    int argc = 0;
+    for (int i = 0; str[i] != 0; i++)
+    {
+        if (str[i] != ' ' && str[i] != '\n' && str[i] != '\r')
+        {
+            int k = 0;
+            for (; str[i] != 0 && str[i] != ' ' && str[i] != '\n' && str[i] != '\r'; i++, k++)
+            {
+                buffer[k] = str[i];
+            }
+            buffer[k] = 0;
+            char *temp = (char *)malloc(strlen(buffer) + 1);
+            strcpy(temp, buffer);
+            argv[argc] = temp;
+            argc++;
+            i--;
+        }
+    }
+    struct ARGS_STRUCT out;
+    free(buffer);
+    out.argc = argc;
+    out.argv = argv;
+    out.argv = (char **)malloc(sizeof(char **) * out.argc);
+    memcpy(out.argv, argv, sizeof(char **) * out.argc);
+    free(argv);
+    return out;
+}
+void DeleteArgsStruct(struct ARGS_STRUCT *in)
+{
+    for (int i = 0; i < in->argc; i++)
+    {
+        free((in->argv)[i]);
+    }
+    if (in->argv != NULL)
+        free(in->argv);
+}
 void *thread(void *a)
 {
     char *inputstr = (char *)malloc(1024 * 1024);
@@ -39,8 +85,11 @@ void *thread(void *a)
     char *ptr;
     while (1)
     {
+        struct ARGS_STRUCT input_struct = {0};
         printf(">>");
+        DeleteArgsStruct(&input_struct);
         fgets(inputstr, 1024 * 1024, stdin);
+        input_struct = ParseInputStr(inputstr);
         ptr = inputstr;
         if (sscanf(inputstr, "%s", cmd) <= 0)
             continue;
@@ -51,7 +100,7 @@ void *thread(void *a)
         }
         else if (!strcmp(cmd, "help"))
         {
-            printf("命令列表:\nhelp\t查看帮助\nstop\t退出程序\nmemuse\t查看内存使用情况\nlist\t列出在线玩家\npid\t获取当前进程pid\nkick --help获取kick命令帮助\nwhitelist --help获取白名单命令帮助\nban --help获取封禁命令帮助\npardon --help获取接触封禁命令帮助\n");
+            printf("命令列表:\nhelp\t查看帮助\nstop\t退出程序\nmemuse\t查看内存使用情况\nlist\t列出在线玩家\npid\t获取当前进程pid\nkick --help获取kick命令帮助\nwhitelist --help获取白名单命令帮助\nban --help获取封禁命令帮助\npardon --help获取接触封禁命令帮助\nOnlinePlayerNumber --help获取在线玩家展示设置帮助\n");
         }
         else if (!strcmp(cmd, "version"))
         {
@@ -72,7 +121,7 @@ void *thread(void *a)
             char text[1024];
             read(info, text, 1024);
             // printf("%s\n",text);
-            //打印内存峰值
+            // 打印内存峰值
             char *p = strstr(text, "VmPeak");
             printf("内存使用峰值:");
             for (int i = 0; p[i] != '\n' && p != NULL; i++)
@@ -80,7 +129,7 @@ void *thread(void *a)
                 putc(p[i], stdout);
             }
             putc('\n', stdout);
-            //打印当前内存使用量
+            // 打印当前内存使用量
             p = strstr(text, "VmSize:");
             printf("当前内存使用量:");
             for (int i = 0; p[i] != '\n' && p != NULL; i++)
@@ -89,7 +138,7 @@ void *thread(void *a)
             }
             putc('\n', stdout);
 
-            //打印当前物理内存使用量
+            // 打印当前物理内存使用量
             p = strstr(text, "VmRSS:");
             printf("当前内存使用量:");
             for (int i = 0; p[i] != '\n' && p != NULL; i++)
@@ -103,7 +152,7 @@ void *thread(void *a)
         }
         else if (!strcmp(cmd, "pardon"))
         {
-            cmd[0] = 0; //重置字符串
+            cmd[0] = 0; // 重置字符串
             ptr += strlen(cmd);
             while (*ptr == ' ')
                 ptr += 1;
@@ -136,7 +185,7 @@ void *thread(void *a)
         }
         else if (!strcmp(cmd, "ban"))
         {
-            cmd[0] = 0; //重置字符串
+            cmd[0] = 0; // 重置字符串
             ptr += strlen(cmd);
             while (*ptr == ' ')
                 ptr += 1;
@@ -169,7 +218,7 @@ void *thread(void *a)
         }
         else if (!strcmp(cmd, "whitelist"))
         {
-            cmd[0] = 0; //重置字符串
+            cmd[0] = 0; // 重置字符串
             ptr += strlen(cmd);
             while (*ptr == ' ')
                 ptr += 1;
@@ -252,6 +301,7 @@ void *thread(void *a)
                 printf("\n\nwhitelist <on/off/reload>\t开/关/重新加载白名单\n");
                 printf("whitelist <add/remove> <playername>\t向白名单添加/移除用户\n");
             }
+
             else
             {
             WHITELISTCMDERROR:
@@ -260,7 +310,7 @@ void *thread(void *a)
         }
         else if (!strcmp(cmd, "kick"))
         {
-            cmd[0] = 0; //重置字符串
+            cmd[0] = 0; // 重置字符串
             ptr += strlen(cmd);
             while (*ptr == ' ')
                 ptr += 1;
@@ -292,6 +342,50 @@ void *thread(void *a)
             {
             KICKPLAYERCMDERROR:
                 printf("\n参数错误,使用kick --help获取帮助\n");
+            }
+        }
+        else if (!strcmp("OnlinePlayerNumber", input_struct.argv[0]))
+        {
+            if (input_struct.argc != 2)
+            {
+                printf("参数错误，请输入OnlinePlayerNumber --help以获取帮助\n");
+            }
+            else
+            {
+                if (!strcmp("enable", input_struct.argv[1]))
+                {
+                    if (IsOnlinePlayerNumberShow == 1)
+                    {
+                        printf("当前已开启，无需重复开启\n");
+                    }
+                    else
+                    {
+                        IsOnlinePlayerNumberShow = 1;
+                        printf("开启成功\n");
+                    }
+                }
+                else if (!strcmp("disable", input_struct.argv[1]))
+                {
+                    if (IsOnlinePlayerNumberShow == 0)
+                    {
+                        printf("当前已关闭，无需重复关闭\n");
+                    }
+                    else
+                    {
+                        IsOnlinePlayerNumberShow = 0;
+                        printf("关闭成功\n");
+                    }
+                }
+                else if (!strcmp("--help", input_struct.argv[1]))
+                {
+                    printf("用于控制在客户端是否显示在线玩家人数\n");
+                    printf("输入OnlinePlayerNumber enable以开启显示\n");
+                    printf("输入OnlinePlayerNumber disable以关闭\n");
+                }
+                else
+                {
+                    printf("参数错误，请输入OnlinePlayerNumber help以获取帮助\n");
+                }
             }
         }
         else
@@ -357,8 +451,8 @@ void kickplayer(const char *playername)
 }
 void OnlineControl_Init()
 {
-    //加载封禁列表
-    if (0!=CL_LoadBanList())
+    // 加载封禁列表
+    if (0 != CL_LoadBanList())
     {
         log_info("封禁玩家列表加载成功");
     }
@@ -431,7 +525,7 @@ void removeip(int sock)
     pthread_mutex_lock(&O_lock);
     if (head == NULL)
     {
-        //当前没有在线玩家
+        // 当前没有在线玩家
         pthread_mutex_unlock(&O_lock);
         // printf("[W] 试图移除非在线玩家\n");
         log_warn("试图移除非在线玩家");
@@ -445,12 +539,12 @@ void removeip(int sock)
 
             if (strcmp(temp->username, "Not-Login") != 0)
             {
-                OnlineNumber-=1;
+                OnlineNumber -= 1;
                 log_player("移除了玩家:%s于IP:%s的连接", temp->username, temp->ip);
             }
             head = temp->next;
             free(temp);
-            
+
             pthread_mutex_unlock(&O_lock);
             // if temp->username != "Not-Login" log
             return;
@@ -463,7 +557,7 @@ void removeip(int sock)
                 OL_L *a = temp->next;
                 if (strcmp(temp->username, "Not-Login") != 0)
                 {
-                    OnlineNumber-=1;
+                    OnlineNumber -= 1;
                     log_player("移除了玩家:%s于IP:%s的连接", a->username, a->ip);
                 }
                 temp->next = a->next;
@@ -487,7 +581,7 @@ void adduser(int sock, const char *username)
         if (temp->sock == sock)
         {
             strcpy(temp->username, username);
-            OnlineNumber+=1;
+            OnlineNumber += 1;
             log_player("玩家%s登陆于IP:%s的连接", username, temp->ip);
             pthread_mutex_unlock(&O_lock);
             return;
@@ -503,7 +597,7 @@ void addip(int sock, const char *IP)
     pthread_mutex_lock(&O_lock);
     if (head == NULL)
     {
-        //当前没有在线玩家
+        // 当前没有在线玩家
         head = (OL_L *)malloc(sizeof(OL_L));
         strcpy(head->ip, IP);
         strcpy(head->username, "Not-Login");
