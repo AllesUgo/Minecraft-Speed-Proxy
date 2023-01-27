@@ -19,6 +19,7 @@ extern char *remoteServerAddress;
 extern int LocalPort;
 extern int Remote_Port;
 extern char *jdata;
+extern int IsOnlinePlayerNumberShow;
 extern pthread_key_t Thread_Key;
 
 void *DealClient(void *InputArg);
@@ -46,39 +47,34 @@ void printdata(char *data, int datasize)
 
 void *DealClient(void *InputArg)
 {
-    //设置线程独享资源
+    // 设置线程独享资源
     jmp_buf jmp;
     pthread_setspecific(Thread_Key, &jmp);
-    //接收多线程传参
+    // 接收多线程传参
     WS_Connection_t client = *((WS_Connection_t *)InputArg);
     free(InputArg);
     WS_Connection_t remoteserver;
     int fd[2];
     int opt = 6, err = 0;
     // err += setsockopt(remoteserver.sock, SOL_SOCKET, SO_PRIORITY, &opt, sizeof(opt)); /*设置s的优先级*/
-    int flag = 1;
-    setsockopt(client.sock, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag));
-    flag=1;
-    setsockopt(remoteserver.sock, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag));
-    
     err += setsockopt(client.sock, SOL_SOCKET, SO_PRIORITY, &opt, sizeof(opt)); /*设置s的优先级*/
     if (err != 0)
     {
         // printf("[%s] [W] 优先级设置失败：%s\n", gettime().time, strerror(errno));
         log_warn("优先级设置失败：%s", strerror(errno));
     }
-    struct timeval timeout = {10, 0}; //设置10s超时
+    struct timeval timeout = {10, 0}; // 设置10s超时
     setsockopt(client.sock, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
     setsockopt(remoteserver.sock, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
-    //将双方服务器套接字打包
+    // 将双方服务器套接字打包
     Rcpack *pack = (Rcpack *)malloc(sizeof(Rcpack));
     // char remotedata[8192];
-    //拉起与服务端连接的线程
+    // 拉起与服务端连接的线程
     pthread_t pid;
-    //进入循环接收客户端数据数据
-    int rsnum;       //收发的数据量
-    char data[8192]; //数据包
-    //首先接收一个包并且看包ID
+    // 进入循环接收客户端数据数据
+    int rsnum;       // 收发的数据量
+    char data[8192]; // 数据包
+    // 首先接收一个包并且看包ID
     char handshaked = 0;
     char logined = 0;
     int statusmode = 0;
@@ -103,33 +99,29 @@ void *DealClient(void *InputArg)
 
         if (logined == 0)
         {
-            //还没有登录
+            // 还没有登录
             if (handshaked == 0)
             {
-                //还没有握手,先握手
+                // 还没有握手,先握手
                 memset(data, 0, 4096);
 
                 int handshakepacksize = RecvFullPack(client, data, 4096);
 
                 if (handshakepacksize <= 0)
                 {
-                    // printf("[%s] [%lu] [W] 握手包错误，无法完成握手\n", gettime().time, pthread_self());
                     log_warn("[%lu] 握手包错误，无法完成握手", pthread_self());
                     goto CLOSECONNECT;
                 }
                 if (GetPackID(data, handshakepacksize) != 0)
                 {
-                    // printf("[%s] [%lu] [W] 不是握手包，无法完成握手\n", gettime().time, pthread_self());
                     log_warn("[%lu] 不是握手包，无法完成握手", pthread_self());
                     goto CLOSECONNECT;
                 }
                 if (0 != ParseHandlePack(&hp, data, handshakepacksize))
                 {
-                    // printf("[%s] [%lu] [W] 握手包无法解析\n", gettime().time, pthread_self());
                     log_warn("[%lu] 握手包无法解析", pthread_self());
                     goto CLOSECONNECT;
                 }
-                // printf("[%s] [I] %s连接到服务器\n", gettime().time, client.addr);
                 log_info("%s连接到服务器", client.addr);
                 if (hp.nextstate == 1)
                 {
@@ -139,12 +131,12 @@ void *DealClient(void *InputArg)
                 {
                     statusmode = 0; // login连接
                 }
-                handshaked = 1; //将连接设置为已握手状态
+                handshaked = 1; // 将连接设置为已握手状态
                 continue;
             }
             else
             {
-                //已握手，但是并没有完成登录，可能是status或者还没有login
+                // 已握手，但是并没有完成登录，可能是status或者还没有login
                 memset(data, 0, 4096);
                 int datasize = RecvFullPack(client, data, 4096);
                 if (datasize <= 0)
@@ -157,7 +149,7 @@ void *DealClient(void *InputArg)
                     goto CLOSECONNECT;
                     break;
                 case 0:
-                    //登录或者request包
+                    // 登录或者request包
                     if (statusmode == 1)
                     {
                         // request包
@@ -166,7 +158,7 @@ void *DealClient(void *InputArg)
                     }
                     else
                     {
-                        //登录包
+                        // 登录包
                         unsigned char vil;
                         varint_decode(data, datasize, &vil);
                         char username[20];
@@ -179,7 +171,6 @@ void *DealClient(void *InputArg)
                             int packsize = BuildHandPack(hp, remoteServerAddress, message, 128);
                             if (0 != WS_ConnectServer(remoteServerAddress, Remote_Port, &remoteserver))
                             {
-                                // printf("[%s] [E] 无法连接远程服务器，原因是%s\n", gettime().time, strerror(errno));
                                 log_error("无法连接远程服务器，原因是%s", strerror(errno));
                                 WS_CloseConnection(&client);
                                 removeip(client.sock);
@@ -190,9 +181,12 @@ void *DealClient(void *InputArg)
                             err += setsockopt(remoteserver.sock, SOL_SOCKET, SO_PRIORITY, &opt, sizeof(opt)); /*设置s的优先级*/
                             if (err != 0)
                             {
-                                // printf("[%s] [W] 优先级设置失败：%s\n", gettime().time, strerror(errno));
                                 log_warn("优先级设置失败：%s", strerror(errno));
                             }
+                            int flag = 1;
+                            setsockopt(client.sock, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag));
+                            flag = 1;
+                            setsockopt(remoteserver.sock, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag));
                             pack->client = client;
                             pack->server = remoteserver;
                             pthread_create(&pid, NULL, DealRemote, pack);
@@ -226,13 +220,13 @@ void *DealClient(void *InputArg)
         }
 
     ACCEPTWHILE:
-        if (0!=pipe(fd))
+        if (0 != pipe(fd))
         {
-            //管道创建失败
+            // 管道创建失败
             log_error("创建管道失败");
             shutdown(client.sock, SHUT_RDWR);
             shutdown(remoteserver.sock, SHUT_RDWR);
-            pthread_join(pid, NULL);           //等待服务线程资源回收
+            pthread_join(pid, NULL); // 等待服务线程资源回收
             WS_CloseConnection(&remoteserver);
             goto CLOSECONNECT;
         }
@@ -244,8 +238,8 @@ void *DealClient(void *InputArg)
         fcntl(fd[0], F_SETFL, flag);
         while (1)
         {
-            
-            rsnum=splice(client.sock,NULL,fd[1],NULL,65535,SPLICE_F_MOVE|SPLICE_F_NONBLOCK);
+
+            rsnum = splice(client.sock, NULL, fd[1], NULL, 65535, SPLICE_F_MOVE | SPLICE_F_NONBLOCK);
             if (rsnum <= 0)
             {
                 close(fd[1]);
@@ -254,7 +248,7 @@ void *DealClient(void *InputArg)
                 shutdown(remoteserver.sock, SHUT_RDWR);
                 break;
             }
-            rsnum=splice(fd[0],NULL,remoteserver.sock,NULL,65535,SPLICE_F_MOVE);
+            rsnum = splice(fd[0], NULL, remoteserver.sock, NULL, 65535, SPLICE_F_MOVE);
             if (rsnum <= 0)
             {
                 close(fd[1]);
@@ -264,11 +258,11 @@ void *DealClient(void *InputArg)
                 break;
             }
         }
-        pthread_join(pid, NULL);           //等待服务线程资源回收
+        pthread_join(pid, NULL); // 等待服务线程资源回收
         WS_CloseConnection(&remoteserver);
     }
 CLOSECONNECT:
-    //断开连接并且回收资源
+    // 断开连接并且回收资源
     WS_CloseConnection(&client);
     free(handpackdata);
     free(pack);
@@ -296,13 +290,26 @@ int SendResponse(WS_Connection_t client, char *jdata, int pro)
     if (version == NULL)
     {
         cJSON_Delete(json);
-        //数据格式错误!
-        // printf("[%s] [W] motd.json数据格式错误\n", gettime().time);
+        // 数据格式错误!
         log_warn("motd.json数据格式错误");
         return -3;
     }
+
     cJSON *temp = cJSON_CreateNumber(pro);
     cJSON_ReplaceItemInObject(version, "protocol", temp);
+    if (IsOnlinePlayerNumberShow == 1)
+    {
+        // 获取在线人数
+        cJSON *players = cJSON_GetObjectItem(json, "players");
+        if (players == NULL)
+        {
+            cJSON_Delete(json);
+            // 数据格式错误!
+            log_warn("motd.json数据格式错误,没有players项");
+            return -3;
+        }
+        cJSON_ReplaceItemInObject(players,"online",cJSON_CreateNumber(GetOnlinePlayerNumber()));
+    }
     char *jjdata = cJSON_Print(json);
     cJSON_Delete(json);
     char *data = (char *)malloc(strlen(jjdata) + 32);
@@ -335,7 +342,7 @@ int SendResponse(WS_Connection_t client, char *jdata, int pro)
 }
 void SendKick(WS_Connection_t client, const char *reason)
 {
-    //创建json包
+    // 创建json包
 
     char *str = (char *)malloc(strlen(reason) + 10);
     sprintf(str, "\"%s\"", reason);
