@@ -5,8 +5,8 @@ OUTPUT=minecraftspeedproxy
 CARGVS=-c -DLOG_USE_COLOR -DVERSION=\"v$(VERSION)\"
 ALLARGV=-O3 -std=gnu99
 DEBUG= 
-minecraftspeedproxy:CheckLogin.o cJSON.o client.o log.o main.o mempool.o online.o remote.o sending.o unpack.o varint.o websocket.o
-	$(CXX) CheckLogin.o cJSON.o client.o log.o main.o mempool.o online.o remote.o sending.o unpack.o varint.o websocket.o $(DEBUG) $(LINKLIBS) $(DEBUG) $(ALLARGV) -o $(OUTPUT)
+minecraftspeedproxy:CheckLogin.o cJSON.o dump.o client.o log.o main.o mempool.o online.o remote.o sending.o unpack.o varint.o websocket.o
+	$(CXX) CheckLogin.o cJSON.o client.o dump.o log.o main.o mempool.o online.o remote.o sending.o unpack.o varint.o websocket.o $(DEBUG) $(LINKLIBS) $(DEBUG) $(ALLARGV) -o $(OUTPUT)
 CheckLogin.o:CheckLogin.h CheckLogin.c
 	$(CXX) CheckLogin.c $(ALLARGV) $(DEBUG) $(CARGVS) -o CheckLogin.o
 cJSON.o:cJSON.c cJSON.h
@@ -15,7 +15,7 @@ client.o:client.c log.h websocket.h RemoteClient.h unpack.h cJSON.h varint.h mem
 	$(CXX) client.c $(ALLARGV) $(DEBUG) $(CARGVS) -o client.o
 log.o:log.c log.h
 	$(CXX) log.c $(ALLARGV) $(DEBUG) $(CARGVS) -o log.o
-main.o:main.c websocket.h cJSON.h log.h
+main.o:main.c websocket.h cJSON.h log.h dump.h
 	$(CXX) main.c $(ALLARGV) $(DEBUG) $(CARGVS) -o main.o
 mempool.o:mempool.c mempool.h
 	$(CXX) mempool.c $(ALLARGV) $(DEBUG) $(CARGVS) -o mempool.o
@@ -31,6 +31,8 @@ varint.o:varint.c varint.h
 	$(CXX) varint.c $(ALLARGV) $(DEBUG) $(CARGVS) -o varint.o
 websocket.o:websocket.c websocket.h
 	$(CXX) websocket.c $(ALLARGV) $(DEBUG) $(CARGVS) -o websocket.o
+dump.o:dump.h dump.c
+	$(CXX) dump.c $(ALLARGV) $(DEBUG) $(CARGVS) -o dump.o
 
 clean:
 	rm ./*.o

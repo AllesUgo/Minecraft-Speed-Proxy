@@ -9,20 +9,10 @@ jobs:
   build-with-gcc:
     strategy:
       matrix:
-        os: [ubuntu-20.04, ubuntu-22.04]
+        os: [ubuntu-20.04, ubuntu-22.04, ubuntu-18.04]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v2
-
-      - uses: xmake-io/github-action-setup-xmake@v1
-        with:
-          xmake-version: branch@dev
-
-      - name: Install deps
-        run: sudo apt update && sudo apt-get install manpages-posix-dev glibc-doc manpages-posix build-essential -y
-
-      - name: Build with xmake
-        run: export VERSION=[ci]$(git rev-parse HEAD) && xmake f --cc=gcc -y && xmake build -y && ./build/linux/x86_64/release/minecraftspeedproxy --version
       
       - name: Build with Makefile
         run: export VERSION=[ci]$(git rev-parse HEAD) && make -e CXX=gcc && ./minecraftspeedproxy --version
@@ -30,20 +20,10 @@ jobs:
   build-with-clang:
     strategy:
       matrix:
-        os: [ubuntu-20.04, ubuntu-22.04]
+        os: [ubuntu-20.04, ubuntu-22.04, ubuntu-18.04]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v2
-
-      - uses: xmake-io/github-action-setup-xmake@v1
-        with:
-          xmake-version: branch@dev
-      
-      - name: Install deps
-        run: sudo apt update && sudo apt-get install manpages-posix-dev glibc-doc manpages-posix build-essential clang -y
-      
-      - name: Build with xmake
-        run: export VERSION=[ci]$(git rev-parse HEAD) && xmake f --cc=clang -y && xmake build -y && ./build/linux/x86_64/release/minecraftspeedproxy --version
 
       - name: Build with Makefile
         run: export VERSION=[ci]$(git rev-parse HEAD) && make -e CXX=clang && ./minecraftspeedproxy --version
