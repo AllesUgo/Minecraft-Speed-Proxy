@@ -9,6 +9,7 @@
 #include "cJSON.h"
 #include "log.h"
 #include "CheckLogin.h"
+#include "dump.h"
 
 const char *DVERSION = VERSION;
 char *Version;
@@ -16,7 +17,7 @@ char *remoteServerAddress;
 const char *Defalut_Configfile_Path = "/etc/minecraftspeedproxy/config.json";
 const char *Config_Script_Command = "bash <(curl -fsSL https://fastly.jsdelivr.net/gh/AllesUgo/Minecraft-Speed-Proxy@master/scripts/config.sh )";
 int LocalPort;
-int IsOnlinePlayerNumberShow=0;
+int IsOnlinePlayerNumberShow = 0;
 pthread_key_t Thread_Key;
 int Remote_Port;
 char DlCheck = 0;
@@ -49,15 +50,21 @@ void sighandle(int sig)
 		break;
 	case SIGSEGV:
 		// printf("[%s] [E] 服务器内部错误，请重新启动服务进程，您也可以将error.log发送给开发人员\n", gettime().time);
-		log_error("服务器内部错误，建议重新启动服务进程，您也可以将error.log发送给开发人员");
+		log_error("服务器内部错误，建议重新启动服务进程，希望您可以将error.log发送给开发人员");
 		int ret;
-		ret = system("date >>error.log");
-		ret = system("uname -a >>error.log");
-		ret = system("echo ulimit: >>error.log");
-		ret = system("ulimit -s>>error.log");
+		ret += system("echo ==================>>error.log");
+		char str[128];
+		sprintf(str, "echo version=%s>>error.log", VERSION);
+		ret += system(str);
+		ret += system("date >>error.log");
+		ret += system("uname -a >>error.log");
+		ret += system("echo ulimit: >>error.log");
+		ret += system("ulimit -s>>error.log");
+		dump_func("error.log");
+		ret += system("echo ==================>>error.log");
 		if (ret != 0)
 		{
-			log_warn("log日志保存可能失败");
+			log_error("error.log日志可能保存失败");
 		}
 		longjmp(*(jmp_buf *)(pthread_getspecific(Thread_Key)), SIGSEGV);
 		break;
@@ -125,7 +132,7 @@ int main(int argc, char *argv[])
 			cJSON_AddNumberToObject(temp, "LocalPort", 25565);
 			cJSON_AddBoolToObject(temp, "DefaultEnableWhitelist", cJSON_False);
 			cJSON_AddBoolToObject(temp, "AllowInput", cJSON_True);
-			cJSON_AddBoolToObject(temp,"ShowOnlinePlayerNumber",cJSON_False);
+			cJSON_AddBoolToObject(temp, "ShowOnlinePlayerNumber", cJSON_False);
 			char *jsonstr = cJSON_Print(temp);
 			cJSON_Delete(temp);
 			FILE *fp = fopen(Defalut_Configfile_Path, "w");
@@ -191,17 +198,17 @@ int main(int argc, char *argv[])
 			}
 			else if (!strcmp(argv[i], "--enable-whitelist"))
 			{
-				if (DlCheck!=1)
+				if (DlCheck != 1)
 				{
-				switch (CL_EnableWhiteList())
-				{
-				case 0:
-					log_info("白名单开启成功");
-					break;
-				default:
-					log_error("白名单开启失败");
-					break;
-				}
+					switch (CL_EnableWhiteList())
+					{
+					case 0:
+						log_info("白名单开启成功");
+						break;
+					default:
+						log_error("白名单开启失败");
+						break;
+					}
 				}
 				else
 				{
@@ -225,8 +232,8 @@ int main(int argc, char *argv[])
 
 	// printf("[%s] [I] PID:%d 远程服务器:%s:%d 本地监听端口%d\n", gettime().time, getpid(), remoteServerAddress, Remote_Port, LocalPort);
 	log_info("PID:%d 远程服务器:%s:%d 本地监听端口%d", getpid(), remoteServerAddress, Remote_Port, LocalPort);
-	//读取motd
-	// printf("[%s] [I] 加载motd数据\n", gettime().time);
+	// 读取motd
+	//  printf("[%s] [I] 加载motd数据\n", gettime().time);
 	log_info("加载motd数据");
 	FILE *fp = fopen("motd.json", "r");
 	if (fp == NULL)
@@ -268,8 +275,8 @@ int main(int argc, char *argv[])
 		log_info("初始化在线人数管理");
 		OnlineControl_Init();
 	}
-	//创建监听端口
-	// printf("[%s] [I] 初始化服务端口\n", gettime().time);
+	// 创建监听端口
+	//  printf("[%s] [I] 初始化服务端口\n", gettime().time);
 	log_info("初始化服务端口");
 	WS_ServerPort_t server = WS_CreateServerPort(LocalPort, 5);
 	if (server == 0)
@@ -286,9 +293,9 @@ int main(int argc, char *argv[])
 		fclose(playerLog);
 		return 1;
 	}
-	//初始化线程专享空间
+	// 初始化线程专享空间
 	pthread_key_create(&Thread_Key, NULL);
-	//循环等待用户连接
+	// 循环等待用户连接
 	WS_Connection_t *client;
 	pthread_t pid;
 	// printf("[%s] [I] 加载完成，等待连接，输入help获取帮助\n", gettime().time);
@@ -298,8 +305,8 @@ int main(int argc, char *argv[])
 		client = (WS_Connection_t *)malloc(sizeof(WS_Connection_t));
 		if (-1 == WS_WaitClient(server, client))
 		{
-			//建立连接失败
-			// printf("[%s] [W] 连接建立失败:%s\n", gettime().time, strerror(errno));
+			// 建立连接失败
+			//  printf("[%s] [W] 连接建立失败:%s\n", gettime().time, strerror(errno));
 			log_warn("连接建立失败:%s", strerror(errno));
 			free(client);
 			continue;
@@ -327,7 +334,7 @@ int ReadConfig(const char *filepath, char **remoteserveraddress, int *remoteport
 		log_warn("无法打开文件%s,原因:%s", filepath, strerror(errno));
 		return -1;
 	}
-	//获取文件大小
+	// 获取文件大小
 	fseek(fp, 0L, SEEK_END);
 	size_t filesize = ftell(fp);
 	fseek(fp, 0L, SEEK_SET);
@@ -406,7 +413,7 @@ int ReadConfig(const char *filepath, char **remoteserveraddress, int *remoteport
 	}
 	else
 	{
-		if (DlCheck !=1)
+		if (DlCheck != 1)
 		{
 			if (temp->type == cJSON_True)
 			{
@@ -422,30 +429,30 @@ int ReadConfig(const char *filepath, char **remoteserveraddress, int *remoteport
 			}
 			else
 				log_info("白名单默认关闭");
-		}else
+		}
+		else
 		{
 			log_info("使用自定义组件检查登录，忽略内置白名单初始化");
 		}
 	}
-	temp=cJSON_GetObjectItem(json,"ShowOnlinePlayerNumber");
-	if (temp==NULL||(temp->type!=cJSON_True&&temp->type!=cJSON_False))
+	temp = cJSON_GetObjectItem(json, "ShowOnlinePlayerNumber");
+	if (temp == NULL || (temp->type != cJSON_True && temp->type != cJSON_False))
 	{
-		IsOnlinePlayerNumberShow=0;
+		IsOnlinePlayerNumberShow = 0;
 		log_warn("配置文件中没有ShowOnlinePlayerNumber项或该项不为布尔类型，默认关闭客户端在线人数显示");
 	}
 	else
 	{
-		if (temp->type==cJSON_True)
+		if (temp->type == cJSON_True)
 		{
-			IsOnlinePlayerNumberShow=1;
+			IsOnlinePlayerNumberShow = 1;
 			log_info("客户端在线人数显示已开启");
 		}
 		else
 		{
-			IsOnlinePlayerNumberShow=0;
+			IsOnlinePlayerNumberShow = 0;
 			log_info("客户端在线人数显示已关闭");
 		}
-
 	}
 	cJSON_Delete(json);
 	return 0;
