@@ -508,11 +508,11 @@ void printonline()
     pthread_mutex_lock(&O_lock);
     OL_L *temp = head;
     char str[20];
-    printf("ID\tsock\tIP地址\t用户名\t时间\n");
+    printf("%-5s%-5s%-16s%-16s%s\n","ID","sock","IP","UserName","LoginTime");
     int i = 1;
     while (temp)
     {
-        printf("%d\t%d\t%s\t%s\t%s", i, temp->sock, temp->ip, temp->username, ctime(&(temp->starttime)));
+        printf("%-5d%-5d%-16s%-16s%s", i, temp->sock, temp->ip, temp->username, ctime(&(temp->starttime)));
         temp = temp->next;
         i += 1;
     }

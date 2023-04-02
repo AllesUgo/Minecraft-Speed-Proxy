@@ -5,14 +5,14 @@ Minecraft加速IP程序
 能够代理Minecraft服务器，并拥有白名单、用户控制等功能    
 本项目使用C语言编写，内存占用极低，在配置较低的服务器上拥有更好的表现
 
-# 生成配置文件
+# 生成配置文件(可选)
 
 ```bash
 bash <(curl -fsSL https://fastly.jsdelivr.net/gh/AllesUgo/Minecraft-Speed-Proxy@master/scripts/config.sh )
 ```
 
 # 如何编译并运行
-## 通过make命令安装
+## 方法一(推荐):通过make命令安装
 1.克隆仓库到你的Linux服务器上  
 2.在Linux上安装linux c编译工具包
     例如：
@@ -23,7 +23,7 @@ bash <(curl -fsSL https://fastly.jsdelivr.net/gh/AllesUgo/Minecraft-Speed-Proxy@
 
 
 4.(可选步骤)编译完成后已经程序已经可以运行，可以使用 `sudo make install`来将其放在 `/usr/bin/`目录中以在任何目录环境和用户下使用该程序
-## 通过xmake安装
+## 方法二:通过xmake安装
 1.安装[xmake](https://github.com/xmake-io/xmake) ,`bash <(curl -fsSL https://xmake.io/shget.text)`, 或参考[xmake.io](https://xmake.io)使用更多方式安装  
 2.克隆仓库到你的Linux服务器上  
 3.在Linux上安装linux c编译工具包
