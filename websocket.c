@@ -114,13 +114,13 @@ WS_ServerPort_t WS_CreateServerPort(int port, int maxlist)
 {
 	
 	SOCKET server_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-	int opt = 1;
-	setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)); 
-	if (server_socket == 0)
+	if (server_socket == -1)
 	{
 		//申请套接字失败
 		return 0;
 	}
+	int opt = 1;
+	setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)); 
 	struct sockaddr_in sin;
 	sin.sin_family = AF_INET;
 	sin.sin_port = htons(port);

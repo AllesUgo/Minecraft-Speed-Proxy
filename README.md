@@ -1,7 +1,9 @@
 [![Build and release](https://github.com/AllesUgo/Minecraft-Speed-Proxy/actions/workflows/release.yaml/badge.svg)](https://github.com/AllesUgo/Minecraft-Speed-Proxy/actions/workflows/release.yaml)![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/AllesUgo/Minecraft-Speed-Proxy)![GitHub all releases](https://img.shields.io/github/downloads/AllesUgo/Minecraft-Speed-Proxy/total)![GitHub](https://img.shields.io/github/license/AllesUgo/Minecraft-Speed-Proxy)![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/AllesUgo/Minecraft-Speed-Proxy)
 # Minecraft-Speed-Proxy
 
-Minecraft加速IP程序
+Minecraft加速IP程序  
+能够代理Minecraft服务器，并拥有白名单、用户控制等功能    
+本项目使用C语言编写，内存占用极低，在配置较低的服务器上拥有更好的表现
 
 # 生成配置文件
 
@@ -51,7 +53,7 @@ bash <(curl -fsSL https://fastly.jsdelivr.net/gh/AllesUgo/Minecraft-Speed-Proxy@
 
 2.可选参数 `--noinput`用来禁用标准输入,可搭配 `nohup`命令来使其在后台运行，建议使用 `screen`来使其在后台运行而不是 `nohup`
 
-3.运行中的命令支持请在运行后输入 `help`以获取
+3.**运行中的命令支持请在运行后输入 `help`以获取**
 
 4.更多参数请使用参数`--help`获取
 ## 如何自定义motd
