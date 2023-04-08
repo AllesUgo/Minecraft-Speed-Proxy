@@ -176,7 +176,7 @@ void *DealClient(void *InputArg)
                                 removeip(client.sock);
                                 free(handpackdata);
                                 free(pack);
-                                return NULL;
+                                pthread_exit(NULL);
                             }
                             err += setsockopt(remoteserver.sock, SOL_SOCKET, SO_PRIORITY, &opt, sizeof(opt)); /*设置s的优先级*/
                             if (err != 0)
@@ -269,7 +269,7 @@ CLOSECONNECT:
     removeip(client.sock);
     // printf("[%s] [I] %s断开连接\n", gettime().time, client.addr);
     log_info("%s断开连接", client.addr);
-    return NULL;
+    pthread_exit(NULL);
 }
 
 int SendPong(WS_Connection_t client, char *data, int datasize)

@@ -76,5 +76,5 @@ void *DealRemote(void *InputArg)
 CLOSE:
     shutdown(client.sock, SHUT_RDWR);
     shutdown(server.sock, SHUT_RDWR);
-    return NULL;
+    pthread_exit(NULL);
 }
