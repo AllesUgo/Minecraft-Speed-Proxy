@@ -131,7 +131,7 @@ void *thread(void *a)
             putc('\n', stdout);
             // 打印当前内存使用量
             p = strstr(text, "VmSize:");
-            printf("当前内存使用量:");
+            printf("内存使用量:");
             for (int i = 0; p[i] != '\n' && p != NULL; i++)
             {
                 putc(p[i], stdout);
@@ -140,7 +140,16 @@ void *thread(void *a)
 
             // 打印当前物理内存使用量
             p = strstr(text, "VmRSS:");
-            printf("当前内存使用量:");
+            printf("物理内存使用量:");
+            for (int i = 0; p[i] != '\n' && p != NULL; i++)
+            {
+                putc(p[i], stdout);
+            }
+            putc('\n', stdout);
+
+            //打印栈大小
+            p = strstr(text, "VmStk:");
+            printf("栈内存使用量:");
             for (int i = 0; p[i] != '\n' && p != NULL; i++)
             {
                 putc(p[i], stdout);
@@ -148,7 +157,7 @@ void *thread(void *a)
             putc('\n', stdout);
 
             close(info);
-            printf(">>信息打印完成<<\n");
+            printf(">>信息显示完成<<\n");
         }
         else if (!strcmp(cmd, "pardon"))
         {
