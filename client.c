@@ -40,7 +40,7 @@ void printdata(char *data, int datasize)
     printf("\n");
     for (int i = 0; i < datasize; i++)
     {
-        printf("%x ", data[i]);
+        printf("%d ", data[i]);
     }
     printf("\n");
 }
@@ -76,6 +76,7 @@ void *DealClient(void *InputArg)
     char data[8192]; // 数据包
     // 首先接收一个包并且看包ID
     char handshaked = 0;
+    int isfml=0;
     char logined = 0;
     int statusmode = 0;
     char *handpackdata = (char *)malloc(4096);
@@ -122,7 +123,19 @@ void *DealClient(void *InputArg)
                     log_warn("[%lu] 握手包无法解析", pthread_self());
                     goto CLOSECONNECT;
                 }
-                log_info("%s连接到服务器", client.addr);
+                if ((isfml=CheckFML(data))<0)
+                {
+                    log_warn("[%lu] 无法判断是否为Forge客户端",pthread_self());
+                    goto CLOSECONNECT;
+                }
+                if (isfml)
+                {
+                    log_info("%s使用Forge客户端连接到服务器", client.addr);
+                }
+                else
+                {
+                    log_info("%s连接到服务器", client.addr);
+                }
                 if (hp.nextstate == 1)
                 {
                     statusmode = 1; // status连接
@@ -160,15 +173,18 @@ void *DealClient(void *InputArg)
                     {
                         // 登录包
                         unsigned char vil;
+                        int strlength;
+                        char *handshakeaddr=(char*)malloc(1024);
                         varint_decode(data, datasize, &vil);
                         char username[20];
-                        ReadString(data + vil + 1, datasize - vil, username, 20);
+                        
+                        ReadString(data + vil + 1, datasize - vil, username, 20,&strlength);
                         switch (CL_Check(username))
                         {
                         case CHECK_LOGIN_SUCCESS:
                         {
                             char message[128];
-                            int packsize = BuildHandPack(hp, remoteServerAddress, message, 128);
+                            int packsize = BuildHandPack(hp, remoteServerAddress,isfml, message, 128);
                             if (0 != WS_ConnectServer(remoteServerAddress, Remote_Port, &remoteserver))
                             {
                                 log_error("无法连接远程服务器，原因是%s", strerror(errno));
@@ -313,7 +329,7 @@ int SendResponse(WS_Connection_t client, char *jdata, int pro)
     char *jjdata = cJSON_Print(json);
     cJSON_Delete(json);
     char *data = (char *)malloc(strlen(jjdata) + 32);
-    int datapacksize = BuildString(jjdata, data, strlen(jjdata) + 32);
+    int datapacksize = BuildString(jjdata, data, strlen(jjdata) + 32,strlen(jjdata));
     if (datapacksize <= 0)
     {
         free(jjdata);
@@ -348,7 +364,7 @@ void SendKick(WS_Connection_t client, const char *reason)
     sprintf(str, "\"%s\"", reason);
 
     char *data = (char *)malloc(strlen(str) + 20);
-    int strl = BuildString(str, data, strlen(str) + 20);
+    int strl = BuildString(str, data, strlen(str) + 20,strlen(str));
     char *message = (char *)malloc(strlen(str) + 30);
     unsigned char vil;
     char vi[10];
