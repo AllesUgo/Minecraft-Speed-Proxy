@@ -1,20 +1,60 @@
 #include "unpack.h"
 
 int GetPackID(char *data, int datasize);
-int ReadString(char *data, int datasize, char *output, int outputmaxsize);
+int ReadString(char *data, int datasize, char *output, int outputmaxsize,int*strlength);
 int RecvFullPack(WS_Connection_t connect, char *data, int maxsize);
 int ParseHandlePack(HandPack *outputpack, char *data, int maxsize);
-int BuildString(const char *str, char *outputdata, int maxsize);
-int BuildHandPack(HandPack pack,const char *serveraddr,char*outputdata,int maxsize);
+int BuildString(const char *str, char *outputdata, int maxsize,int strlength);
+int BuildHandPack(HandPack pack,const char *serveraddr,int is_fml,char*outputdata,int maxsize);
 void ReadUserName(char*data,char *username);
-int BuildHandPack(HandPack pack,const char *serveraddr,char*outputdata,int maxsize)
+int CheckFML(char*data);
+int CheckFML(char*data)
+{
+    char vl,*p=data;
+    varint_decode(data,1024,&vl);
+    if (vl<=0) return -2;
+    p+=vl;
+    if (*p!=0) return -1;//不是握手包
+    p+=1;
+    varint_decode(p,1024,&vl);
+    p+=vl;
+    if (vl<=0) return -2;
+    char *temp=(char*)malloc(1024);
+    int strl=varint_decode(p,100,&vl);
+    p+=vl;
+    memcpy(temp,p,strl);
+    temp[strl]=0;
+    if (strl!=strlen(temp))
+    {
+        free(temp);
+        return 1;
+    }
+    else
+    {
+        free(temp);
+        return 0;
+    }
+}
+int BuildHandPack(HandPack pack,const char *serveraddr,int is_fml,char*outputdata,int maxsize)
 {
     char packsize[10];
     unsigned char packvint;
     char prosize[10];
     unsigned char provint;
-    char *str=(char*)malloc(strlen(serveraddr)+10);
-    int strl=BuildString(serveraddr,str,strlen(serveraddr)+10);
+    char *str=(char*)malloc(strlen(serveraddr)+20);
+    int strl;
+    if (is_fml==0)
+    {
+        strl=BuildString(serveraddr,str,strlen(serveraddr)+20,strlen(serveraddr));
+    }
+    else
+    {
+        char *temp=(char*)malloc(strlen(serveraddr)+20);
+        strcpy(temp,serveraddr);
+        memcpy(temp+strlen(temp)+1,"FML",4);
+        strl=BuildString(temp,str,strlen(serveraddr)+20,strlen(serveraddr)+5);
+        free(temp);
+    }
     varint_encode(pack.protocol,prosize,10,&provint);
     //构建数据包
     char *data=(char*)malloc(1024);
@@ -55,9 +95,9 @@ void ReadUserName(char*data,char *username)
     return;
 }
 
-int BuildString(const char *str, char *outputdata, int maxsize)
+int BuildString(const char *str, char *outputdata, int maxsize,int strlength)
 {
-    int strl = strlen(str);
+    int strl = strlength;
     unsigned char vil;
     char temp[10];
     varint_encode(strl, temp, 10, &vil);
@@ -70,7 +110,7 @@ int BuildString(const char *str, char *outputdata, int maxsize)
     return vil+strl;
 }
 
-int ReadString(char *data, int datasize, char *output, int outputmaxsize)
+int ReadString(char *data, int datasize, char *output, int outputmaxsize,int *strlength)
 {
     unsigned char vl;
     int strl = varint_decode(data, datasize, &vl);
@@ -84,6 +124,7 @@ int ReadString(char *data, int datasize, char *output, int outputmaxsize)
     }
     memcpy(output, data + vl, strl);
     output[strl] = 0;
+    if (strlength!=NULL) *strlength=strl;
     return strl + vl;
 }
 int ParseHandlePack(HandPack *outputpack, char *data, int maxsize)
@@ -98,7 +139,7 @@ int ParseHandlePack(HandPack *outputpack, char *data, int maxsize)
     pack.protocol = varint_decode(p, maxsize - (p - data), &lt);
     p += lt;
     //获取源地址
-    int ssize = ReadString(p, maxsize - (p - data), pack.Address, 128);
+    int ssize = ReadString(p, maxsize - (p - data), pack.Address, 128,NULL);
     if (ssize <= 0)
     {
         return -1;

@@ -17,11 +17,12 @@ typedef struct HANDLEPACK
 } HandPack;
 
 int GetPackID(char *data, int datasize);
-int ReadString(char *data, int datasize, char *output, int outputmaxsize);
+int ReadString(char *data, int datasize, char *output, int outputmaxsize,int*strlength);
 int RecvFullPack(WS_Connection_t connect, char *data, int maxsize);
 int ParseHandlePack(HandPack *outputpack, char *data, int maxsize);
 int ReadFullPack(WS_Connection_t client, char *data, int maxsize);
-int BuildString(const char *str, char *outputdata, int maxsize);
+int BuildString(const char *str, char *outputdata, int maxsize,int strlength);
 void ReadUserName(char*data,char *username);
-int BuildHandPack(HandPack pack,const char *serveraddr,char*outputdata,int maxsize);
+int BuildHandPack(HandPack pack,const char *serveraddr,int is_fml,char*outputdata,int maxsize);
+int CheckFML(char*data);
 #endif
