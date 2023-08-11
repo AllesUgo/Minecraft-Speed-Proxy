@@ -6,10 +6,16 @@ Minecraft加速IP程序
 本项目使用C语言编写，内存占用极低，在配置较低的服务器上拥有更好的表现
 
 # 生成配置文件(可选)
-
+具体请参考后文  
+默认生成:
+```bash
+sudo ./minecraftspeedproxy -a
+```
+或脚本生成:  
 ```bash
 bash <(curl -fsSL https://fastly.jsdelivr.net/gh/AllesUgo/Minecraft-Speed-Proxy@master/scripts/config.sh )
 ```
+
 
 # 如何编译并运行
 1.克隆仓库到你的Linux服务器上  
@@ -31,14 +37,43 @@ bash <(curl -fsSL https://fastly.jsdelivr.net/gh/AllesUgo/Minecraft-Speed-Proxy@
 
 ## 参数解释
 
-1.运行本程序需要三个必选参数，依次为 `要代理的服务器地址` `要代理的服务器端口` `使用的本地端口`
+*本程序可以通过参数启动，也可以通过配置文件启动，若要通过配置文件启动请参考配置文件解释*  
+1.通过命令行参数运行本程序需要三个必选参数，依次为 `要代理的服务器地址` `要代理的服务器端口` `使用的本地端口`
 其中 `要代理的服务器地址`可以是IP，也可以是域名，`使用的本地端口`请注意检查是否被占用以及权限
 
 2.可选参数 `--noinput`用来禁用标准输入,可搭配 `nohup`命令来使其在后台运行，建议使用 `screen`来使其在后台运行而不是 `nohup`
 
 3.**运行中的命令支持请在运行后输入 `help`以获取**
 
-4.更多参数请使用参数`--help`获取
+4.更多参数请使用参数`--help`获取  
+## 配置文件解释
+程序除通过命令行参数设置启动外，还可以使用配置文件启动  
+配置文件是一个JSON格式的文本文件，默认的配置文件可以通过`sudo ./minecraftspeedproxy -a`生成(请注意权限问题)  
+其默认内容如下
+```json
+{
+        "Address":      "mc.hypixel.net",
+        "RemotePort":   25565,
+        "LocalPort":    25565,
+        "DefaultEnableWhitelist":       true,
+        "AllowInput":   true,
+        "ShowOnlinePlayerNumber":       true
+}
+```  
+各字段解释如下；
+|键名|类型|键值|
+|----|-|---|
+|Address|字符串|要加速的服务器地址，可以是IP也可以是域名|
+|RemotePort|整数|要加速的服务器端口|
+|LocalPort|整数|加速程序要使用的端口|
+|DefaultEnableWhitelist|布尔|是否默认启用白名单|
+|AllowInput|布尔|程序运行期间是否接受输入，包括命令等输入|
+|ShowOnlinePlayerNumber|布尔|玩家服务器列表页面是否可以看到当前加速IP上的玩家数量|
+当使用默认位置的配置文件启动时直接输入`./minecraftspeedproxy`即可启动  
+若要指定配置文件请使用
+```bash
+./minecraftspeedproxy -c <配置文件路径>
+```
 ## 如何自定义motd
 服务器启动后会自动生成一个motd.json，直接修改motd.json即可
 
