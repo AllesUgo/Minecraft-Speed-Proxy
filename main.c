@@ -241,7 +241,7 @@ int main(int argc, char *argv[])
 	{
 		// printf("[%s] [W] 没有找到motd.json\n", gettime().time);
 		log_warn("没有找到motd.json");
-		jdata = (char *)malloc(141);
+		jdata = (char *)malloc(142);
 		strcpy(jdata, "{\"version\": {\"name\": \"1.8.7\",\"protocol\": 47},\"players\": {\"max\": 0,\"online\": 0,\"sample\": []},\"description\": {\"text\": \"Minecraft Speed Plus\"}}");
 		fp = fopen("motd.json", "w");
 		if (fp == NULL)
@@ -265,11 +265,12 @@ int main(int argc, char *argv[])
 			log_error("获取motd.json文件信息失败\n");
 			exit(1);
 		}
-		jdata = (char *)malloc(st.st_size);
+		jdata = (char *)malloc(st.st_size + 1);
 		if (1 != fread(jdata, st.st_size, 1, fp))
 		{
 			log_warn("读取motd.json异常\n");
 		}
+		jdata[st.st_size] = 0;
 		fclose(fp);
 	}
 	if (noinput_sign == 0)
