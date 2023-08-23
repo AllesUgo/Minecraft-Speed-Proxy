@@ -33,10 +33,13 @@ pthread_mutex_t O_lock;
 OL_L *head;
 extern char *Version;
 extern int IsOnlinePlayerNumberShow;
+extern pthread_mutex_t Motd_Lock;
+extern char *jdata;
 int OnlineNumber = 0;
 void printonline();
 void kickplayer(const char *playername);
 void kicksock(int sock);
+void MotdControl(struct ARGS_STRUCT *args);
 int GetOnlinePlayerNumber();
 struct ARGS_STRUCT ParseInputStr(const char *str)
 {
@@ -147,7 +150,7 @@ void *thread(void *a)
             }
             putc('\n', stdout);
 
-            //打印栈大小
+            // 打印栈大小
             p = strstr(text, "VmStk:");
             printf("栈内存使用量:");
             for (int i = 0; p[i] != '\n' && p != NULL; i++)
@@ -397,6 +400,10 @@ void *thread(void *a)
                 }
             }
         }
+        else if (!strcmp(input_struct.argv[0], "motd"))
+        {
+            MotdControl(&input_struct);
+        }
         else
         {
             printf("未知命令，可输入help查看帮助\n");
@@ -517,7 +524,7 @@ void printonline()
     pthread_mutex_lock(&O_lock);
     OL_L *temp = head;
     char str[20];
-    printf("%-5s%-5s%-16s%-16s%s\n","ID","sock","IP","UserName","LoginTime");
+    printf("%-5s%-5s%-16s%-16s%s\n", "ID", "sock", "IP", "UserName", "LoginTime");
     int i = 1;
     while (temp)
     {
@@ -646,4 +653,57 @@ void addip(int sock, const char *IP)
 int GetOnlinePlayerNumber()
 {
     return OnlineNumber;
+}
+void MotdControl(struct ARGS_STRUCT *args)
+{
+    struct stat st;
+    char *jsondata;
+    FILE *fp;
+    cJSON*json_test;
+    const char*error_reason_str;
+    if (args->argc == 2 && !strcmp(args->argv[1], "reload"))
+    {
+        pthread_mutex_lock(&Motd_Lock);
+        do
+        {
+            if (stat("motd.json", &st))
+            {
+                log_error("获取motd.json文件状态失败:%s", strerror(errno));
+                break;
+            }
+            jsondata = (char *)malloc(st.st_size + 1);
+            if (!(fp = fopen("motd.json", "r")))
+            {
+                log_error("打开motd.json文件失败:%s", strerror(errno));
+                free(jsondata);
+                break;
+            }
+            if (1 != fread(jsondata, st.st_size, 1, fp))
+            {
+                log_error("读取motd.json文件异常:%s", strerror(errno));
+                free(jsondata);
+                fclose(fp);
+                break;
+            }
+            jsondata[st.st_size] = 0;
+            fclose(fp);
+            /*测试motd是否可以被解析*/
+            if (!(json_test=cJSON_Parse(jsondata)))
+            {
+                error_reason_str = cJSON_GetErrorPtr();
+                if (error_reason_str) log_error("motd文件JSON解析失败:%s",error_reason_str);
+                free(jsondata);
+                break;
+            }
+            cJSON_Delete(json_test);
+            free(jdata);
+            jdata=jsondata;
+            log_info("motd重新加载成功");
+        } while (0);
+        pthread_mutex_unlock(&Motd_Lock);
+    }
+    else
+    {
+        printf("motd语法错误:motd reload重新读取motd文件\n");
+    }
 }

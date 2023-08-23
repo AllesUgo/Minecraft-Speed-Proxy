@@ -22,6 +22,7 @@ pthread_key_t Thread_Key;
 int Remote_Port;
 char DlCheck = 0;
 char *jdata;
+pthread_mutex_t Motd_Lock = PTHREAD_MUTEX_INITIALIZER;
 void OnlineControl_Init();
 void *DealClient(void *InputArg);
 void addip(int sock, const char *IP);
@@ -258,12 +259,14 @@ int main(int argc, char *argv[])
 	}
 	else
 	{
-		int filesize;
-		fseek(fp, 0L, SEEK_END);
-		filesize = ftell(fp);
-		fseek(fp, 0L, SEEK_SET);
-		jdata = (char *)malloc(filesize);
-		if (0 == fread(jdata, filesize, 1, fp))
+		struct stat st;
+		if (stat("motd.json", &st))
+		{
+			log_error("获取motd.json文件信息失败\n");
+			exit(1);
+		}
+		jdata = (char *)malloc(st.st_size);
+		if (1 != fread(jdata, st.st_size, 1, fp))
 		{
 			log_warn("读取motd.json异常\n");
 		}

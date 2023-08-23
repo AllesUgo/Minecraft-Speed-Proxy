@@ -21,6 +21,7 @@ extern int Remote_Port;
 extern char *jdata;
 extern int IsOnlinePlayerNumberShow;
 extern pthread_key_t Thread_Key;
+extern pthread_mutex_t Motd_Lock;
 
 void *DealClient(void *InputArg);
 void adduser(int sock, const char *username);
@@ -295,8 +296,9 @@ int SendPong(WS_Connection_t client, char *data, int datasize)
 
 int SendResponse(WS_Connection_t client, char *jdata, int pro)
 {
-
+    pthread_mutex_lock(&Motd_Lock);
     cJSON *json = cJSON_Parse(jdata);
+    pthread_mutex_unlock(&Motd_Lock);
     if (json == NULL)
     {
         log_warn("motd.json数据格式错误");
