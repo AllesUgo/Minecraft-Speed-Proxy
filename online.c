@@ -103,7 +103,8 @@ void *thread(void *a)
         }
         else if (!strcmp(cmd, "help"))
         {
-            printf("命令列表:\nhelp\t查看帮助\nstop\t退出程序\nmemuse\t查看内存使用情况\nlist\t列出在线玩家\npid\t获取当前进程pid\nkick --help获取kick命令帮助\nwhitelist --help获取白名单命令帮助\nban --help获取封禁命令帮助\npardon --help获取接触封禁命令帮助\nOnlinePlayerNumber --help获取在线玩家展示设置帮助\n");
+            printf("命令列表:\nhelp\t查看帮助\nstop\t退出程序\nmemuse\t查看内存使用情况\nlist\t列出在线玩家\npid\t获取当前进程pid\nkick --help\t获取kick命令帮助\nwhitelist --help\t获取白名单命令帮助\nban --help\t获取封禁命令帮助\npardon --help\t获取接触封禁命令帮助\nOnlinePlayerNumber --help\t获取在线玩家展示设置帮助\n");
+            printf("motd --help\t获取管理motd状态的帮助\n");
         }
         else if (!strcmp(cmd, "version"))
         {
