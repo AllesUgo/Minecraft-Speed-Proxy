@@ -405,7 +405,6 @@ int ReadConfig(const char *filepath, char **remoteserveraddress, int *remoteport
 		if (temp->type == cJSON_False)
 		{
 			*noinput_sign = 1;
-			// printf("禁用命令行控制\n");
 			log_info("禁用命令行控制");
 		}
 	}

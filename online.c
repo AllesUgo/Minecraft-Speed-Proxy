@@ -525,11 +525,11 @@ void printonline()
     pthread_mutex_lock(&O_lock);
     OL_L *temp = head;
     char str[20];
-    printf("%-5s%-5s%-16s%-16s%s\n", "ID", "sock", "IP", "UserName", "LoginTime");
+    printf("%-5s%-5s%-16s%-16s%-20s%-6s\n", "ID", "sock", "IP", "UserName", "LoginTime","OnlineMinute");
     int i = 1;
     while (temp)
     {
-        printf("%-5d%-5d%-16s%-16s%s", i, temp->sock, temp->ip, temp->username, ctime(&(temp->starttime)));
+        printf("%-5d%-5d%-16s%-16s%-20s%-6.1f\n", i, temp->sock, temp->ip, temp->username, FormatTime((temp->starttime)),(time(0)-temp->starttime)/60.0);
         temp = temp->next;
         i += 1;
     }
@@ -542,9 +542,7 @@ void removeip(int sock)
     pthread_mutex_lock(&O_lock);
     if (head == NULL)
     {
-        // 当前没有在线玩家
         pthread_mutex_unlock(&O_lock);
-        // printf("[W] 试图移除非在线玩家\n");
         log_warn("试图移除非在线玩家");
         return;
     }
@@ -553,17 +551,15 @@ void removeip(int sock)
         OL_L *temp = head;
         if (temp->sock == sock)
         {
-
             if (strcmp(temp->username, "Not-Login") != 0)
             {
                 OnlineNumber -= 1;
-                log_player("移除了玩家:%s于IP:%s的连接", temp->username, temp->ip);
+                log_player("移除了玩家:%s于IP:%s的连接,共在线%d秒", temp->username, temp->ip,time(NULL)-temp->starttime);
             }
             head = temp->next;
             free(temp);
 
             pthread_mutex_unlock(&O_lock);
-            // if temp->username != "Not-Login" log
             return;
         }
         while (temp->next)
@@ -575,7 +571,7 @@ void removeip(int sock)
                 if (strcmp(temp->username, "Not-Login") != 0)
                 {
                     OnlineNumber -= 1;
-                    log_player("移除了玩家:%s于IP:%s的连接", a->username, a->ip);
+                    log_player("移除了玩家:%s于IP:%s的连接,共在线%d秒", a->username, a->ip,time(NULL)-temp->starttime);
                 }
                 temp->next = a->next;
                 free(a);
@@ -605,7 +601,6 @@ void adduser(int sock, const char *username)
         }
         temp = temp->next;
     }
-    ////////////////
     pthread_mutex_unlock(&O_lock);
     return;
 }
@@ -631,7 +626,7 @@ void addip(int sock, const char *IP)
         {
             if (temp->sock == sock)
             {
-                printf("[W] 重复的套接字添加,sock=%d,IP=%s\n", sock, IP);
+                log_warn("重复的套接字添加,sock=%d,IP=%s\n", sock, IP);
                 pthread_mutex_unlock(&O_lock);
                 return;
             }
@@ -703,8 +698,12 @@ void MotdControl(struct ARGS_STRUCT *args)
         } while (0);
         pthread_mutex_unlock(&Motd_Lock);
     }
+    else if (args->argc == 2 && !strcmp(args->argv[1], "--help"))
+    {
+        printf("motd reload\t重新读取motd.json文件\n");
+    }
     else
     {
-        printf("motd语法错误:motd reload重新读取motd文件\n");
+        printf("motd语法错误,输入motd --help以获取帮助\n");
     }
 }
