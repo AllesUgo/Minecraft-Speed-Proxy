@@ -82,7 +82,7 @@ namespace RbsLib
 				std::string GetAddress(void)const noexcept;
 				void Close(void);
 				void SetSocketOption(int level, int optname, const void* optval, socklen_t optlen) const;
-				void DisableSocket(void) const;
+				void Disable(void) const;
 			};
 			class TCPServer
 			{
@@ -92,6 +92,7 @@ namespace RbsLib
 				bool is_bind = false;
 				int* reference_counter = nullptr;
 				bool is_ipv6 = false;
+				bool is_force_closed = false;
 			public:
 				TCPServer();
 				TCPServer(int port, const std::string& address = "0.0.0.0",bool is_ipv6=false);
@@ -103,6 +104,7 @@ namespace RbsLib
 				void Listen(int listen_num = 5);
 				RbsLib::Network::TCP::TCPConnection Accept(void);
 				void Close(void) noexcept;
+				void ForceClose(void);
 			};
 			class TCPClient
 			{

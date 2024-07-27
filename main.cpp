@@ -3,7 +3,7 @@
 #include <iostream>
 #include <stdlib.h>
 #include "proxy.h"
-#include "proxy.h"
+#include <list>
 
 using namespace std;
 
@@ -11,6 +11,8 @@ using namespace std;
 
 int main()
 {
+	std::list<int> li;
+	li.remove(1);
 	int is_ipv6_local;
 	std::string local_address;
 	std::uint16_t local_port;
@@ -31,9 +33,15 @@ int main()
 	cin >> remote_server_port;
 	Proxy *proxy = new Proxy(is_ipv6_local, local_address, local_port, is_ipv6_remote, remote_server_addr, remote_server_port);
 	proxy->Start();
+	std::string cmd;
 	while (true)
 	{
-		getchar();
+		cin >> cmd;
+		if (cmd == "exit") {
+			delete proxy;
+			break;
+		}
+		else proxy->KickByUsername("AllesUgo");
 	}
 	return 0;
 }

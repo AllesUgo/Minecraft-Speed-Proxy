@@ -86,7 +86,7 @@ void RbsLib::Network::TCP::TCPServer::Bind(int port, const std::string& address)
 {
 	if (this->is_ipv6 == false)
 	{
-		struct sockaddr_in s_sin;
+		struct sockaddr_in s_sin = {0};
 		int opt;
 		if (is_bind) throw net::NetworkException("This object is already bind");
 		if (port < 0 || port>65535) throw net::NetworkException("Port mast be in range 0-65535");
@@ -107,6 +107,10 @@ void RbsLib::Network::TCP::TCPServer::Bind(int port, const std::string& address)
 			reason += ": ";
 			reason += strerror(errno);
 #endif // linux
+#ifdef WIN32
+			reason += ": ";
+			reason += std::to_string(WSAGetLastError());
+#endif // WIN32
 			throw net::NetworkException(reason);
 		}
 	}
@@ -204,15 +208,28 @@ void RbsLib::Network::TCP::TCPServer::Close(void) noexcept
 		if (*this->reference_counter == 0)
 		{
 #ifdef WIN32
-			closesocket(this->server_socket);
+			if (!this->is_force_closed) closesocket(this->server_socket);
 #endif //Windows
 #ifdef LINUX
-			close(this->server_socket);
+			if (!this->is_force_closed) close(this->server_socket);
 #endif // linux
 			delete this->reference_counter;
 			this->reference_counter = nullptr;
 		}
 	}
+}
+
+void RbsLib::Network::TCP::TCPServer::ForceClose(void)
+{
+	#ifdef WIN32
+	shutdown(this->server_socket, SD_BOTH);
+	closesocket(this->server_socket);
+	#endif
+	#ifdef LINUX
+	shutdown(this->server_socket, SHUT_RDWR);
+	close(this->server_socket);
+	#endif
+	this->is_force_closed = true;
 }
 
 
@@ -405,7 +422,7 @@ void RbsLib::Network::TCP::TCPConnection::SetSocketOption(int level, int optname
 	}
 }
 
-void RbsLib::Network::TCP::TCPConnection::DisableSocket(void) const
+void RbsLib::Network::TCP::TCPConnection::Disable(void) const
 {
 	#ifdef WIN32
 	shutdown(this->sock, SD_BOTH);
