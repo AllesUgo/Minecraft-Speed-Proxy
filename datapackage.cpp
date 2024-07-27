@@ -198,7 +198,7 @@ int NoCompressionDataPack::GetID(const RbsLib::Buffer& buffer)
 
 LoginFailureDataPack::LoginFailureDataPack(const std::string& reason)
 {
-	this->id = 2;
+	this->id = 0;
 	this->reason = RbsLib::DataType::String(reason);
 }
 

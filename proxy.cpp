@@ -22,6 +22,8 @@ void Proxy::Start()
 						std::unique_lock<std::shared_mutex> lock(this->global_mutex);
 						this->connections.push_back(connection);
 						lock.unlock();
+						//调用连接回调
+						this->on_connected(connection);
 						int connection_status = 0;//未握手
 						//必须先握手
 						HandshakeDataPack handshake_data_pack;
@@ -79,10 +81,19 @@ void Proxy::Start()
 								//登录请求，接收登录请求
 								StartLoginDataPack start_login_data_pack;
 								start_login_data_pack.ParseFromInputStream(stream);
-								std::cout << start_login_data_pack.user_name.c_str();
-								if (start_login_data_pack.have_uuid)
-									std::cout <<":" << start_login_data_pack.GetUUID();
-								std::cout<<std::endl;
+								//调用登录回调
+								try {
+									if (start_login_data_pack.have_uuid) 
+										this->on_login(connection, start_login_data_pack.user_name, start_login_data_pack.GetUUID());
+									else 
+										this->on_login(connection, start_login_data_pack.user_name, std::string());
+								}
+								catch (const CallbackException& e) {
+									//登录失败
+									LoginFailureDataPack login_failed_data_pack(e.what());
+									stream.Write(login_failed_data_pack.ToBuffer());
+									throw ProxyException(std::string("Callback disable user login: ")+e.what());
+								}
 								//连接远程服务器
 								auto remote_server = is_ipv6_remote ? RbsLib::Network::TCP::TCPClient::Connect6(remote_server_addr, remote_server_port) : RbsLib::Network::TCP::TCPClient::Connect(remote_server_addr, remote_server_port);
 								int flag = 1;
@@ -139,7 +150,13 @@ void Proxy::Start()
 								catch (...) {
 									remote_server.Disable();
 									this->users.erase(start_login_data_pack.user_name);
-									std::cout << user_ptr->username << ":" << user_ptr->uuid<<":"<<user_ptr->upload_bytes << " disconnected" << std::endl;
+									UserInfo user_info;
+									user_info.username = user_ptr->username;
+									user_info.uuid = user_ptr->uuid;
+									user_info.ip = user_ptr->ip;
+									user_info.upload_bytes = user_ptr->upload_bytes;
+									user_info.connect_time = user_ptr->connect_time;
+									this->on_logout(connection,user_info);
 									throw;
 								}
 							}
@@ -153,6 +170,11 @@ void Proxy::Start()
 						connection.Disable();
 						std::unique_lock<std::shared_mutex> lock(this->global_mutex);
 						this->connections.remove(connection);
+						try {
+							this->on_disconnect(connection);
+						}
+						catch (...) {
+						}
 					}
 					});
 			}
@@ -171,6 +193,35 @@ void Proxy::KickByUsername(const std::string& username) {
 		iterator->second->server.Disable();
 	}
 	else throw ProxyException("User not found");
+}
+
+void Proxy::KickByUUID(const std::string& uuid)
+{
+	std::shared_lock<std::shared_mutex> lock(this->global_mutex);
+	for (auto& user : this->users) {
+		if (user.second->uuid == uuid) {
+			user.second->client.Disable();
+			user.second->server.Disable();
+			return;
+		}
+	}
+	throw ProxyException("User not found");
+}
+
+auto Proxy::GetUsersInfo() -> std::list<UserInfo>
+{
+	std::shared_lock<std::shared_mutex> lock(this->global_mutex);
+	std::list<UserInfo> users_info;
+	for (auto& user : this->users) {
+		UserInfo user_info;
+		user_info.username = user.second->username;
+		user_info.uuid = user.second->uuid;
+		user_info.ip = user.second->ip;
+		user_info.upload_bytes = user.second->upload_bytes;
+		user_info.connect_time = user.second->connect_time;
+		users_info.push_back(user_info);
+	}
+	return users_info;
 }
 
 Proxy::~Proxy() noexcept
@@ -197,4 +248,14 @@ const char* ProxyException::what() const noexcept
 User::User(const RbsLib::Network::TCP::TCPConnection& client, const RbsLib::Network::TCP::TCPConnection& server)
 	: client(client), server(server)
 {
+}
+
+Proxy::CallbackException::CallbackException(const std::string& message) noexcept
+	: message(message)
+{
+}
+
+const char* Proxy::CallbackException::what() const noexcept
+{
+	return this->message.c_str();
 }

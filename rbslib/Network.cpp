@@ -257,6 +257,7 @@ RbsLib::Network::TCP::TCPConnection::TCPConnection(const TCPConnection& connecti
 {
 	connection.mutex->lock();
 	this->sock = connection.sock;
+	this->is_ipv6 = connection.is_ipv6;
 	this->reference_counter = connection.reference_counter;
 	this->connection_info = connection.connection_info;
 	this->mutex = connection.mutex;
@@ -268,6 +269,7 @@ RbsLib::Network::TCP::TCPConnection::TCPConnection(TCPConnection&& connection) n
 {
 	connection.mutex->lock();
 	this->sock = connection.sock;
+	this->is_ipv6 = connection.is_ipv6;
 	this->reference_counter = connection.reference_counter;
 	this->connection_info = connection.connection_info;
 	this->mutex = connection.mutex;

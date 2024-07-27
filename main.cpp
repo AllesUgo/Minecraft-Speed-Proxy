@@ -11,8 +11,6 @@ using namespace std;
 
 int main()
 {
-	std::list<int> li;
-	li.remove(1);
 	int is_ipv6_local;
 	std::string local_address;
 	std::uint16_t local_port;
@@ -32,6 +30,18 @@ int main()
 	cout << "请输入远程端口:";
 	cin >> remote_server_port;
 	Proxy *proxy = new Proxy(is_ipv6_local, local_address, local_port, is_ipv6_remote, remote_server_addr, remote_server_port);
+	proxy->on_connected+=[](const RbsLib::Network::TCP::TCPConnection& client) {
+		std::cout <<client.GetAddress() <<"connected" << std::endl;
+	};//注册连接回调
+	proxy->on_login+= [](const RbsLib::Network::TCP::TCPConnection& client,const std::string& username, const std::string& uuid) {
+		std::cout << "username:" << username << " uuid:" << uuid << " ip:" << client.GetAddress() << " login" << std::endl;
+	};//注册登录回调
+	proxy->on_logout+= [](const RbsLib::Network::TCP::TCPConnection& client, const UserInfo& userinfo) {
+		std::cout << "username:" << userinfo.username << " uuid:" << userinfo.uuid << " ip:" << userinfo.ip << " logout" << std::endl;
+	};//注册登出回调
+	proxy->on_disconnect+= [](const RbsLib::Network::TCP::TCPConnection& client) {
+		std::cout << client.GetAddress() << "disconnect" << std::endl;
+	};//注册断开回调
 	proxy->Start();
 	std::string cmd;
 	while (true)
