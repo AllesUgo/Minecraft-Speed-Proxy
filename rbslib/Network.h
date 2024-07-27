@@ -21,6 +21,7 @@ typedef int socklen_t;
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
+#include <netinet/tcp.h>
 #define INVALID_SOCKET -1
 #define SOCKET_ERROR SO_ERROR
 typedef int SOCKET;
@@ -80,7 +81,8 @@ namespace RbsLib
 				SOCKET GetSocket(void)const noexcept;
 				std::string GetAddress(void)const noexcept;
 				void Close(void);
-				void SetSocketOption(int level, int optname, const void* optval, socklen_t optlen);
+				void SetSocketOption(int level, int optname, const void* optval, socklen_t optlen) const;
+				void DisableSocket(void) const;
 			};
 			class TCPServer
 			{

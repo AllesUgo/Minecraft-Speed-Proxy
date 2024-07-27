@@ -24,10 +24,8 @@ RbsLib::Buffer::Buffer(const void* data, uint64_t data_size)
 	:Buffer(data_size)
 {
 	if (data_size == 0) return;
-	this->data_ptr = new char[data_size];
-	this->size = data_size;
-	this->length = data_size;
 	memcpy(this->data_ptr, data, data_size);
+	this->length = data_size;
 }
 
 RbsLib::Buffer::Buffer(const Buffer& buffer)
@@ -155,7 +153,7 @@ void RbsLib::Buffer::Resize(uint64_t buffer_size)
 {
 	if (buffer_size == 0)
 	{
-		this->~Buffer();
+		delete[] (char*)this->data_ptr;
 		this->length = this->size = 0;
 		this->data_ptr = nullptr;
 		return;
@@ -202,9 +200,12 @@ void RbsLib::Buffer::AppendToEnd(const IBuffer& buffer)
 			((char*)this->data_ptr)[this->length++] = ((const char*)buffer.Data())[i];
 		}
 	}
-	for (int i = 0; i < buffer_len; ++i)
+	else
 	{
-		((char*)this->data_ptr)[this->length++] = ((const char*)buffer.Data())[i];
+		for (int i = 0; i < buffer_len; ++i)
+		{
+			((char*)this->data_ptr)[this->length++] = ((const char*)buffer.Data())[i];
+		}
 	}
 }
 

@@ -103,6 +103,13 @@ auto RbsLib::DataType::Integer::ToString() const -> std::string
 
 auto RbsLib::DataType::Integer::ToVarint() const -> Buffer
 {
+	if (this->Value() == 0)
+	{
+		Buffer buffer(1);
+		buffer.SetLength(1);
+		buffer[0] = 0;
+		return buffer;
+	}
 	if (this->Value() <0)
 	{
 		throw DataTypeException("Varint cannot be negative");
@@ -131,11 +138,12 @@ auto RbsLib::DataType::Integer::ToVarint() const -> Buffer
 bool RbsLib::DataType::Integer::ParseFromVarint(RbsLib::Streams::IInputStream& is)
 {
 	std::uint8_t byte;
-	int n = 1;
+	int n = 0;
 	std::uint64_t temp = 0;
 	for (int i = 0; i < 10; i++)
 	{
-		if (1 != is.Read(&byte, 1)) break;
+		int recved = is.Read(&byte, 1);
+		if (1 != recved) break;
 		temp |= ((std::uint64_t)(byte & 0x7F) << (n++ * 7));
 		if ((byte & 0x80) == 0)
 		{
@@ -150,11 +158,12 @@ void RbsLib::DataType::String::ParseFromInputStream(RbsLib::Streams::IInputStrea
 {
 	std::uint8_t byte;
 	std::int64_t size;
-	if (!RbsLib::DataType::Integer().ParseFromVarint(is))
+	RbsLib::DataType::Integer size_data;
+	if (!size_data.ParseFromVarint(is))
 	{
 		throw DataTypeException("String::ParseFromInputStream: failed to parse size from varint");
 	}
-	size = RbsLib::DataType::Integer().Value();
+	size = size_data.Value();
 	std::unique_ptr<char[]> ptr = std::make_unique<char[]>(size);
 	std::int64_t need_read = size;
 	while (need_read > 0)
