@@ -92,7 +92,7 @@ void Proxy::Start()
 									//登录失败
 									LoginFailureDataPack login_failed_data_pack(e.what());
 									stream.Write(login_failed_data_pack.ToBuffer());
-									throw ProxyException(std::string("Callback disable user login: ")+e.what());
+									throw ProxyException(std::string("Callback disable user login: ") + e.what());
 								}
 								//连接远程服务器
 								auto remote_server = is_ipv6_remote ? RbsLib::Network::TCP::TCPClient::Connect6(remote_server_addr, remote_server_port) : RbsLib::Network::TCP::TCPClient::Connect(remote_server_addr, remote_server_port);

@@ -22,6 +22,7 @@ typedef int socklen_t;
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
+#include <netdb.h>
 #define INVALID_SOCKET -1
 #define SOCKET_ERROR SO_ERROR
 typedef int SOCKET;

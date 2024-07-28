@@ -5,6 +5,7 @@
 #include <cstring>
 #include <cerrno>
 #include "TaskPool.h"
+#include <algorithm>
 namespace net = RbsLib::Network;
 
 static std::string read_word(const char* &buffer, int max_len);
@@ -437,31 +438,62 @@ void RbsLib::Network::TCP::TCPConnection::Disable(void) const
 RbsLib::Network::TCP::TCPConnection RbsLib::Network::TCP::TCPClient::Connect(std::string ip, int port)
 {
 	net::init_network();
-	SOCKET c_Socket = socket(AF_INET, SOCK_STREAM, 0);
-	if (SOCKET_ERROR == c_Socket) throw net::NetworkException("Allocate socket failed");
-	sockaddr_in server_addr = {0};
-	server_addr.sin_family = AF_INET;
-	server_addr.sin_addr.s_addr = inet_addr(ip.c_str());
-
-	server_addr.sin_port = htons(port);
-	if (SOCKET_ERROR == connect(c_Socket, (struct sockaddr*)&server_addr, sizeof(server_addr)))
+	struct addrinfo* answer = nullptr, hint = { 0 };
+	hint.ai_family = AF_INET;
+	hint.ai_socktype = SOCK_STREAM;
+	hint.ai_protocol = IPPROTO_TCP;
+	if (getaddrinfo(ip.c_str(), std::to_string(port).c_str(), &hint, &answer)) {
+		throw net::NetworkException("Get address info failed");
+	}
+	SOCKET c_Socket = socket(answer->ai_family, answer->ai_socktype, answer->ai_protocol);
+	if (SOCKET_ERROR == c_Socket)
+	{
+		freeaddrinfo(answer);
+		throw net::NetworkException("Allocate socket failed");
+	}
+	if (SOCKET_ERROR == connect(c_Socket, answer->ai_addr, answer->ai_addrlen))
+	{
+		freeaddrinfo(answer);
 		throw net::NetworkException("Connect server failed");
-	return net::TCP::TCPConnection(c_Socket, server_addr, sizeof(server_addr));
+	}
+	struct sockaddr_in addr = { 0 };
+
+	memcpy(&addr, answer->ai_addr, std::min<unsigned int>(sizeof(addr), answer->ai_addrlen));
+	freeaddrinfo(answer);
+	return net::TCP::TCPConnection(c_Socket, addr, sizeof(addr));
 }
 
 auto RbsLib::Network::TCP::TCPClient::Connect6(std::string ip, int port) -> RbsLib::Network::TCP::TCPConnection
 {
 	net::init_network();
-	SOCKET c_Socket = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
-	if (SOCKET_ERROR == c_Socket) throw net::NetworkException("Allocate socket failed");
-	sockaddr_in6 server_addr;
-	server_addr.sin6_family = AF_INET6;
-	inet_pton(AF_INET6, ip.c_str(), &server_addr.sin6_addr);
-
-	server_addr.sin6_port = htons(port);
-	if (SOCKET_ERROR == connect(c_Socket, (struct sockaddr*)&server_addr, sizeof(server_addr)))
+	struct addrinfo* answer=nullptr, hint = {0};
+	hint.ai_family = AF_INET6;
+	hint.ai_socktype = SOCK_STREAM;
+	hint.ai_protocol = IPPROTO_TCP;
+	if (getaddrinfo(ip.c_str(), std::to_string(port).c_str(), &hint, &answer)){
+		throw net::NetworkException("Get address info failed");
+	}
+	SOCKET c_Socket = socket(answer->ai_family, answer->ai_socktype, answer->ai_protocol);
+	if (SOCKET_ERROR == c_Socket)
+	{
+		freeaddrinfo(answer);
+		throw net::NetworkException("Allocate socket failed");
+	}
+	if (SOCKET_ERROR == connect(c_Socket, answer->ai_addr, answer->ai_addrlen))
+	{
+		freeaddrinfo(answer);
+#ifdef WIN32
+		closesocket(c_Socket);
+#endif // WIN32
+#ifdef LINUX
+		close(c_Socket);
+#endif // LINUX
 		throw net::NetworkException("Connect server failed");
-	return net::TCP::TCPConnection(c_Socket, server_addr, sizeof(server_addr));
+	}
+	struct sockaddr_in6 addr = {0};
+	memcpy(&addr, answer->ai_addr,std::min<unsigned int>(sizeof(addr),answer->ai_addrlen));
+	freeaddrinfo(answer);
+	return net::TCP::TCPConnection(c_Socket,addr,sizeof(addr));
 }
 
 static std::string read_word(const char* &buffer, int max_len)

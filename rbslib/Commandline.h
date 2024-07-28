@@ -31,7 +31,7 @@ namespace RbsLib::Command
 	class CommandExecuter
 	{
 	public:
-		typedef std::map<std::string, std::list<std::string>> Args;
+		using Args = std::map<std::string, std::list<std::string>>;
 		class CommandNode
 		{
 		private:

@@ -4,7 +4,6 @@
 #include "rbslib/Network.h"
 #include "rbslib/TaskPool.h"
 #include "rbslib/Function.h"
-#include "rbslib/Function.h"
 #include <map>
 #include <list>
 #include <memory>
@@ -38,19 +37,10 @@ struct UserInfo {
 };
 
 class Proxy {
-protected:
-	
 
 public:
 	/*让IDE可以提示，编写完成后放在protected*/
-	std::list<RbsLib::Network::TCP::TCPConnection> connections;
-	std::map<std::string, std::shared_ptr<User>> users;
-	RbsLib::Network::TCP::TCPServer local_server;
-	std::string remote_server_addr;
-	std::uint16_t remote_server_port;
-	bool is_ipv6_remote;
-	std::shared_mutex global_mutex;
-	RbsLib::Thread::TaskPool thread_pool = 11;
+	
 	/*END*/
 
 	class CallbackException : public std::exception {
@@ -76,5 +66,15 @@ public:
 	void KickByUUID(const std::string& uuid);
 	auto GetUsersInfo() -> std::list<UserInfo>;
 	~Proxy() noexcept;
+protected:
+
+	std::list<RbsLib::Network::TCP::TCPConnection> connections;
+	std::map<std::string, std::shared_ptr<User>> users;
+	RbsLib::Network::TCP::TCPServer local_server;
+	std::string remote_server_addr;
+	std::uint16_t remote_server_port;
+	bool is_ipv6_remote;
+	std::shared_mutex global_mutex;
+	RbsLib::Thread::TaskPool thread_pool = 11;
 };
 #endif // !PROXY_H
