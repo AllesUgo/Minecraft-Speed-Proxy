@@ -10,7 +10,7 @@ if (POLICY CMP0141)
 endif()
 
 project ("minecraftspeedproxy")
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 
 
 file(GLOB RBS_LIB_HEADERS "rbslib/*.h" "rbslib/Windows/*.h")

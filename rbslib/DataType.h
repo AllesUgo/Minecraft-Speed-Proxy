@@ -5,6 +5,7 @@
 #include "Streams.h"
 #include <cstdint>
 #include <exception>
+#include <compare>
 
 namespace RbsLib::DataType {
 	class DataTypeException : public std::exception {
@@ -22,7 +23,7 @@ namespace RbsLib::DataType {
 		Integer(std::int64_t value = 0);
 		std::int64_t Value() const;
 		void Value(std::int64_t value);
-		auto operator<=> (const Integer&) const = default;
+		std::strong_ordering operator<=> (const Integer&) const = default;
 		auto operator+(const Integer&y) const -> Integer;
 		auto operator-(const Integer&y) const -> Integer;
 		auto operator*(const Integer&y) const -> Integer;
