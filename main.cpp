@@ -11,6 +11,8 @@
 
 using namespace std;
 
+Proxy* proxy;
+
 class ExitRequest :public std::exception {
 public:
 	int exit_code;
@@ -73,10 +75,30 @@ void InnerCmdline(int argc, const char** argv) {
 	executer.CreateSubOption("help", 0, "显示帮助", false, [](const RbsLib::Command::CommandExecuter::Args& args) {
 		cout<<"help: 显示帮助"<<endl;
 		cout<<"whitelist: 白名单功能"<<endl;
-		cout<<"ban: 封禁用户"<<endl;
-		cout<<"pardon: 取消封禁用户"<<endl;
+		cout<<"ban <player_name> [...]: 封禁用户"<<endl;
+		cout<<"pardon <player_name> [...]: 取消封禁用户"<<endl;
 		cout<<"list: 列出名单"<<endl;
+		cout<<"kick <player_name> [...]: 踢出用户"<<endl;
 		cout<<"exit: 退出程序"<<endl;
+		});
+	executer.CreateSubOption("kick", -1, "踢出用户", false, [](const RbsLib::Command::CommandExecuter::Args& args) {
+		if (args.find("kick") == args.end()) {
+			cout << "参数错误,请指定要踢出的玩家名称" << endl;
+			return;
+		}
+		for (const auto& it : args.find("kick")->second) {
+			if (proxy==nullptr) throw std::runtime_error("服务未启动");
+			try
+			{
+				proxy->KickByUsername(it);
+				Logger::LogInfo("已踢出%s", it.c_str());
+			}
+			catch (const ProxyException& e)
+			{
+				Logger::LogWarn("未找到用户%s", it.c_str());
+			}
+			
+		}
 		});
 	executer.CreateSubOption("exit", 0, "退出程序", false, [](const RbsLib::Command::CommandExecuter::Args& args) {
 		Logger::LogInfo("正在请求退出");
@@ -141,6 +163,17 @@ void InnerCmdline(int argc, const char** argv) {
 			for (const auto& it : args.find("ban")->second) {
 				WhiteBlackList::AddBlackList(it);
 				cout << "已添加" << it << "到黑名单" << endl;
+				//尝试踢出用户
+				if (proxy != nullptr) {
+					try
+					{
+						proxy->KickByUsername(it);
+						Logger::LogInfo("已踢出%s", it.c_str());
+					}
+					catch (const ProxyException& e)
+					{
+					}
+				}
 			}
 		});
 	executer.CreateSubOption("pardon", -1, "取消封禁用户", false,
@@ -182,8 +215,17 @@ int main(int argc,const char**argv)
 	if (WhiteBlackList::IsWhiteListOn()) {
 		Logger::LogInfo("白名单已启用");
 	}
-	
-	Proxy *proxy = new Proxy(is_ipv6_local, local_address, local_port, is_ipv6_remote, remote_server_addr, remote_server_port);
+	if (is_ipv6_local)
+		Logger::LogInfo("本地地址为IPv6地址");
+	else
+		Logger::LogInfo("本地地址为IPv4地址");
+	Logger::LogInfo("本地地址：%s 端口：%d", local_address.c_str(), local_port);
+	if (is_ipv6_remote)
+		Logger::LogInfo("远程服务器地址为IPv6地址");
+	else
+		Logger::LogInfo("远程服务器地址为IPv4地址");
+	Logger::LogInfo("远程服务器地址：%s 端口：%d", remote_server_addr.c_str(), remote_server_port);
+	proxy = new Proxy(is_ipv6_local, local_address, local_port, is_ipv6_remote, remote_server_addr, remote_server_port);
 	proxy->on_connected+=[](const RbsLib::Network::TCP::TCPConnection& client) {
 		//std::cout <<client.GetAddress() <<"connected" << std::endl;
 	};//注册连接回调
@@ -200,12 +242,37 @@ int main(int argc,const char**argv)
 		Logger::LogInfo("玩家%s uuid:%s 登录于 %s\n", username.c_str(), uuid.c_str(),client.GetAddress().c_str());
 	};//注册登录回调
 	proxy->on_logout+= [](const RbsLib::Network::TCP::TCPConnection& client, const UserInfo& userinfo) {
-		Logger::LogInfo("玩家%s uuid:%s 退出于 %s，使用流量%llu bytes\n", userinfo.username.c_str(), userinfo.uuid.c_str(), client.GetAddress().c_str(),userinfo.upload_bytes);
+		double flow = userinfo.upload_bytes;
+		std::string unit = "bytes";
+		if (flow>10000) {
+			flow /= 1024;
+			unit = "KB";
+		}
+		if (flow>10000) {
+			flow /= 1024;
+			unit = "MB";
+		}
+		if (flow>10000) {
+			flow /= 1024;
+			unit = "GB";
+		}
+		double time = std::time(nullptr)-userinfo.connect_time;
+		std::string time_unit = "秒";
+		if (time>100) {
+			time /= 60;
+			time_unit = "分钟";
+		}
+		if (time>100) {
+			time /= 60;
+			time_unit = "小时";
+		}
+		Logger::LogInfo("玩家%s uuid:%s 退出于 %s，在线时长%.1lf %s，使用流量%.3lf %s\n", userinfo.username.c_str(), userinfo.uuid.c_str(), client.GetAddress().c_str(),time,time_unit.c_str(), flow, unit.c_str());
 	};//注册登出回调
 	proxy->on_disconnect+= [](const RbsLib::Network::TCP::TCPConnection& client) {
 		//std::cout << client.GetAddress() << "disconnect" << std::endl;
 	};//注册断开回调
 	proxy->Start();
+	Logger::LogInfo("服务已启动");
 	std::string cmd;
 	while (true)
 	{
