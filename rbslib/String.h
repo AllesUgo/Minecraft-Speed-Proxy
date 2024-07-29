@@ -2,6 +2,8 @@
 #include "BaseType.h"
 #include <string>
 #include <vector>
+#include <iomanip>
+#include <sstream>
 namespace RbsLib::String
 {
 	std::vector<std::string> split(const std::string& str, const std::string& pattern);
@@ -18,6 +20,15 @@ namespace RbsLib::String
 			}
 			if (str.length() && str[0] == '-') return -a;
 			return a;
+		}
+
+		template <typename T>
+		std::string ToString(const T a_value, int n = 6)
+		{
+			int nn = n;
+			std::ostringstream out;
+			out << std::fixed << std::setprecision(nn) << a_value;
+			return out.str();
 		}
 	}
 }

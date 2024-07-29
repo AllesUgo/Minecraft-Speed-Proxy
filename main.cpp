@@ -8,10 +8,13 @@
 #include "rbslib/Commandline.h"
 #include "config.h"
 #include "WhiteBlackList.h"
+#include <memory>
+#include "rbslib/String.h"
+
 
 using namespace std;
 
-Proxy* proxy;
+std::unique_ptr<Proxy> proxy;
 
 class ExitRequest :public std::exception {
 public:
@@ -198,127 +201,165 @@ void InnerCmdline(int argc, const char** argv) {
 			cout << it << endl;
 		}
 		});
+	executer["list"].CreateSubOption("players", 0, "列出在线玩家", false, [](RbsLib::Command::CommandExecuter::Args const& args) {
+		if (proxy == nullptr) throw std::runtime_error("服务未启动");
+		printf("%-15s %-36s %-19s %-10s %s\n", "username", "uuid", "login-time", "flow", "address");
+		for (auto& it : proxy->GetUsersInfo()) {
+			std::string unit = "bytes";
+			if (it.upload_bytes > 10000) {
+				it.upload_bytes /= 1024;
+				unit = "KB";
+			}
+			if (it.upload_bytes > 10000) {
+				it.upload_bytes /= 1024;
+				unit = "MB";
+			}
+			if (it.upload_bytes > 10000) {
+				it.upload_bytes /= 1024;
+				unit = "GB";
+			}
+			std::string flow = RbsLib::String::Convert::ToString(it.upload_bytes,2)+' ' + unit;
+
+			printf("%-15s %-36s %-19s %-10s %s\n", it.username.c_str(), it.uuid.c_str(), Time::ConvertTimeStampToFormattedTime(it.connect_time).c_str(), flow.c_str(), it.ip.c_str());
+		}
+		});
 	executer.Execute(argc, argv);
 }
 
 
 int main(int argc,const char**argv)
 {
-	MainCmdline(argc, argv);
-	int is_ipv6_local = Config::get_config<bool>("LocalIPv6");
-	std::string local_address = Config::get_config<std::string>("LocalAddress");
-	std::uint16_t local_port = Config::get_config<int>("LocalPort");
-	int is_ipv6_remote = Config::get_config<bool>("RemoteIPv6");
-	std::string remote_server_addr = Config::get_config<std::string>("Address");
-	std::uint16_t remote_server_port = Config::get_config<int>("RemotePort");
-	WhiteBlackList::Init();
-	if (WhiteBlackList::IsWhiteListOn()) {
-		Logger::LogInfo("白名单已启用");
-	}
-	if (is_ipv6_local)
-		Logger::LogInfo("本地地址为IPv6地址");
-	else
-		Logger::LogInfo("本地地址为IPv4地址");
-	Logger::LogInfo("本地地址：%s 端口：%d", local_address.c_str(), local_port);
-	if (is_ipv6_remote)
-		Logger::LogInfo("远程服务器地址为IPv6地址");
-	else
-		Logger::LogInfo("远程服务器地址为IPv4地址");
-	Logger::LogInfo("远程服务器地址：%s 端口：%d", remote_server_addr.c_str(), remote_server_port);
-	proxy = new Proxy(is_ipv6_local, local_address, local_port, is_ipv6_remote, remote_server_addr, remote_server_port);
-	proxy->on_connected+=[](const RbsLib::Network::TCP::TCPConnection& client) {
-		//std::cout <<client.GetAddress() <<"connected" << std::endl;
-	};//注册连接回调
-
-	proxy->on_login += [](const RbsLib::Network::TCP::TCPConnection& client, const std::string& username, const std::string& uuid) {
-		if (WhiteBlackList::IsInBlack(username))
-			throw Proxy::CallbackException("You are in black list");
-		};
-	proxy->on_login += [](const RbsLib::Network::TCP::TCPConnection& client, const std::string& username, const std::string& uuid) {
-		if (!WhiteBlackList::IsInWhite(username))
-			throw Proxy::CallbackException("You are not in white list");
-		};
-	proxy->on_login+= [](const RbsLib::Network::TCP::TCPConnection& client,const std::string& username, const std::string& uuid) {
-		Logger::LogInfo("玩家%s uuid:%s 登录于 %s\n", username.c_str(), uuid.c_str(),client.GetAddress().c_str());
-	};//注册登录回调
-	proxy->on_logout+= [](const RbsLib::Network::TCP::TCPConnection& client, const UserInfo& userinfo) {
-		double flow = userinfo.upload_bytes;
-		std::string unit = "bytes";
-		if (flow>10000) {
-			flow /= 1024;
-			unit = "KB";
-		}
-		if (flow>10000) {
-			flow /= 1024;
-			unit = "MB";
-		}
-		if (flow>10000) {
-			flow /= 1024;
-			unit = "GB";
-		}
-		double time = std::time(nullptr)-userinfo.connect_time;
-		std::string time_unit = "秒";
-		if (time>100) {
-			time /= 60;
-			time_unit = "分钟";
-		}
-		if (time>100) {
-			time /= 60;
-			time_unit = "小时";
-		}
-		Logger::LogInfo("玩家%s uuid:%s 退出于 %s，在线时长%.1lf %s，使用流量%.3lf %s\n", userinfo.username.c_str(), userinfo.uuid.c_str(), client.GetAddress().c_str(),time,time_unit.c_str(), flow, unit.c_str());
-	};//注册登出回调
-	proxy->on_disconnect+= [](const RbsLib::Network::TCP::TCPConnection& client) {
-		//std::cout << client.GetAddress() << "disconnect" << std::endl;
-	};//注册断开回调
-	proxy->Start();
-	Logger::LogInfo("服务已启动");
-	std::string cmd;
-	while (true)
+	try
 	{
-		try
-		{
-			std::getline(std::cin, cmd);
-			RbsLib::Command::CommandLine cmdline;
-			cmdline.Parse(cmd);
+		MainCmdline(argc, argv);
+		//初始化日志
+		if (Logger::Init(Config::get_config<std::string>("LogDir"), Config::get_config<int>("ShowLogLevel"), Config::get_config<int>("SaveLogLevel"))==false)
+			Logger::LogError("日志初始化失败，无法记录日志");
+		int is_ipv6_local = Config::get_config<bool>("LocalIPv6");
+		std::string local_address = Config::get_config<std::string>("LocalAddress");
+		std::uint16_t local_port = Config::get_config<int>("LocalPort");
+		int is_ipv6_remote = Config::get_config<bool>("RemoteIPv6");
+		std::string remote_server_addr = Config::get_config<std::string>("Address");
+		std::uint16_t remote_server_port = Config::get_config<int>("RemotePort");
+		WhiteBlackList::Init();
+		if (WhiteBlackList::IsWhiteListOn()) {
+			Logger::LogInfo("白名单已启用");
+		}
+		if (is_ipv6_local)
+			Logger::LogInfo("本地地址为IPv6地址");
+		else
+			Logger::LogInfo("本地地址为IPv4地址");
+		Logger::LogInfo("本地地址：%s 端口：%d", local_address.c_str(), local_port);
+		if (is_ipv6_remote)
+			Logger::LogInfo("远程服务器地址为IPv6地址");
+		else
+			Logger::LogInfo("远程服务器地址为IPv4地址");
+		Logger::LogInfo("远程服务器地址：%s 端口：%d", remote_server_addr.c_str(), remote_server_port);
+		proxy = std::make_unique<Proxy>(is_ipv6_local, local_address, local_port, is_ipv6_remote, remote_server_addr, remote_server_port);
+		proxy->on_connected += [](const RbsLib::Network::TCP::TCPConnection& client) {
+			//std::cout <<client.GetAddress() <<"connected" << std::endl;
+			};//注册连接回调
 
-			if (cmdline.GetSize() < 1)
-			{
-				throw std::runtime_error("Command line is empty");
+		proxy->on_login += [](const RbsLib::Network::TCP::TCPConnection& client, const std::string& username, const std::string& uuid) {
+			if (WhiteBlackList::IsInBlack(username))
+				throw Proxy::CallbackException("You are in black list");
+			};
+		proxy->on_login += [](const RbsLib::Network::TCP::TCPConnection& client, const std::string& username, const std::string& uuid) {
+			if (!WhiteBlackList::IsInWhite(username))
+				throw Proxy::CallbackException("You are not in white list");
+			};
+		proxy->on_login += [](const RbsLib::Network::TCP::TCPConnection& client, const std::string& username, const std::string& uuid) {
+			Logger::LogPlayer("玩家%s uuid:%s 登录于 %s", username.c_str(), uuid.c_str(), client.GetAddress().c_str());
+			};//注册登录回调
+		proxy->on_logout += [](const RbsLib::Network::TCP::TCPConnection& client, const UserInfo& userinfo) {
+			double flow = userinfo.upload_bytes;
+			std::string unit = "bytes";
+			if (flow > 10000) {
+				flow /= 1024;
+				unit = "KB";
 			}
-			//查找所需命令名称所在的模块
-			int argc = cmdline.GetSize();
-			std::unique_ptr<const char* []> argv(new const char* [argc]);
+			if (flow > 10000) {
+				flow /= 1024;
+				unit = "MB";
+			}
+			if (flow > 10000) {
+				flow /= 1024;
+				unit = "GB";
+			}
+			double time = std::time(nullptr) - userinfo.connect_time;
+			std::string time_unit = "秒";
+			if (time > 100) {
+				time /= 60;
+				time_unit = "分钟";
+			}
+			if (time > 100) {
+				time /= 60;
+				time_unit = "小时";
+			}
+			Logger::LogPlayer("玩家%s uuid:%s 退出于 %s，在线时长%.1lf %s，使用流量%.3lf %s", userinfo.username.c_str(), userinfo.uuid.c_str(), client.GetAddress().c_str(), time, time_unit.c_str(), flow, unit.c_str());
+			};//注册登出回调
+		proxy->on_disconnect += [](const RbsLib::Network::TCP::TCPConnection& client) {
+			//std::cout << client.GetAddress() << "disconnect" << std::endl;
+			};//注册断开回调
+		proxy->SetMotd(Motd::LoadMotdFromFile(Config::get_config<std::string>("MotdPath")));
+		proxy->SetMaxPlayer(Config::get_config<int>("MaxPlayer"));
+		proxy->Start();
+		Logger::LogInfo("服务已启动");
+		std::string cmd;
+		while (true)
+		{
 			try
 			{
-				for (int i = 0; i < argc; i++)
+				std::getline(std::cin, cmd);
+				RbsLib::Command::CommandLine cmdline;
+				cmdline.Parse(cmd);
+
+				if (cmdline.GetSize() < 1)
 				{
-					argv[i] = new char[cmdline[i].size() + 1];
-					std::strcpy((char*)argv[i], cmdline[i].c_str());
+					throw std::runtime_error("Command line is empty");
 				}
-				InnerCmdline(argc, argv.get());
+				//查找所需命令名称所在的模块
+				int argc = cmdline.GetSize();
+				std::unique_ptr<const char* []> argv(new const char* [argc]);
+				try
+				{
+					for (int i = 0; i < argc; i++)
+					{
+						argv[i] = new char[cmdline[i].size() + 1];
+						std::strcpy((char*)argv[i], cmdline[i].c_str());
+					}
+					InnerCmdline(argc, argv.get());
+				}
+				catch (...)
+				{
+					for (int i = 0; i < argc; ++i) delete[] argv[i];
+					throw;
+				}
+				for (int i = 0; i < argc; ++i) delete[] argv[i];
+			}
+			catch (const ExitRequest& req)
+			{
+				proxy = nullptr;
+				Logger::LogInfo("服务器已退出，退出码：%d", req.exit_code);
+				return req.exit_code;
+			}
+			catch (const std::exception& e)
+			{
+				Logger::LogError("Error: %s", e.what());
 			}
 			catch (...)
 			{
-				for (int i = 0; i < argc; ++i) delete[] argv[i];
-				throw;
+				Logger::LogError("Unknown error");
 			}
-			for (int i = 0; i < argc; ++i) delete[] argv[i];
 		}
-		catch (const ExitRequest& req)
-		{
-			delete proxy;
-			Logger::LogInfo("服务器已退出，退出码：%d", req.exit_code);
-			return req.exit_code;
-		}
-		catch (const std::exception& e)
-		{
-			Logger::LogError("Error: %s", e.what());
-		}
-		catch (...)
-		{
-			Logger::LogError("Unknown error");
-		}
+	}
+	catch (const std::exception& e)
+	{
+		Logger::LogError("Error: %s", e.what());
+	}
+	catch (...)
+	{
+		Logger::LogError("Unknown error");
 	}
 	return 0;
 }

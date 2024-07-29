@@ -1,4 +1,4 @@
-name: C/C++ CI
+﻿name: C/C++ CI
 
 on:
   push:
@@ -28,14 +28,3 @@ jobs:
         run: mkdir build-windows && cd build-windows && cmake ..
       - name: build
         run: cmake --build build-windows
-
-  macOS-build:
-
-    runs-on: macOS-latest
-
-    steps:
-      - uses: actions/checkout@v1
-      - name: configure
-        run: mkdir build-macOS && cd build-macOS && cmake ..
-      - name: build
-        run: cmake --build build-macOS

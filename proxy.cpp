@@ -39,26 +39,15 @@ void Proxy::Start()
 								case 0: {
 									//状态请求，直接响应
 									StatusResponseDataPack status_response_data_pack;
-									status_response_data_pack.json_response = RbsLib::DataType::String("{\
-										\"version\": {\
-										\"name\": \"1.8.7\",\
-											\"protocol\" : 47\
-									},\
-										\"players\" : {\
-										\"max\": 100,\
-											\"online\" : 5,\
-											\"sample\" : [\
-										{\
-											\"name\": \"thinkofdeath\",\
-												\"id\" : \"4566e69f-c907-48ee-8d71-d7ba5aa00d20\"\
-										}\
-											]\
-									},\
-										\"description\": {\
-										\"text\": \"Hello world\"\
-									},\
-										\"favicon\" : \"data:image/png;base64,<data>\"\
-								}");
+									std::shared_lock<std::shared_mutex> lock(this->motd_mutex);
+									auto motd = this->motd;
+									lock = std::shared_lock<std::shared_mutex>(this->global_mutex);
+									motd.SetOnlinePlayerNumber(this->users.size());
+									motd.SetSampleUsers(this->GetUsersInfo());
+									motd.SetVersion("", handshake_data_pack.protocol_version.Value());
+									this->max_player!=-1?motd.SetPlayerMaxNumber(this->max_player):motd.SetPlayerMaxNumber(9999999);
+									lock.unlock();
+									status_response_data_pack.json_response = RbsLib::DataType::String(motd.ToString());
 									stream.Write(status_response_data_pack.ToBuffer());
 									break;
 								}
@@ -79,6 +68,14 @@ void Proxy::Start()
 							}
 							case 2: {
 								//登录请求，接收登录请求
+								//检查是否达到最大玩家数
+								std::shared_lock<std::shared_mutex> check_max_player(this->global_mutex);
+								if (this->max_player != -1 && this->users.size() >= this->max_player) {
+									LoginFailureDataPack login_failed_data_pack("Server is full.");
+									stream.Write(login_failed_data_pack.ToBuffer());
+									throw ProxyException("Server is full.");
+								}
+								check_max_player.unlock();
 								StartLoginDataPack start_login_data_pack;
 								start_login_data_pack.ParseFromInputStream(stream);
 								//调用登录回调
@@ -225,6 +222,20 @@ auto Proxy::GetUsersInfo() -> std::list<UserInfo>
 	return users_info;
 }
 
+void Proxy::SetMotd(const std::string& motd)
+{
+	std::unique_lock<std::shared_mutex> lock(this->motd_mutex);
+	neb::CJsonObject motd_json;
+	if (motd_json.Parse(motd)==false) throw ProxyException("Invalid motd json.");
+	this->motd.motd_json = motd_json;
+}
+
+void Proxy::SetMaxPlayer(int n)
+{
+	std::unique_lock<std::shared_mutex> lock(this->global_mutex);
+	this->max_player = n;
+}
+
 Proxy::~Proxy() noexcept
 {
 	this->local_server.ForceClose();
@@ -259,4 +270,58 @@ Proxy::CallbackException::CallbackException(const std::string& message) noexcept
 const char* Proxy::CallbackException::what() const noexcept
 {
 	return this->message.c_str();
+}
+
+void Motd::SetVersion(const std::string& version_name, int protocol)
+{
+	this->motd_json.AddEmptySubObject("version");
+	this->motd_json["version"].Add("name", version_name);
+	this->motd_json["version"].Add("protocol", protocol);
+}
+
+void Motd::SetPlayerMaxNumber(int n)
+{
+	this->motd_json.AddEmptySubObject("players");
+	this->motd_json["players"].Add("max", n);
+}
+
+void Motd::SetOnlinePlayerNumber(int n)
+{
+	this->motd_json.AddEmptySubObject("players");
+	this->motd_json["players"].Add("online", n);
+}
+
+void Motd::SetSampleUsers(std::list<UserInfo> const& users)
+{
+	this->motd_json.AddEmptySubObject("players");
+	this->motd_json["players"].AddEmptySubArray("sample");
+	if (this->motd_json["players"]["sample"].GetArraySize()==0) {
+		for (auto& user : users) {
+			neb::CJsonObject user_json;
+			user_json.Add("name", user.username);
+			user_json.Add("id", user.uuid);
+			this->motd_json["players"]["sample"].Add(user_json);
+		}
+	}
+}
+
+auto Motd::ToString() -> std::string
+{
+	return this->motd_json.ToString();
+}
+
+auto Motd::LoadMotdFromFile(const std::string& path) -> std::string
+{
+	if (path.empty())
+		return "{\"description\": {\"text\": \"Minecraft Speed Proxy\"}}";
+	try
+	{
+		RbsLib::Storage::FileIO::File file_io(path);
+		return file_io.Read(1024 * 1024).ToString();
+	}
+	catch (const std::exception& e)
+	{
+		throw ProxyException(std::string("Motd读取失败: ")+e.what());
+	}
+
 }

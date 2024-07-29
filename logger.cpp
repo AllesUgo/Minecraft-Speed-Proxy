@@ -56,6 +56,9 @@ void Logger::save_log(int level, const char* log_format, va_list lst)
 }
 bool Logger::Init(const std::string& path, int show_log_level, int save_log_level)
 {
+	if (path.empty()) return false;
+	ShowLogLevel = show_log_level;
+	SaveLogLevel = save_log_level;
 	//检测目标文件是否存在
 	if (std::filesystem::exists(path) == false)
 		if (false == std::filesystem::create_directory(path)) return false;
@@ -108,6 +111,19 @@ void Logger::LogError(const char* format, ...)
 	va_end(lst);
 	va_start(lst, format);
 	Logger::save_log(2, (std::string(tmp) + format + "\n").c_str(), lst);
+	va_end(lst);
+}
+
+void Logger::LogPlayer(const char* format, ...)
+{
+	va_list lst;
+	char tmp[80];
+	sprintf(tmp, "[%s] [Player] ", Time::GetFormattedTime().c_str());
+	va_start(lst, format);
+	Logger::print_log(3, (std::string("\033[0m\033[35m") + std::string(tmp) + format + "\033[0m" + "\n").c_str(), lst);
+	va_end(lst);
+	va_start(lst, format);
+	Logger::save_log(3, (std::string(tmp) + format + "\n").c_str(), lst);
 	va_end(lst);
 }
 

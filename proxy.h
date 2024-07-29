@@ -9,6 +9,7 @@
 #include <memory>
 #include <shared_mutex>
 #include <atomic>
+#include "json/CJsonObject.h"
 
 class ProxyException : public std::exception {
 private: 
@@ -34,6 +35,17 @@ struct UserInfo {
 	std::string ip;
 	std::uint64_t upload_bytes;
 	std::time_t connect_time;
+};
+
+struct Motd {
+	neb::CJsonObject motd_json;
+	Motd& operator=(const Motd&) = delete;
+	void SetVersion(const std::string& version_name, int protocol);
+	void SetPlayerMaxNumber(int n);
+	void SetOnlinePlayerNumber(int n);
+	void SetSampleUsers(std::list<UserInfo> const& users);
+	auto ToString() -> std::string;
+	static auto LoadMotdFromFile(const std::string& path) -> std::string;
 };
 
 class Proxy {
@@ -65,9 +77,13 @@ public:
 	void KickByUsername(const std::string& username);
 	void KickByUUID(const std::string& uuid);
 	auto GetUsersInfo() -> std::list<UserInfo>;
+	void SetMotd(const std::string& motd);
+	void SetMaxPlayer(int n);
 	~Proxy() noexcept;
 protected:
-
+	int max_player = -1;
+	std::shared_mutex motd_mutex;
+	Motd motd;
 	std::list<RbsLib::Network::TCP::TCPConnection> connections;
 	std::map<std::string, std::shared_ptr<User>> users;
 	RbsLib::Network::TCP::TCPServer local_server;

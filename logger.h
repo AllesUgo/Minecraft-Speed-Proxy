@@ -12,6 +12,7 @@ public:
 	static void LogInfo(const char* format, ...);
 	static void LogWarn(const char* format, ...);
 	static void LogError(const char* format, ...);
+	static void LogPlayer(const char* format, ...);
 };
 class Time
 {

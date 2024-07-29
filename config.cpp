@@ -58,6 +58,7 @@ const char* ConfigException::what() const noexcept
 
 void Config::SetDeafultConfig()
 {
+	//地址相关
 	Config::set_config("LocalIPv6", false,false);
 	Config::set_config("LocalAddress", "0.0.0.0");
 	Config::set_config("LocalPort", 25565);
@@ -66,10 +67,23 @@ void Config::SetDeafultConfig()
 	Config::set_config("Address", "mc.hypixel.net");
 	Config::set_config("RemotePort", 25565);
 
+	//玩家限制相关
+	Config::set_config("MaxPlayer", -1);
+
+	//MOTD相关
+	Config::set_config("MotdPath", "");
+
+	//杂项
 	Config::set_config("DefaultEnableWhitelist", true,true);
 	Config::set_config("WhiteBlcakListPath","./WhiteBlackList.json");
 	Config::set_config("AllowInput", true,true);
 	Config::set_config("ShowOnlinePlayerNumber", true,true);//已弃用
+
+	//日志相关
+	Config::set_config("LogDir", "./logs");
+	Config::set_config("ShowLogLevel", 0);
+	Config::set_config("SaveLogLevel", 0);
+
 }
 
 void Config::load_config(const std::string& path)
