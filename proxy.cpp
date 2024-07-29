@@ -111,6 +111,7 @@ void Proxy::Start()
 								lock.unlock();
 								try {
 									//·¢ËÍÎÕÊÖÉêÇë
+									handshake_data_pack.server_address=RbsLib::DataType::String(this->remote_server_addr);
 									remote_server.Send(handshake_data_pack.ToBuffer());
 									//·¢ËÍµÇÂ¼ÇëÇó
 									remote_server.Send(start_login_data_pack.ToBuffer());
