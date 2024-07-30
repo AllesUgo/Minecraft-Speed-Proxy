@@ -232,6 +232,7 @@ void Proxy::SetMotd(const std::string& motd)
 
 void Proxy::SetMaxPlayer(int n)
 {
+	if (n<-1) throw ProxyException("Can not set maxplayer less than -1.");
 	std::unique_lock<std::shared_mutex> lock(this->global_mutex);
 	this->max_player = n;
 }

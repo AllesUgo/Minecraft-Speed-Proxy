@@ -2,38 +2,46 @@
 # Minecraft-Speed-Proxy
 
 Minecraft加速IP程序  
-能够代理Minecraft服务器，并拥有白名单、用户控制等功能    
-本项目使用C语言编写，内存占用极低，在配置较低的服务器上拥有更好的表现
-
-# 生成配置文件(可选)
-具体请参考后文  
-默认生成:
-```bash
-sudo ./minecraftspeedproxy -a
-```
-或脚本生成:  
-```bash
-bash <(curl -fsSL https://fastly.jsdelivr.net/gh/AllesUgo/Minecraft-Speed-Proxy@master/scripts/config.sh )
-```
+能够代理Minecraft服务器，并拥有白名单、用户控制、流量展示、MOTD自定义等功能，支持IPv6    
+~~本项目使用C语言编写~~新版已改用C++，内存占用极低，在配置较低的服务器上拥有更好的表现  
+改用C++编写，大幅度降低了崩溃的发生率，降低了内存泄露的可能并有了更好的项目结构  
+新版已支持跨平台编译，支持Windows、Linux
 
 
-# 如何编译并运行
+# 如何编译并运行(Linux Ubuntu)，(Windows请参考Windows编译指南，或直接使用发行版)
 1.克隆仓库到你的Linux服务器上  
-2.在Linux上安装linux c编译工具包
+```bash
+sudo apt update
+sudo apt install -y git
+git clone https://github.com/AllesUgo/Minecraft-Speed-Proxy.git
+```
+2.在Linux上安装linux c++编译工具包
     例如：
-    
-    sudo apt update
-    sudo apt install -y gcc make
-3.进入包含 `Makefile`的目录，输入 `make`等待编译完成
-
-
-4.(可选步骤)编译完成后已经程序已经可以运行，可以使用 `sudo make install`来将其放在 `/usr/bin/`目录中以在任何目录环境和用户下使用该程序  
+```bash
+sudo apt update
+sudo apt install -y g++ cmake make 
+```
+3.进入包含 `CMakeList.txt`的目录编译项目,编译完成后会在build目录下生成可执行文件
+```bash
+cd Minecraft-Speed-Proxy
+mkdir build
+cd build
+cmake ..
+make
+```
 
 # 如何使用本程序
 
-在包含 `minecraftspeedproxy`的目录输入 `./minecraftspeedproxy --help`以获取参数列表
+在包含 `minecraftspeedproxy`的目录输入 `./minecraftspeedproxy -h`以获取使用帮助  
+基本使用方法:  
+```bash
+./minecraftspeedproxy <要代理的服务器地址> <要代理的服务器端口> <使用的本地端口>
+```
+例如:
+```bash
+./minecraftspeedproxy mc.hypixel.net 25565 25565
+```
 
-若通过make install安装或通过deb包安装则直接输入`minecraftspeedproxy --help`以获取参数列表
 
 ## 参数解释
 
@@ -41,91 +49,92 @@ bash <(curl -fsSL https://fastly.jsdelivr.net/gh/AllesUgo/Minecraft-Speed-Proxy@
 1.通过命令行参数运行本程序需要三个必选参数，依次为 `要代理的服务器地址` `要代理的服务器端口` `使用的本地端口`
 其中 `要代理的服务器地址`可以是IP，也可以是域名，`使用的本地端口`请注意检查是否被占用以及权限
 
-2.可选参数 `--noinput`用来禁用标准输入,可搭配 `nohup`命令来使其在后台运行，建议使用 `screen`来使其在后台运行而不是 `nohup`
-
 3.**运行中的命令支持请在运行后输入 `help`以获取**
 
-4.更多参数请使用参数`--help`获取  
+4.更多参数请使用参数`-h`获取  
 ## 配置文件解释
 程序除通过命令行参数设置启动外，还可以使用配置文件启动  
-配置文件是一个JSON格式的文本文件，默认的配置文件可以通过`sudo ./minecraftspeedproxy -a`生成(请注意权限问题)  
+配置文件是一个JSON格式的文本文件，默认的配置文件可以通过`./minecraftspeedproxy -c config.json`生成(请注意权限问题)  
 其默认内容如下
 ```json
 {
-        "Address":      "mc.hypixel.net",
-        "RemotePort":   25565,
-        "LocalPort":    25565,
-        "DefaultEnableWhitelist":       true,
-        "AllowInput":   true,
-        "ShowOnlinePlayerNumber":       true
+	"LocalIPv6":	false,
+	"LocalAddress":	"0.0.0.0",
+	"LocalPort":	25565,
+	"RemoteIPv6":	false,
+	"Address":	"mc.hypixel.net",
+	"RemotePort":	25565,
+	"MaxPlayer":	-1,
+	"MotdPath":	"",
+	"DefaultEnableWhitelist":	true,
+	"WhiteBlcakListPath":	"./WhiteBlackList.json",
+	"AllowInput":	true,
+	"ShowOnlinePlayerNumber":	true,
+	"LogDir":	"./logs",
+	"ShowLogLevel":	0,
+	"SaveLogLevel":	0
 }
 ```  
+
 各字段解释如下；
+
 |键名|类型|键值|
-|----|-|---|
-|Address|字符串|要加速的服务器地址，可以是IP也可以是域名|
-|RemotePort|整数|要加速的服务器端口|
-|LocalPort|整数|加速程序要使用的端口|
+|-|-|-|
+|LocalIPv6|布尔|本机地址是否使用IPv6|
+|LocalAddress|字符串|本机地址,一般填`0.0.0.0`,IPv6也可使用`::`|
+|LocalPort|整数|本机端口|
+|RemoteIPv6|布尔|远程服务器地址是否使用IPv6|
+|Address|字符串|远程服务器地址，可以是域名或IP地址,如`mc.hypixel.net`|
+|RemotePort|整数|远程服务器端口|
+|MaxPlayer|整数|最大玩家数，-1为不限制|
+|MotdPath|字符串|motd文件路径，为空则使用默认motd|
 |DefaultEnableWhitelist|布尔|是否默认启用白名单|
-|AllowInput|布尔|程序运行期间是否接受输入，包括命令等输入|
-|ShowOnlinePlayerNumber|布尔|玩家服务器列表页面是否可以看到当前加速IP上的玩家数量|
-当使用默认位置的配置文件启动时直接输入`./minecraftspeedproxy`即可启动  
-若要指定配置文件请使用
+|WhiteBlcakListPath|字符串|白名单黑名单文件路径|
+|AllowInput|布尔|是否允许输入命令(当前版本暂时无效)|
+|ShowOnlinePlayerNumber|布尔|是否显示在线玩家数(当前版本暂时无效)|
+|LogDir|字符串|日志文件目录|
+|ShowLogLevel|整数|显示日志等级，0为全部显示，1为显示警告及以上，2为显示错误及以上，3为显示玩家状态，一般填0|
+|SaveLogLevel|整数|保存日志等级，0为全部保存，1为保存警告及以上，2为保存错误及以上，3为保存玩家状态，一般填0|
+
+生成配置文件请使用
+```bash
+./minecraftspeedproxy -a <配置文件路径>
+```
+使用配置文件启动请使用
 ```bash
 ./minecraftspeedproxy -c <配置文件路径>
 ```
+例如:
+```bash
+./minecraftspeedproxy -c config.json
+```
 ## 如何自定义motd
-服务器启动后会自动生成一个motd.json，直接修改motd.json即可
-
-motd中的协议号必须存在，但其值将会被服务器替换为与客户端相同的协议号
-
-motd中的在线人数会被显示在客户端，代理服务器不会对其进行修改
-## 使用自定义登录检查组件
-程序支持自己实现对登录用户的检查，只需要简单的编写一个动态链接库即可实现
-
-动态库文件名**必须**为`check.so`,要求**必须**包含`check`函数，函数原型为
-
-`int check(const char*username)`
-
-当用户登入时会调用该函数，将登入的用户名作为参数传递给动态链接库中的check函数，check通过返回值告知服务器是否允许登录
-### 返回值含义
-|返回值|含义|在客户端上的提示|可否登入|
-|------|---|---------------|-------|
-|0|登录成功|无|是|
-|1|玩家不在白名单中|服务器已开启白名单|否|
-|2|玩家被服务器封禁|您已被加速服务器封禁|否|
-|其他|未定义的返回值|代理服务器拒绝连接|否|
-
-### 注意事项
-1.服务器成功找到并加载该组件后内置的白名单、黑名单将会失效
-
-2.编写该组件时无需考虑多线程互斥问题，服务器保证check函数不会同时被调用
-
-3.组件运行中出现错误，例如段错误等会导致服务器不稳定或崩溃，编写插件时请注意
-
-4.组件会在服务器启动时加载一次，运行过程中不会重新加载组件，若要重新加载组件请重新启动服务器
-
-5.请注意检查组件是否具有可执行权限
-### 代码示例
-以下代码禁止名称为`Steve`的玩家登录服务器
-
-```c
-//check.c
-#include<stdio.h>
-#include<string.h>
-
-int check(const char*username)
+motd文件是一个文本文件，可以通过配置文件指定。若配置文件中的`MotdPath`字段为空则使用默认motd
+以下是一个motd文件的例子
+```JSON
 {
-    if (!strcmp(username,"Steve"))
-    {
-        return 2;//被封禁
-    }
-    return 0;
+    "version": {
+        "name": "1.8.7",
+        "protocol": 47
+    },
+    "players": {
+        "max": 100,
+        "online": 5,
+        "sample": [
+            {
+                "name": "thinkofdeath",
+                "id": "4566e69f-c907-48ee-8d71-d7ba5aa00d20"
+            }
+        ]
+    },    
+    "description": {
+        "text": "Hello world"
+    },
+    "favicon": "data:image/png;base64,<data>"
 }
 ```
-编译方法:
-```bash
-gcc check.c -fPIC -shared -o check.so
-```
-### 组件的加载方法
-将组件命名为check.so，放在**运行服务器时命令行所在目录**,启动服务器时若该组件可用会自动加载该组件
+MOTD必须是一个JSON格式的文本文件，其中的字段均可空或部分为空，当某字段为空时，服务器将会使用默认值填充该字段  
+例如，当players字段为空时，服务器将会使用设置的最大玩家数、在线玩家数和玩家列表填充该字段
+
+## 二次开发
+二次开发文档还在编写中，敬请期待
