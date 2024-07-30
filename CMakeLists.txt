@@ -9,8 +9,25 @@ if (POLICY CMP0141)
   set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<IF:$<AND:$<C_COMPILER_ID:MSVC>,$<CXX_COMPILER_ID:MSVC>>,$<$<CONFIG:Debug,RelWithDebInfo>:EditAndContinue>,$<$<CONFIG:Debug,RelWithDebInfo>:ProgramDatabase>>")
 endif()
 
-project ("minecraftspeedproxy")
+set(proj_name "minecraftspeedproxy")
+project (${proj_name})
 set(CMAKE_CXX_STANDARD 20)
+
+EXECUTE_PROCESS(COMMAND git describe --tags --always --dirty=-dev
+        TIMEOUT 5
+        OUTPUT_VARIABLE GIT_VERSION
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
+MESSAGE(STATUS "building version ${GIT_VERSION}")
+add_definitions(-DBUILD_VERSION=\"${GIT_VERSION}\")
+
+if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
+	add_definitions(-DDEBUG)
+else ()
+	# -UDEV_CODE 表示取消 DEV_CODE 的定义
+	add_definitions(-DRELEASE)
+endif ()
+
 
 
 file(GLOB RBS_LIB_HEADERS "rbslib/*.h" "rbslib/Windows/*.h")

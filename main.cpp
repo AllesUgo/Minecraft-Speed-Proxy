@@ -11,7 +11,6 @@
 #include <memory>
 #include "rbslib/String.h"
 
-
 using namespace std;
 
 std::unique_ptr<Proxy> proxy;
@@ -29,6 +28,7 @@ void PrintHelp() {
 	cout << "\t-h\t显示帮助" << endl;
 	cout << "\t-c <配置文件路径>\t通过配置文件启动" << endl;
 	cout << "\t-a <配置文件路径>\t在指定位置生成配置文件" << endl;
+	cout << "\t-v\t获取当前版本信息" << endl;
 	cout<<"当前版本配置文件不再与v3.0以前兼容，请重新编辑配置文件"<<endl;
 	
 }
@@ -36,8 +36,20 @@ void PrintHelp() {
 
 void MainCmdline(int argc,const char** argv) {
 	RbsLib::Command::CommandLine cmdline(argc, argv);
-	if (cmdline[1]=="-h") {
+	if (cmdline[1]=="-h"||cmdline[1]=="--help") {
 		PrintHelp();
+		exit(0);
+	}
+	else if (cmdline[1]=="-v"||cmdline[1]=="--version") {
+		cout << "MinecraftSpeedProxy ";
+#ifdef RELEASE
+		cout<< "Release ";
+#endif
+#ifdef DEBUG
+		cout<< "Debug ";
+#endif
+		cout<< BUILD_VERSION << endl;
+		cout << "项目地址: " << "https://github.com/AllesUgo/Minecraft-Speed-Proxy" << endl;
 		exit(0);
 	}
 	else if (cmdline[1]=="-c") {
@@ -82,7 +94,24 @@ void InnerCmdline(int argc, const char** argv) {
 		cout<<"pardon <player_name> [...]: 取消封禁用户"<<endl;
 		cout<<"list: 列出名单"<<endl;
 		cout<<"kick <player_name> [...]: 踢出用户"<<endl;
+		cout<<"motd: Motd管理"<<endl;
+		cout<<"maxplayer <number>: 设置最大玩家数"<<endl;
 		cout<<"exit: 退出程序"<<endl;
+		});
+	executer.CreateSubOption("maxplayer", 1, "设置最大玩家数", false, [](const RbsLib::Command::CommandExecuter::Args& args) {
+		if (proxy == nullptr) throw std::runtime_error("服务未启动");
+		if (args.find("maxplayer") == args.end()) {
+			cout << "参数错误,请指定最大玩家数" << endl;
+			return;
+		}
+		proxy->SetMaxPlayer(std::stoi(*args.find("maxplayer")->second.begin()));
+		Logger::LogInfo("已设置最大玩家数为%d", std::stoi(*args.find("maxplayer")->second.begin()));
+		});
+	executer.CreateSubOption("motd", 0, "Motd管理", true);
+	executer["motd"].CreateSubOption("reload", 0, "重新加载Motd", false, [](const RbsLib::Command::CommandExecuter::Args& args) {
+		if (proxy == nullptr) throw std::runtime_error("服务未启动");
+		proxy->SetMotd(Motd::LoadMotdFromFile(Config::get_config<std::string>("MotdPath")));
+		Logger::LogInfo("已重新加载Motd");
 		});
 	executer.CreateSubOption("kick", -1, "踢出用户", false, [](const RbsLib::Command::CommandExecuter::Args& args) {
 		if (args.find("kick") == args.end()) {
