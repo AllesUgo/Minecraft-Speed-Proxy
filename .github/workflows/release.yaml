@@ -21,7 +21,7 @@ jobs:
         run: cmake --build ${{github.workspace}}/build --config Release
 
       - name: Pack tar
-        run: mkdir minecraftspeedproxy && cp  ${{github.workspace}}/build/minecraftspeedproxy ${{github.workspace}}/LICENSE.txt minecraftspeedproxy/ && tar -czf minecraftspeedproxy-linux-amd64.tar.gz minecraftspeedproxy
+        run: mkdir minecraftspeedproxy && cp  ${{github.workspace}}/build/minecraftspeedproxy ${{github.workspace}}/LICENSE minecraftspeedproxy/ && tar -czf minecraftspeedproxy-linux-amd64.tar.gz minecraftspeedproxy
       
       - name: Release
         uses: softprops/action-gh-release@v1
