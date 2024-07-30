@@ -6,24 +6,31 @@ on:
 
 jobs:
 
-  build:
-    runs-on: ubuntu-20.04
+  ubuntu-build:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
 
-      - name: Install deps
-        run: sudo apt update && sudo apt upgrade -y && sudo apt-get install gcc make curl git -y
+      - name: Configure CMake
+      # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
+      # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
+        run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=Release
 
       - name: Build
-        run: git fetch --depth=1000000 && version=$(git describe --tags) && version1=${version#v} && export VERSION=${version1%%-*} && make -j8 
+      # Build your program with the given configuration
+        run: cmake --build ${{github.workspace}}/build --config Release
 
-      - name: Pack deb
-        run: bash <(curl -fsSL https://raw.githubusercontent.com/AllesUgo/Minecraft-Speed-Proxy/master/scripts/release.sh)
+      - name: Pack tar
+        run: mkdir minecraftspeedproxy && cp  ${{github.workspace}}/build/minecraftspeedproxy ${{github.workspace}}/LICENSE.txt minecraftspeedproxy/ && tar -czf minecraftspeedproxy-linux-amd64.tar.gz minecraftspeedproxy
       
       - name: Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: |
-            Minecraft-Speed-Proxy-linux-amd64.deb
-            minecraftspeedproxy
+            tag_name: ${{ github.ref }}
+            name: Release ${{ github.ref }}
+            body: TODO New Release.
+            draft: false
+            prerelease: false
+            files: |
+              minecraftspeedproxy-linux-amd64.tar.gz

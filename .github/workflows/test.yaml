@@ -1,29 +1,30 @@
-name: Test commit and pr
+﻿name: C/C++ CI
 
 on:
-  pull_request:
   push:
+    branches: [ master,dev ]
+  pull_request:
+    branches: [ master,dev ]
 
 jobs:
+  ubuntu-build:
 
-  build-with-gcc:
-    strategy:
-      matrix:
-        os: [ubuntu-20.04, ubuntu-22.04,ubuntu-latest]
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v2
-      
-      - name: Build with Makefile
-        run: export VERSION=[ci]$(git rev-parse HEAD) && make -e CXX=gcc && ./minecraftspeedproxy --version
+      - uses: actions/checkout@v1
+      - name: configure
+        run: mkdir build-ubuntu && cd build-ubuntu && cmake -D CMAKE_BUILD_TYPE=release ..
+      - name: build
+        run: cmake --build build-ubuntu
 
-  build-with-clang:
-    strategy:
-      matrix:
-        os: [ubuntu-20.04, ubuntu-22.04, ubuntu-latest]
-    runs-on: ${{ matrix.os }}
+  win-build:
+
+    runs-on: windows-latest
+
     steps:
-      - uses: actions/checkout@v2
-
-      - name: Build with Makefile
-        run: export VERSION=[ci]$(git rev-parse HEAD) && make -e CXX=clang && ./minecraftspeedproxy --version
+      - uses: actions/checkout@v1
+      - name: configure
+        run: mkdir build-windows && cd build-windows && cmake -D CMAKE_BUILD_TYPE=release ..
+      - name: build
+        run: cmake --build build-windows
