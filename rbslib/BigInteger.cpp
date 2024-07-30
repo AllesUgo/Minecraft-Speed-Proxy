@@ -59,6 +59,7 @@ auto RbsLib::Math::BigInteger::operator=(std::int64_t b)->const BigInteger&
 		this->num[0] = b;
 		std::memset(this->num + 1, 0, (this->num_len - 1) * sizeof(decltype(*this->num)));
 	}
+	return *this;
 }
 
 auto RbsLib::Math::BigInteger::operator=(BigInteger&& b)->const BigInteger&
