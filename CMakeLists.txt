@@ -28,8 +28,6 @@ else ()
 	add_definitions(-DRELEASE)
 endif ()
 
-
-
 file(GLOB RBS_LIB_HEADERS "rbslib/*.h" "rbslib/Windows/*.h")
 
 file(GLOB RBS_LIB_SRC "rbslib/*.cpp" "rbslib/Windows/*.cpp")
@@ -38,7 +36,8 @@ file(GLOB JSON_LIB_HEADERS "json/*.h")
 file(GLOB JSON_LIB_SRC "json/*.cpp")
 
 # 将源代码添加到此项目的可执行文件。
-add_executable (minecraftspeedproxy "main.cpp" "WhiteBlackList.cpp" "config.cpp" "datapackage.cpp" "logger.cpp" "proxy.cpp" ${RBS_LIB_SRC} ${RBS_LIB_HEADERS} ${JSON_LIB_HEADERS} ${JSON_LIB_SRC} )
+#若需要二次开发请修改下面指令中的文件名
+add_executable (minecraftspeedproxy "main.cpp" "WhiteBlackList.cpp" "config.cpp" "datapackage.cpp" "logger.cpp" "proxy.cpp" ${RBS_LIB_SRC} ${JSON_LIB_SRC} )
 
 if (CMAKE_VERSION VERSION_GREATER 3.12)
   set_property(TARGET minecraftspeedproxy PROPERTY CXX_STANDARD 20)

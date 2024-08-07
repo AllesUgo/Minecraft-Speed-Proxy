@@ -30,11 +30,16 @@ struct User {
 
 /*描述用户信息，不包括连接信息等，用于返回*/
 struct UserInfo {
-	std::string username;
-	std::string uuid;
-	std::string ip;
-	std::uint64_t upload_bytes;
-	std::time_t connect_time;
+    /**
+     * @brief 用户信息结构体
+     * 
+     * 用于描述用户的基本信息，包括用户名、UUID、IP地址、上传字节数和连接时间。
+     */
+    std::string username; /**< 用户名 */
+    std::string uuid; /**< UUID */
+    std::string ip; /**< IP地址 */
+    std::uint64_t upload_bytes; /**< 上传及下载字节数 */
+    std::time_t connect_time; /**< 连接时间 */
 };
 
 struct Motd {
@@ -51,9 +56,6 @@ struct Motd {
 class Proxy {
 
 public:
-	/*让IDE可以提示，编写完成后放在protected*/
-	
-	/*END*/
 
 	class CallbackException : public std::exception {
 		//定义用于在回调中抛出的异常，该异常用于指示回调函数返回状态
