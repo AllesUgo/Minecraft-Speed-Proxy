@@ -4,6 +4,7 @@
 #include <mutex>
 #include <functional>
 #include <map>
+#include <list>
 #include <memory>
 #include "BaseType.h"
 #include "Buffer.h"
@@ -35,6 +36,17 @@ namespace RbsLib
 		static bool network_inited = 0;
 #endif // WIN32
 		void init_network();
+		class Address 
+		{
+		public:
+			int family;
+			static auto GetAddresses(const std::string& address, int port)->std::list<Address>;
+			const struct sockaddr* GetAddressStructure(void)const;
+			void SetAddressStructure(const struct sockaddr* in, socklen_t len);
+			auto GetAddressStructureLength(void)const->socklen_t;
+		private:
+			RbsLib::Buffer address;
+		};
 
 		class NetworkException :public std::exception
 		{
@@ -112,6 +124,7 @@ namespace RbsLib
 			public:
 				static RbsLib::Network::TCP::TCPConnection Connect(std::string ip, int port);
 				static auto Connect6(std::string ip, int port)->RbsLib::Network::TCP::TCPConnection;
+				static auto Connect(const Address& addr) -> RbsLib::Network::TCP::TCPConnection;
 			};
             /**
              * @class TCPStream

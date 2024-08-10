@@ -496,6 +496,30 @@ auto RbsLib::Network::TCP::TCPClient::Connect6(std::string ip, int port) -> RbsL
 	return net::TCP::TCPConnection(c_Socket,addr,sizeof(addr));
 }
 
+auto RbsLib::Network::TCP::TCPClient::Connect(const Address& addr) -> RbsLib::Network::TCP::TCPConnection
+{
+	net::init_network();
+
+	SOCKET c_Socket = socket(addr.family, SOCK_STREAM, IPPROTO_TCP);
+	if (SOCKET_ERROR == c_Socket)
+	{
+		throw net::NetworkException("Allocate socket failed");
+	}
+	if (connect(c_Socket, addr.GetAddressStructure(), addr.GetAddressStructureLength()))
+	{
+#ifdef WIN32
+		closesocket(c_Socket);
+#endif // WIN32
+#ifdef LINUX
+		close(c_Socket);
+#endif // LINUX
+		throw net::NetworkException("Connect server failed");
+	}
+	struct sockaddr_in6 ad = { 0 };
+	memcpy(&ad, addr.GetAddressStructure(), std::min<unsigned int>(sizeof(ad), addr.GetAddressStructureLength()));
+	return net::TCP::TCPConnection(c_Socket, ad, sizeof(ad));
+}
+
 static std::string read_word(const char* &buffer, int max_len)
 {
 	std::string str;
@@ -1116,4 +1140,40 @@ void RbsLib::Network::TCP::TCPStream::Write(const IBuffer& buffer)
 void RbsLib::Network::TCP::TCPStream::Write(const void* ptr, int64_t size)
 {
     connection.Send(ptr, size, 0);
+}
+
+auto RbsLib::Network::Address::GetAddresses(const std::string& address, int port) -> std::list<Address>
+{
+	std::list<Address> addresses;
+	struct addrinfo* answer = nullptr, hint = { 0 };
+	hint.ai_family = AF_UNSPEC;
+	hint.ai_socktype = SOCK_STREAM;
+	hint.ai_protocol = IPPROTO_TCP;
+	if (getaddrinfo(address.c_str(), std::to_string(port).c_str(), &hint, &answer)) {
+		throw net::NetworkException("Get address info failed");
+	}
+	for (struct addrinfo* it = answer; it; it = it->ai_next)
+	{
+		Address addr;
+		addr.family = it->ai_family;
+		addr.SetAddressStructure(it->ai_addr, static_cast<socklen_t>(it->ai_addrlen));
+		addresses.emplace_back(addr);
+	}
+	freeaddrinfo(answer);
+	return addresses;
+}
+
+const struct sockaddr* RbsLib::Network::Address::GetAddressStructure(void) const
+{
+	return (const sockaddr*)this->address.Data();
+}
+
+void RbsLib::Network::Address::SetAddressStructure(const sockaddr* in, socklen_t len)
+{
+	this->address = RbsLib::Buffer(in, static_cast<std::uint64_t>(len));
+}
+
+auto RbsLib::Network::Address::GetAddressStructureLength(void) const -> socklen_t
+{
+	return static_cast<socklen_t>(this->address.GetLength());
 }
