@@ -11,6 +11,11 @@ endif()
 
 set(proj_name "minecraftspeedproxy")
 project (${proj_name})
+if(MSVC)
+    # Windows上的编译器设置 (MSVC)
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT")
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MTd")
+endif()
 set(CMAKE_CXX_STANDARD 20)
 
 EXECUTE_PROCESS(COMMAND git describe --tags --always --dirty=-dev
