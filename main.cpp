@@ -274,6 +274,7 @@ int main(int argc,const char**argv)
 	{
 		MainCmdline(argc, argv);
 		//初始化日志
+		Logger::LogInfo("正在初始化日志服务");
 		if (Logger::Init(Config::get_config<std::string>("LogDir"), Config::get_config<int>("ShowLogLevel"), Config::get_config<int>("SaveLogLevel"))==false)
 			Logger::LogError("日志初始化失败，无法记录日志");
 		int is_ipv6_local = Config::get_config<bool>("LocalIPv6");
@@ -282,6 +283,7 @@ int main(int argc,const char**argv)
 		int is_ipv6_remote = Config::get_config<bool>("RemoteIPv6");
 		std::string remote_server_addr = Config::get_config<std::string>("Address");
 		std::uint16_t remote_server_port = Config::get_config<int>("RemotePort");
+		Logger::LogInfo("正在初始化白名单及封禁列表");
 		WhiteBlackList::Init();
 		if (WhiteBlackList::IsWhiteListOn()) {
 			Logger::LogInfo("白名单已启用");
@@ -344,6 +346,7 @@ int main(int argc,const char**argv)
 			};//注册断开回调
 		proxy->SetMotd(Motd::LoadMotdFromFile(Config::get_config<std::string>("MotdPath")));
 		proxy->SetMaxPlayer(Config::get_config<int>("MaxPlayer"));
+		Logger::LogInfo("正在测试与目标服务器的Ping");
 		try
 		{
 			Logger::LogInfo("测试Ping延迟：%dms", proxy->PingTest());
