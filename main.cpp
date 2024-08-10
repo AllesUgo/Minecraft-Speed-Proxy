@@ -10,6 +10,8 @@
 #include "WhiteBlackList.h"
 #include <memory>
 #include "rbslib/String.h"
+#include <csignal>
+#include "rbslib/BaseType.h"
 
 using namespace std;
 
@@ -270,6 +272,10 @@ void InnerCmdline(int argc, const char** argv) {
 
 int main(int argc,const char**argv)
 {
+#ifdef LINUX
+	signal(SIGPIPE, SIG_IGN);
+#endif // Linux
+
 	try
 	{
 		MainCmdline(argc, argv);
