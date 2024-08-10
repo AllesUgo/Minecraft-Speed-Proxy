@@ -451,7 +451,7 @@ RbsLib::Network::TCP::TCPConnection RbsLib::Network::TCP::TCPClient::Connect(std
 		freeaddrinfo(answer);
 		throw net::NetworkException("Allocate socket failed");
 	}
-	if (SOCKET_ERROR == connect(c_Socket, answer->ai_addr, answer->ai_addrlen))
+	if (connect(c_Socket, answer->ai_addr, answer->ai_addrlen))
 	{
 		freeaddrinfo(answer);
 		throw net::NetworkException("Connect server failed");
@@ -479,7 +479,7 @@ auto RbsLib::Network::TCP::TCPClient::Connect6(std::string ip, int port) -> RbsL
 		freeaddrinfo(answer);
 		throw net::NetworkException("Allocate socket failed");
 	}
-	if (SOCKET_ERROR == connect(c_Socket, answer->ai_addr, answer->ai_addrlen))
+	if (connect(c_Socket, answer->ai_addr, answer->ai_addrlen))
 	{
 		freeaddrinfo(answer);
 #ifdef WIN32
