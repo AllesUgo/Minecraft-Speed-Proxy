@@ -81,6 +81,7 @@ public:
 	auto GetUsersInfo() -> std::list<UserInfo>;
 	void SetMotd(const std::string& motd);
 	void SetMaxPlayer(int n);
+	auto PingTest()const->std::uint64_t;
 	~Proxy() noexcept;
 protected:
 	int max_player = -1;

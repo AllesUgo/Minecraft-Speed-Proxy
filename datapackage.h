@@ -49,6 +49,7 @@ public:
 };
 class StatusRequestDataPack : public NoCompressionDataPack {
 public:
+	StatusRequestDataPack();
 	void ParseFromInputStream(RbsLib::Streams::IInputStream& input_stream);
 	// Í¨¹ý NoCompressionDataPack ¼Ì³Ð
 	auto ToBuffer() const->RbsLib::Buffer override;

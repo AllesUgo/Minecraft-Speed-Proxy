@@ -2,6 +2,7 @@
 #include "datapackage.h"
 #include <iostream>
 #include <mutex>
+#include <chrono>
 
 Proxy::Proxy(bool is_ipv6_local, const std::string& local_address, std::uint16_t local_port, bool is_ipv6_remote, const std::string& remote_server_addr, std::uint16_t remote_server_port)
 	: local_server(local_port,local_address,is_ipv6_local), remote_server_addr(remote_server_addr), remote_server_port(remote_server_port), is_ipv6_remote(is_ipv6_remote)
@@ -235,6 +236,43 @@ void Proxy::SetMaxPlayer(int n)
 	if (n<-1) throw ProxyException("Can not set maxplayer less than -1.");
 	std::unique_lock<std::shared_mutex> lock(this->global_mutex);
 	this->max_player = n;
+}
+
+auto Proxy::PingTest() const -> std::uint64_t
+{
+	try
+	{
+		auto remote_server = is_ipv6_remote ? RbsLib::Network::TCP::TCPClient::Connect6(remote_server_addr, remote_server_port) : RbsLib::Network::TCP::TCPClient::Connect(remote_server_addr, remote_server_port);
+		int flag = 1;
+		remote_server.SetSocketOption(IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag));
+		HandshakeDataPack handshake_data_pack;
+		handshake_data_pack.id = 0;
+		handshake_data_pack.server_address = RbsLib::DataType::String(remote_server_addr);
+		handshake_data_pack.server_port = remote_server_port;
+		handshake_data_pack.next_state = 1;
+		handshake_data_pack.protocol_version = 754;
+		remote_server.Send(handshake_data_pack.ToBuffer());
+		RbsLib::Network::TCP::TCPStream stream(remote_server);
+		//·¢ËÍ×´Ì¬ÇëÇó
+		StatusRequestDataPack status_request_data_pack;
+		remote_server.Send(status_request_data_pack.ToBuffer());
+		//½ÓÊÕ×´Ì¬²¢¶ªÆú
+		DataPack::Data(stream);
+		//ping
+		PingDataPack ping_data_pack,pong_data_pack;
+		ping_data_pack.payload = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+		auto start = std::chrono::system_clock::now();
+		remote_server.Send(ping_data_pack.ToBuffer());
+		pong_data_pack.ParseFromInputStream(stream);
+		auto end = std::chrono::system_clock::now();
+		auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+		if (pong_data_pack.payload != ping_data_pack.payload) throw ProxyException("Ping test failed.");
+		return duration.count();
+	}
+	catch (const std::exception& e)
+	{
+		throw ProxyException(std::string("Ping test failed: ") + e.what());
+	}
 }
 
 Proxy::~Proxy() noexcept

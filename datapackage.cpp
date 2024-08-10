@@ -96,6 +96,11 @@ auto StatusResponseDataPack::ToBuffer() const -> RbsLib::Buffer
 	return ret;
 }
 
+StatusRequestDataPack::StatusRequestDataPack()
+{
+	this->id = 0;
+}
+
 void StatusRequestDataPack::ParseFromInputStream(RbsLib::Streams::IInputStream& input_stream)
 {
 	auto buffer = DataPack::Data(input_stream);

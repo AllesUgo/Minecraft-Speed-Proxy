@@ -96,7 +96,19 @@ void InnerCmdline(int argc, const char** argv) {
 		cout<<"kick <player_name> [...]: 踢出用户"<<endl;
 		cout<<"motd: Motd管理"<<endl;
 		cout<<"maxplayer <number>: 设置最大玩家数"<<endl;
+		cout<<"ping: 测试与目标服务器的Ping延迟"<<endl;
 		cout<<"exit: 退出程序"<<endl;
+		});
+	executer.CreateSubOption("ping", 0, "测试与目标服务器的Ping延迟", false, [](const RbsLib::Command::CommandExecuter::Args& args) {
+		if (proxy == nullptr) throw std::runtime_error("服务未启动");
+		try
+		{
+			Logger::LogInfo("测试Ping延迟：%dms", proxy->PingTest());
+		}
+		catch (const std::exception& e)
+		{
+			Logger::LogWarn("Ping测试失败，请检查远程服务器状态：%s", e.what());
+		}
 		});
 	executer.CreateSubOption("maxplayer", 1, "设置最大玩家数", false, [](const RbsLib::Command::CommandExecuter::Args& args) {
 		if (proxy == nullptr) throw std::runtime_error("服务未启动");
@@ -332,6 +344,14 @@ int main(int argc,const char**argv)
 			};//注册断开回调
 		proxy->SetMotd(Motd::LoadMotdFromFile(Config::get_config<std::string>("MotdPath")));
 		proxy->SetMaxPlayer(Config::get_config<int>("MaxPlayer"));
+		try
+		{
+			Logger::LogInfo("测试Ping延迟：%dms", proxy->PingTest());
+		}
+		catch (const std::exception& e)
+		{
+			Logger::LogWarn("Ping测试失败，请检查远程服务器状态：%s", e.what());
+		}
 		proxy->Start();
 		Logger::LogInfo("服务已启动");
 		std::string cmd;
