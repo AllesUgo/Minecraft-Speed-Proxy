@@ -10,6 +10,8 @@
 #include "WhiteBlackList.h"
 #include <memory>
 #include "rbslib/String.h"
+#include <csignal>
+#include "rbslib/BaseType.h"
 
 using namespace std;
 
@@ -96,7 +98,19 @@ void InnerCmdline(int argc, const char** argv) {
 		cout<<"kick <player_name> [...]: 踢出用户"<<endl;
 		cout<<"motd: Motd管理"<<endl;
 		cout<<"maxplayer <number>: 设置最大玩家数"<<endl;
+		cout<<"ping: 测试与目标服务器的Ping延迟"<<endl;
 		cout<<"exit: 退出程序"<<endl;
+		});
+	executer.CreateSubOption("ping", 0, "测试与目标服务器的Ping延迟", false, [](const RbsLib::Command::CommandExecuter::Args& args) {
+		if (proxy == nullptr) throw std::runtime_error("服务未启动");
+		try
+		{
+			Logger::LogInfo("测试Ping延迟：%dms", proxy->PingTest());
+		}
+		catch (const std::exception& e)
+		{
+			Logger::LogWarn("Ping测试失败，请检查远程服务器状态：%s", e.what());
+		}
 		});
 	executer.CreateSubOption("maxplayer", 1, "设置最大玩家数", false, [](const RbsLib::Command::CommandExecuter::Args& args) {
 		if (proxy == nullptr) throw std::runtime_error("服务未启动");
@@ -258,10 +272,15 @@ void InnerCmdline(int argc, const char** argv) {
 
 int main(int argc,const char**argv)
 {
+#ifdef LINUX
+	signal(SIGPIPE, SIG_IGN);
+#endif // Linux
+
 	try
 	{
 		MainCmdline(argc, argv);
 		//初始化日志
+		Logger::LogInfo("正在初始化日志服务");
 		if (Logger::Init(Config::get_config<std::string>("LogDir"), Config::get_config<int>("ShowLogLevel"), Config::get_config<int>("SaveLogLevel"))==false)
 			Logger::LogError("日志初始化失败，无法记录日志");
 		int is_ipv6_local = Config::get_config<bool>("LocalIPv6");
@@ -270,6 +289,7 @@ int main(int argc,const char**argv)
 		int is_ipv6_remote = Config::get_config<bool>("RemoteIPv6");
 		std::string remote_server_addr = Config::get_config<std::string>("Address");
 		std::uint16_t remote_server_port = Config::get_config<int>("RemotePort");
+		Logger::LogInfo("正在初始化白名单及封禁列表");
 		WhiteBlackList::Init();
 		if (WhiteBlackList::IsWhiteListOn()) {
 			Logger::LogInfo("白名单已启用");
@@ -332,6 +352,15 @@ int main(int argc,const char**argv)
 			};//注册断开回调
 		proxy->SetMotd(Motd::LoadMotdFromFile(Config::get_config<std::string>("MotdPath")));
 		proxy->SetMaxPlayer(Config::get_config<int>("MaxPlayer"));
+		Logger::LogInfo("正在测试与目标服务器的Ping");
+		try
+		{
+			Logger::LogInfo("测试Ping延迟：%dms", proxy->PingTest());
+		}
+		catch (const std::exception& e)
+		{
+			Logger::LogWarn("Ping测试失败，请检查远程服务器状态：%s", e.what());
+		}
 		proxy->Start();
 		Logger::LogInfo("服务已启动");
 		std::string cmd;
