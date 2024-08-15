@@ -123,11 +123,14 @@ void Proxy::Start()
 										lock.unlock();
 										try
 										{
-											RbsLib::Buffer buffer(1024);
+											std::unique_ptr<char[]> buffer = std::make_unique<char[]>(1024);
+											int size;
 											while (true) {
-												remote_server.Recv(buffer);
-												connection.Send(buffer);
-												user_ptr->upload_bytes+= buffer.GetLength();
+												size = remote_server.Recv(buffer.get(), 1024, 0);
+												if (size<=0) throw ProxyException("Remote server disconnected or error.");
+												if (connection.Send(buffer.get(),size,0)<=0)
+													throw ProxyException("Client disconnected or error.");
+												user_ptr->upload_bytes += size;
 											}
 										}
 										catch (const std::exception& e)
@@ -139,11 +142,14 @@ void Proxy::Start()
 										}
 										});
 									
-									RbsLib::Buffer b(1024);
+									std::unique_ptr<char[]> b = std::make_unique<char[]>(1024);
+									int size;
 									while (true) {
-										connection.Recv(b);
-										remote_server.Send(b);
-										user_ptr->upload_bytes += b.GetLength();
+										size = connection.Recv(b.get(),1024,0);
+										if (size<=0) throw ProxyException("Client disconnected or error.");
+										if (remote_server.Send(b.get(),size,0)<=0)
+											throw ProxyException("Remote server disconnected or error.");
+										user_ptr->upload_bytes += size;
 									}
 								}
 								catch (...) {
