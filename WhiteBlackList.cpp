@@ -1,5 +1,6 @@
 #include "WhiteBlackList.h"
 #include <mutex>
+#include <algorithm>
 #include "config.h"
 #include "json/CJsonObject.h"
 
