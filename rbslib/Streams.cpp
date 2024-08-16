@@ -223,7 +223,7 @@ int64_t RbsLib::Streams::BufferInputStream::Read(void* ptr, int64_t size)
 	if (size > 0) {
 		size = size+this->pos>this->buffer.GetSize()?this->buffer.GetSize()-this->pos:size;
 	}
-	if (size<=0) throw StreamException("BufferInputStream read out of range");
+	if (size <= 0) return size;
 	memcpy(ptr, (std::uint8_t*)this->buffer.Data()+this->pos, size);
 	this->pos += size;
 	return size;

@@ -186,7 +186,7 @@ std::string RbsLib::Storage::FileIO::File::GetLine(uint64_t max_len) const
 	if ((this->open_mode & RbsLib::Storage::FileIO::OpenMode::Read) != RbsLib::Storage::FileIO::OpenMode::Read)
 		throw fio::FileIOException("Not have read permission");
 	std::unique_ptr<char[]> arr(new char[max_len]);
-	if (!fgets(arr.get(), max_len, this->fp))
+	if (!fgets(arr.get(), static_cast<int>(max_len), this->fp))
 		throw RbsLib::Storage::FileIO::FileIOException("Read file failed");
 	return std::string(arr.get());
 }
