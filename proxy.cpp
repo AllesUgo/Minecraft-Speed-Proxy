@@ -135,6 +135,7 @@ void Proxy::Start()
 										}
 										catch (const std::exception& e)
 										{
+											exception_handle(e);
 											connection.Disable();
 											remote_server.Disable();
 											lock.lock();
@@ -172,6 +173,7 @@ void Proxy::Start()
 						}
 					}
 					catch (const std::exception& e) {
+						exception_handle(e);
 						connection.Disable();
 						std::unique_lock<std::shared_mutex> lock(this->global_mutex);
 						this->connections.remove(connection);

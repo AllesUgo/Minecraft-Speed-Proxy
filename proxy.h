@@ -71,6 +71,7 @@ public:
 	RbsLib::Function::Function<void(const RbsLib::Network::TCP::TCPConnection& client)> on_disconnect;//发生在即将与客户端断开连接前，此时连接已不可用，不允许在连接上收发数据，仅用于标识连接。在连接上收发将导致异常。抛出异常无效
 	RbsLib::Function::Function<void(const RbsLib::Network::TCP::TCPConnection& client, const std::string& username, const std::string& uuid)> on_login;//发生在收到客户端的登录数据包后，用户未加入在线用户列表，login抛出的异常将会显示在客户端
 	RbsLib::Function::Function<void(const RbsLib::Network::TCP::TCPConnection& client, const UserInfo& userinfo)> on_logout;//发生在用户即将断开连接之前，用户已从在线用户列表中移除并且连接未从连接池断开，logout要求与disconnect要求一致，且保证logout先于disconnect。logout抛出异常将导致未定义行为
+	RbsLib::Function::Function<void(const std::exception& ex)> exception_handle;//用于输出错误日志，error_message_callback抛出的异常将导致未定义行为
 
 	Proxy(bool is_ipv6_local, const std::string& local_address, std::uint16_t local_port, bool is_ipv6_remote, const std::string& remote_server_addr, std::uint16_t);
 	Proxy(const Proxy&) = delete;

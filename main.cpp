@@ -350,6 +350,9 @@ int main(int argc,const char**argv)
 		proxy->on_disconnect += [](const RbsLib::Network::TCP::TCPConnection& client) {
 			//std::cout << client.GetAddress() << "disconnect" << std::endl;
 			};//注册断开回调
+		proxy->exception_handle += [](const std::exception& ex) {
+			Logger::LogDebug("Exception: %s Reason: %s", typeid(ex).name(),ex.what());
+			};//注册异常处理回调
 		proxy->SetMotd(Motd::LoadMotdFromFile(Config::get_config<std::string>("MotdPath")));
 		proxy->SetMaxPlayer(Config::get_config<int>("MaxPlayer"));
 		Logger::LogInfo("正在测试与目标服务器的Ping");

@@ -11,9 +11,9 @@ std::string LogDir;
 std::mutex LogMutex;
 FILE* Fp = nullptr;
 std::string LogFileName;
-bool IsInit = false;
-int ShowLogLevel = 0;
-int SaveLogLevel;
+volatile bool IsInit = false;
+volatile int ShowLogLevel = 0;
+volatile int SaveLogLevel;
 using namespace std;
 
 
@@ -74,6 +74,18 @@ bool Logger::Init(const std::string& path, int show_log_level, int save_log_leve
 		IsInit = false;
 		return false;
 	}
+}
+void Logger::LogDebug(const char* format, ...)
+{
+	va_list lst;
+	char tmp[80];
+	sprintf(tmp, "[%s] [DEBUG] ", Time::GetFormattedTime().c_str());
+	va_start(lst, format);
+	Logger::print_log(-1, (std::string("\033[0m\033[34m") + std::string(tmp) + format + "\033[0m" + "\n").c_str(), lst);
+	va_end(lst);
+	va_start(lst, format);
+	Logger::save_log(-1, (std::string(tmp) + format + "\n").c_str(), lst);
+	va_end(lst);
 }
 void Logger::LogInfo(const char* format, ...)
 {
