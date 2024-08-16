@@ -7,6 +7,7 @@
 #include <list>
 #include <functional>
 #include <tuple>
+#include <cstdint>
 
 
 namespace RbsLib::Command

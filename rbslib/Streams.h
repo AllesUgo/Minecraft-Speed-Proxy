@@ -4,6 +4,7 @@
 #include "BaseType.h"
 #include "Buffer.h"
 #include "FileIO.h"
+#include <cstdint>
 namespace RbsLib
 {
 	namespace Streams

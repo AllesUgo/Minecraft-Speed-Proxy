@@ -4,6 +4,7 @@
 #include <vector>
 #include <iomanip>
 #include <sstream>
+#include <cstdint>
 namespace RbsLib::String
 {
 	std::vector<std::string> split(const std::string& str, const std::string& pattern);

@@ -3,6 +3,7 @@
 #include <exception>
 #include <cstring>
 #include <cerrno>
+#include <cstdint>
 #include "BaseType.h"
 #include "Buffer.h"
 namespace RbsLib

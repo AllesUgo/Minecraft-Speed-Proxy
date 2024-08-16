@@ -3,6 +3,7 @@
 #include<filesystem>
 #include<exception>
 #include "BaseType.h"
+#include <cstdint>
 namespace RbsLib
 {
 	namespace Storage

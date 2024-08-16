@@ -6,6 +6,7 @@
 #include <map>
 #include <list>
 #include <memory>
+#include <cstdint>
 #include "BaseType.h"
 #include "Buffer.h"
 #include "Streams.h"
