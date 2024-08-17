@@ -155,6 +155,7 @@ auto PingDataPack::ToBuffer() const -> RbsLib::Buffer
 
 auto StartLoginDataPack::GetUUID() const -> std::string
 {
+	if (!this->have_uuid) return std::string();
 	char buffer[64];
 	sprintf(buffer, "%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
 		this->uuid[0], this->uuid[1], this->uuid[2], this->uuid[3],
