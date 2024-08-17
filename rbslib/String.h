@@ -1,10 +1,10 @@
 ﻿#pragma once
 #include "BaseType.h"
-#include <string>
-#include <vector>
+#include <cstdint>
 #include <iomanip>
 #include <sstream>
-#include <cstdint>
+#include <string>
+#include <vector>
 namespace RbsLib::String
 {
 	std::vector<std::string> split(const std::string& str, const std::string& pattern);

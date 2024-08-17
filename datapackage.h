@@ -1,11 +1,11 @@
 #ifndef DATAPACKAGE
 #define DATAPACKAGE
 
-#include <cstdint>
 #include "rbslib/Buffer.h"
-#include <exception>
-#include "rbslib/Streams.h"
 #include "rbslib/DataType.h"
+#include "rbslib/Streams.h"
+#include <cstdint>
+#include <exception>
 
 class DataPackException : public std::exception {
 private:

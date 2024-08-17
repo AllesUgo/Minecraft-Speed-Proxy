@@ -1,9 +1,9 @@
 ﻿#pragma once
-#include<string>
-#include<filesystem>
-#include<exception>
 #include "BaseType.h"
 #include <cstdint>
+#include<exception>
+#include<filesystem>
+#include<string>
 namespace RbsLib
 {
 	namespace Storage

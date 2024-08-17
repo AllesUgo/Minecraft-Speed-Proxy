@@ -1,7 +1,7 @@
 #include "config.h"
 #include "json/CJsonObject.h"
-#include "rbslib/Storage.h"
 #include "rbslib/FileIO.h"
+#include "rbslib/Storage.h"
 
 static neb::CJsonObject ConfigJson;
 static void ThrowIfConfigItemNotExist(const std::string& key) {

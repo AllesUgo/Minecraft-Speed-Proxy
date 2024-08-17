@@ -1,8 +1,8 @@
 #pragma once
 #include <cstdint>
-#include <string>
 #include <cstring>
 #include <exception>
+#include <string>
 namespace RbsLib::Math
 {
 	class BigIntegerException:std::exception

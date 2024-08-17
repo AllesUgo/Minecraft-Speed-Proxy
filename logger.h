@@ -1,6 +1,6 @@
 #pragma once
-#include <string>
 #include <cstdarg>
+#include <string>
 class Logger
 {
 private:

@@ -1,11 +1,11 @@
 #include "logger.h"
-#include <time.h>
 #include <cstdarg>
 #include <cstdio>
 #include <ctime>
-#include <iostream>
 #include <filesystem>
+#include <iostream>
 #include <mutex>
+#include <time.h>
 
 std::string LogDir;
 std::mutex LogMutex;

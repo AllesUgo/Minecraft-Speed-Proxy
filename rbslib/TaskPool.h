@@ -1,12 +1,11 @@
 ﻿#pragma once
-#include <queue>
-#include <list>
-#include <functional>
 #include <atomic>
-#include <mutex>
 #include <condition_variable>
+#include <functional>
+#include <list>
+#include <mutex>
+#include <queue>
 #include <thread>
-#include <cstdint>
 namespace RbsLib::Thread
 {
 	class TaskPool

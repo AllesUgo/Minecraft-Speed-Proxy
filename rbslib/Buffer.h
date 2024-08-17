@@ -1,9 +1,9 @@
 ﻿#pragma once
+#include "BaseType.h"
+#include <cstdint>
 #include <exception>
 #include <string>
-#include "BaseType.h"
 #include <vector>
-#include <cstdint>
 namespace RbsLib
 {
 	class BufferException :public std::exception

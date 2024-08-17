@@ -3,9 +3,9 @@
 #include "BaseType.h"
 #include "Buffer.h"
 #include "Streams.h"
+#include <compare>
 #include <cstdint>
 #include <exception>
-#include <compare>
 
 namespace RbsLib::DataType {
 	class DataTypeException : public std::exception {

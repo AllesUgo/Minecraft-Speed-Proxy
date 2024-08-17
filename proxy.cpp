@@ -1,8 +1,8 @@
-#include "proxy.h"
 #include "datapackage.h"
+#include "proxy.h"
+#include <chrono>
 #include <iostream>
 #include <mutex>
-#include <chrono>
 
 Proxy::Proxy(bool is_ipv6_local, const std::string& local_address, std::uint16_t local_port, bool is_ipv6_remote, const std::string& remote_server_addr, std::uint16_t remote_server_port)
 	: local_server(local_port,local_address,is_ipv6_local), remote_server_addr(remote_server_addr), remote_server_port(remote_server_port), is_ipv6_remote(is_ipv6_remote)

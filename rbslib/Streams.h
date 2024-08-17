@@ -1,10 +1,10 @@
 ﻿#pragma once
-#include <exception>
-#include <string>
 #include "BaseType.h"
 #include "Buffer.h"
 #include "FileIO.h"
 #include <cstdint>
+#include <exception>
+#include <string>
 namespace RbsLib
 {
 	namespace Streams

@@ -1,15 +1,16 @@
 #pragma once
 #ifndef PROXY_H
 #define PROXY_H
+#include "json/CJsonObject.h"
+#include "rbslib/Function.h"
 #include "rbslib/Network.h"
 #include "rbslib/TaskPool.h"
-#include "rbslib/Function.h"
-#include <map>
+#include <atomic>
+#include <exception>
 #include <list>
+#include <map>
 #include <memory>
 #include <shared_mutex>
-#include <atomic>
-#include "json/CJsonObject.h"
 
 class ProxyException : public std::exception {
 private: 

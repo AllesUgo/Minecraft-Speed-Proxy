@@ -1,11 +1,11 @@
 ﻿#include "Network.h"
-#include <thread>
-#include <regex>
-#include <sstream>
-#include <cstring>
-#include <cerrno>
 #include "TaskPool.h"
 #include <algorithm>
+#include <cerrno>
+#include <cstring>
+#include <regex>
+#include <sstream>
+#include <thread>
 namespace net = RbsLib::Network;
 
 static std::string read_word(const char* &buffer, int max_len);

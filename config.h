@@ -1,7 +1,7 @@
 #pragma once
-#include <string>
 #include <cstdint>
 #include <exception>
+#include <string>
 
 class ConfigException : public std::exception {
 protected:

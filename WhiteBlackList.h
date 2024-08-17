@@ -1,7 +1,7 @@
 #pragma once
-#include <exception>
-#include "rbslib/Storage.h"
 #include "rbslib/FileIO.h"
+#include "rbslib/Storage.h"
+#include <exception>
 #include <list>
 
 namespace WhiteBlackList {
