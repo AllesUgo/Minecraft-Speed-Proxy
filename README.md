@@ -28,13 +28,11 @@ git clone https://github.com/AllesUgo/Minecraft-Speed-Proxy.git
 sudo apt update
 sudo apt install -y g++ cmake make 
 ```
-3.进入包含 `CMakeList.txt`的目录编译项目,编译完成后会在build目录下生成可执行文件
+3.进入包含 `CMakeList.txt`的目录编译项目,编译完成后会在项目目录下生成可执行文件
 ```bash
 cd Minecraft-Speed-Proxy
-mkdir build
-cd build
-cmake ..
-make
+cmake -DCMAKE_BUILD_TYPE=Release .
+cmake --build .
 ```
 # 如何获取程序(Windows)
 Windows不推荐使用源码编译，编译环境较为复杂，推荐直接下载发行版  
@@ -109,8 +107,8 @@ chmod +x minecraftspeedproxy
 |AllowInput|布尔|是否允许输入命令(当前版本暂时无效)|
 |ShowOnlinePlayerNumber|布尔|是否显示在线玩家数(当前版本暂时无效)|
 |LogDir|字符串|日志文件目录|
-|ShowLogLevel|整数|显示日志等级，0为全部显示，1为显示警告及以上，2为显示错误及以上，3为显示玩家状态，一般填0|
-|SaveLogLevel|整数|保存日志等级，0为全部保存，1为保存警告及以上，2为保存错误及以上，3为保存玩家状态，一般填0|
+|ShowLogLevel|整数|显示日志等级，-1为Debug日志，0为显示常规日志，1为显示警告及以上，2为显示错误及以上，3为显示玩家状态，一般填0|
+|SaveLogLevel|整数|保存日志等级，-1为Debug日志，1为保存警告及以上，2为保存错误及以上，3为保存玩家状态，一般填0|
 
 生成配置文件请使用
 ```bash
