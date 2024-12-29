@@ -11,11 +11,19 @@ endif()
 
 set(proj_name "minecraftspeedproxy")
 project (${proj_name})
+# Windows上的编译器设置 (MSVC)
 if(MSVC)
-    # Windows上的编译器设置 (MSVC)
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT")
     set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MTd")
 endif()
+# Linux 平台特定设置
+if(UNIX)
+    add_definitions(-DLINUX)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -std=c++20")
+    # 查找 pthread 库
+    find_package(Threads REQUIRED)
+endif()
+
 set(CMAKE_CXX_STANDARD 20)
 
 EXECUTE_PROCESS(COMMAND git describe --tags --always --dirty=-dev
@@ -48,4 +56,6 @@ if (CMAKE_VERSION VERSION_GREATER 3.12)
   set_property(TARGET minecraftspeedproxy PROPERTY CXX_STANDARD 20)
 endif()
 
+# 将 pthread 库链接到可执行文件（兼容Linux）
+target_link_libraries(minecraftspeedproxy PRIVATE Threads::Threads)
 # TODO: 如有需要，请添加测试并安装目标。
