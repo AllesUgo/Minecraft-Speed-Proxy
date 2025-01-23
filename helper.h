@@ -4,6 +4,7 @@
 #include <string>
 
 #include "json/CJsonObject.h"
+#include <cstdint>
 
 namespace Helper 
 {
