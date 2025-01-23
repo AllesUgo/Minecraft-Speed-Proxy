@@ -43,6 +43,7 @@ public:
 class StatusResponseDataPack : public NoCompressionDataPack {
 public:
 	StatusResponseDataPack();
+	void ParseFromInputStream(RbsLib::Streams::IInputStream& input_stream);
 	RbsLib::DataType::String json_response;
 	// Í¨¹ý NoCompressionDataPack ¼Ì³Ð
 	auto ToBuffer() const->RbsLib::Buffer override;

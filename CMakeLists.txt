@@ -42,7 +42,7 @@ file(GLOB JSON_LIB_SRC "json/*.cpp")
 
 # 将源代码添加到此项目的可执行文件。
 #若需要二次开发请修改下面指令中的文件名
-add_executable (minecraftspeedproxy "main.cpp" "WhiteBlackList.cpp" "config.cpp" "datapackage.cpp" "logger.cpp" "proxy.cpp" ${RBS_LIB_SRC} ${JSON_LIB_SRC} )
+add_executable (minecraftspeedproxy "main.cpp" "WhiteBlackList.cpp" "config.cpp" "datapackage.cpp" "logger.cpp" "proxy.cpp" "helper.cpp" ${RBS_LIB_SRC} ${JSON_LIB_SRC} )
 
 if (CMAKE_VERSION VERSION_GREATER 3.12)
   set_property(TARGET minecraftspeedproxy PROPERTY CXX_STANDARD 20)

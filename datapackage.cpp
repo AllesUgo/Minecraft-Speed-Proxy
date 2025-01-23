@@ -84,6 +84,16 @@ StatusResponseDataPack::StatusResponseDataPack()
 	this->id = 0;
 }
 
+void StatusResponseDataPack::ParseFromInputStream(RbsLib::Streams::IInputStream& input_stream)
+{
+	auto buffer = DataPack::Data(input_stream);
+	RbsLib::Streams::BufferInputStream bis(buffer);
+	this->id.ParseFromVarint(bis);
+	if (this->id != 0)
+		throw DataPackException("StatusResponseDataPack::ParseFromInputStream: invalid id");
+	this->json_response.ParseFromInputStream(bis);
+}
+
 #include <stdio.h>
 auto StatusResponseDataPack::ToBuffer() const -> RbsLib::Buffer
 {

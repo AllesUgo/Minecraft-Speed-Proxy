@@ -12,6 +12,7 @@
 #include "rbslib/String.h"
 #include <csignal>
 #include "rbslib/BaseType.h"
+#include "helper.h"
 
 using namespace std;
 
@@ -30,8 +31,10 @@ void PrintHelp() {
 	cout << "\t-h\t显示帮助" << endl;
 	cout << "\t-c <配置文件路径>\t通过配置文件启动" << endl;
 	cout << "\t-a <配置文件路径>\t在指定位置生成配置文件" << endl;
+	cout << "\t--get-motd\t获取远程服务器的Motd信息" << endl;
 	cout << "\t-v\t获取当前版本信息" << endl;
-	cout<<"当前版本配置文件不再与v3.0以前兼容，请重新编辑配置文件"<<endl;
+
+	cout << "当前版本配置文件不再与v3.0以前兼容，请重新编辑配置文件" << endl;
 	
 }
 
@@ -68,6 +71,55 @@ void MainCmdline(int argc,const char** argv) {
 		}
 		Config::SetDeafultConfig();
 		Config::save_config(cmdline[2]);
+		exit(0);
+	}
+	else if (cmdline[1] == "--get-motd") {
+		if (cmdline.GetSize() != 2) {
+			cout << "参数错误,请使用-h参数获取帮助" << endl;
+			exit(0);
+		}
+		std::string addr;
+		std::uint16_t port;
+		bool is_ipv6;
+		std::cout << "此功能帮助获取远程服务器的Motd信息，包含在线玩家数、版本号、图片等信息" << std::endl;
+		std::cout << "使用IPv6连接吗(一般服务器无需使用IPv6)？(y/n):";
+		std::string ipv6;
+		std::cin >> ipv6;
+		if (ipv6 == "y") {
+			is_ipv6 = true;
+		}
+		else {
+			is_ipv6 = false;
+		}
+		std::cout << "请输入远程服务器地址:";
+		std::cin >> addr;
+		std::cout << "请输入远程服务器端口:";
+		std::cin >> port;
+		try
+		{
+			auto result = Helper::GetRemoteServerMotd(addr, port, is_ipv6);
+			std::cout << "是否要将结果保存至文件中？(y/n) :";
+			std::string save;
+			std::cin >> save;
+			if (save == "y") {
+				std::string path;
+				std::cout << "请输入保存路径:";
+				std::cin >> path;
+				RbsLib::Storage::FileIO::File file_io(path,RbsLib::Storage::FileIO::OpenMode::Write|RbsLib::Storage::FileIO::OpenMode::Replace);
+				file_io.Write(RbsLib::Buffer(result.ToFormattedString()));
+				std::cout << "已保存至" << path << std::endl;
+				std::cout << "一般情况下请使用UTF-8编码打开文件" << std::endl;
+			}
+			else
+			{
+				std::cout << "以下为远程服务器MOTD的原始JSON数据格式化字符串(若存在乱码，请保存到文件并使用UTF-8编码打开)" << std::endl;
+				std::cout << result.ToFormattedString() << std::endl;
+			}
+		}
+		catch (const std::exception& e)
+		{
+			std::cerr << "错误:" << e.what() << std::endl;
+		}
 		exit(0);
 	}
 	else {
