@@ -15,6 +15,10 @@ if(MSVC)
     # Windows上的编译器设置 (MSVC)
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT")
     set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MTd")
+elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+    message("Use GNU compiler")
+    #静态链接glibc
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static -static-libstdc++ -static-libgcc")
 endif()
 set(CMAKE_CXX_STANDARD 20)
 
