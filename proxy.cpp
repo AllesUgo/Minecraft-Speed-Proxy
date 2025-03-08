@@ -50,6 +50,8 @@ void Proxy::Start()
 									lock.unlock();
 									status_response_data_pack.json_response = RbsLib::DataType::String(motd.ToString());
 									stream.Write(status_response_data_pack.ToBuffer());
+									//debug motd
+									//std::cout << motd.motd_json.ToFormattedString() << std::endl;
 									break;
 								}
 								case 1: {
@@ -341,9 +343,14 @@ void Motd::SetOnlinePlayerNumber(int n)
 void Motd::SetSampleUsers(std::list<UserInfo> const& users)
 {
 	this->motd_json.AddEmptySubObject("players");
+	if (this->motd_json["players"].KeyExist("sample") == true)
+		return;//如果已经存在sample则不添加
 	this->motd_json["players"].AddEmptySubArray("sample");
-	if (this->motd_json["players"]["sample"].GetArraySize()==0) {
-		for (auto& user : users) {
+	if (this->motd_json["players"]["sample"].GetArraySize()==0) 
+	{
+		for (auto& user : users) 
+		{
+			if (user.uuid.empty()) continue;
 			neb::CJsonObject user_json;
 			user_json.Add("name", user.username);
 			user_json.Add("id", user.uuid);
