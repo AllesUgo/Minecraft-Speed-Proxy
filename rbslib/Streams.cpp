@@ -224,7 +224,8 @@ int64_t RbsLib::Streams::BufferInputStream::Read(void* ptr, int64_t size)
 		size = size+this->pos>this->buffer.GetSize()?this->buffer.GetSize()-this->pos:size;
 	}
 	if (size <= 0) return size;
-	memcpy(ptr, (std::uint8_t*)this->buffer.Data()+this->pos, size);
+	if (ptr)
+		memcpy(ptr, (std::uint8_t*)this->buffer.Data()+this->pos, size);
 	this->pos += size;
 	return size;
 }
@@ -237,4 +238,9 @@ RbsLib::Streams::BufferInputStream::BufferInputStream(const Buffer& buffer)
 void RbsLib::Streams::BufferInputStream::Seek(std::uint64_t pos)
 {
 	if (pos >= buffer.GetSize()) throw StreamException("BufferInputStream seek out of range");
+}
+
+std::uint64_t RbsLib::Streams::BufferInputStream::RemainLength() const
+{
+	return this->buffer.GetSize() - this->pos;
 }

@@ -98,6 +98,8 @@ namespace RbsLib
 			
 			BufferInputStream(const Buffer& buffer);
 			void Seek(std::uint64_t pos);
+
+			std::uint64_t RemainLength() const;
 		};
 	}
 }

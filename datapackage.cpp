@@ -184,9 +184,21 @@ void StartLoginDataPack::ParseFromInputStream(RbsLib::Streams::IInputStream& inp
 	if (this->id!=0)
 		throw DataPackException("StartLoginDataPack::ParseFromInputStream: invalid id");
 	this->user_name.ParseFromInputStream(bis);
-	if (16 != bis.Read(this->uuid, 16))
-		this->have_uuid = false;
-	else this->have_uuid = true;
+	if (bis.RemainLength() == 16)
+	{
+		if (16 != bis.Read(this->uuid, 16))
+			this->have_uuid = false;
+		else this->have_uuid = true;
+	}
+	else if (bis.RemainLength() == 17)
+	{
+		// 读取一个字节，并忽略
+		bis.Read(nullptr, 1);
+		if (16 != bis.Read(this->uuid, 16))
+			this->have_uuid = false;
+		else this->have_uuid = true;
+	}
+	else this->have_uuid = false;
 }
 
 auto StartLoginDataPack::ToBuffer() const -> RbsLib::Buffer

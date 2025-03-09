@@ -80,7 +80,9 @@ void Proxy::Start()
 								}
 								check_max_player.unlock();
 								StartLoginDataPack start_login_data_pack;
-								start_login_data_pack.ParseFromInputStream(stream);
+								auto login_start_row_packet = DataPack::ReadFullData(stream);
+								RbsLib::Streams::BufferInputStream bis(login_start_row_packet);
+								start_login_data_pack.ParseFromInputStream(bis);
 								//调用登录回调
 								try {
 									if (start_login_data_pack.have_uuid) 
@@ -114,7 +116,7 @@ void Proxy::Start()
 									handshake_data_pack.server_address=RbsLib::DataType::String(this->remote_server_addr);
 									remote_server.Send(handshake_data_pack.ToBuffer());
 									//发送登录请求
-									remote_server.Send(start_login_data_pack.ToBuffer());
+									remote_server.Send(login_start_row_packet);
 									//进入代理
 									RbsLib::Buffer buffer(1024);
 									//将该用户记录
