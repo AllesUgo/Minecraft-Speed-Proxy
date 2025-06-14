@@ -3,7 +3,7 @@
 
 Minecraft加速IP程序  
 能够代理Minecraft服务器，并拥有白名单、用户控制、流量展示、MOTD自定义等功能，支持IPv6    
-~~本项目使用C语言编写~~新版已改用C++，内存占用极低，在配置较低的服务器上拥有更好的表现  
+~~本项目使用C语言编写~~ 新版已改用C++，内存占用极低，在配置较低的服务器上拥有更好的表现  
 改用C++编写，大幅度降低了崩溃的发生率，降低了内存泄露的可能并有了更好的项目结构  
 新版已支持跨平台编译，支持Windows、Linux  
 若仍需要使用旧版，请下载v3.0.0以前的版本。若需要对旧版继续开发，请切换到c-releases分支
@@ -104,7 +104,7 @@ chmod +x minecraftspeedproxy
 |MotdPath|字符串|motd文件路径，为空则使用默认motd|
 |DefaultEnableWhitelist|布尔|是否默认启用白名单|
 |WhiteBlcakListPath|字符串|白名单黑名单文件路径|
-|AllowInput|布尔|是否允许输入命令(当前版本暂时无效)|
+|AllowInput|布尔|是否允许输入命令|
 |ShowOnlinePlayerNumber|布尔|是否显示在线玩家数(当前版本暂时无效)|
 |LogDir|字符串|日志文件目录|
 |ShowLogLevel|整数|显示日志等级，-1为Debug日志，0为显示常规日志，1为显示警告及以上，2为显示错误及以上，3为显示玩家状态，一般填0|

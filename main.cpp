@@ -13,6 +13,7 @@
 #include <csignal>
 #include "rbslib/BaseType.h"
 #include "helper.h"
+#include <semaphore>
 
 using namespace std;
 
@@ -341,6 +342,7 @@ int main(int argc,const char**argv)
 		int is_ipv6_remote = Config::get_config<bool>("RemoteIPv6");
 		std::string remote_server_addr = Config::get_config<std::string>("Address");
 		std::uint16_t remote_server_port = Config::get_config<int>("RemotePort");
+		bool enable_input = Config::get_config<bool>("AllowInput");
 		Logger::LogInfo("正在初始化白名单及封禁列表");
 		WhiteBlackList::Init();
 		if (WhiteBlackList::IsWhiteListOn()) {
@@ -418,6 +420,13 @@ int main(int argc,const char**argv)
 		}
 		proxy->Start();
 		Logger::LogInfo("服务已启动");
+		//检查是否开启命令行，如果不开启，则阻塞
+		if (!enable_input)
+		{
+			Logger::LogInfo("命令行输入已禁用，退出请使用CTRL-C");
+			counting_semaphore sem(0);
+			sem.acquire(); //无限阻塞
+		}
 		std::string cmd;
 		while (true)
 		{
