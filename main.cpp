@@ -359,9 +359,11 @@ int main(int argc,const char**argv)
 			Logger::LogInfo("远程服务器地址为IPv4地址");
 		Logger::LogInfo("远程服务器地址：%s 端口：%d", remote_server_addr.c_str(), remote_server_port);
 		proxy = std::make_unique<Proxy>(is_ipv6_local, local_address, local_port, is_ipv6_remote, remote_server_addr, remote_server_port);
+		/*
 		proxy->on_connected += [](const RbsLib::Network::TCP::TCPConnection& client) {
 			//std::cout <<client.GetAddress() <<"connected" << std::endl;
 			};//注册连接回调
+			*/
 
 		proxy->on_login += [](const RbsLib::Network::TCP::TCPConnection& client, const std::string& username, const std::string& uuid) {
 			if (WhiteBlackList::IsInBlack(username))
