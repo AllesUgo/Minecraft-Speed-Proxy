@@ -27,6 +27,8 @@ void Proxy::Start()
 						this->on_connected(connection);
 						int connection_status = 0;//未握手
 						//必须先握手
+						bool is_fml = false;
+						std::string remote_server_suffix;
 						HandshakeDataPack handshake_data_pack;
 						RbsLib::Network::TCP::TCPStream stream(connection);
 						handshake_data_pack.ParseFromInputStream(stream);
@@ -83,6 +85,11 @@ void Proxy::Start()
 								auto login_start_row_packet = DataPack::ReadFullData(stream);
 								RbsLib::Streams::BufferInputStream bis(login_start_row_packet);
 								start_login_data_pack.ParseFromInputStream(bis);
+								//检查是否是FML登录
+								if (handshake_data_pack.server_address.size()!=std::strlen(handshake_data_pack.server_address.c_str()))
+								{
+									remote_server_suffix = handshake_data_pack.server_address.substr(std::strlen(handshake_data_pack.server_address.c_str()));
+								}
 								//调用登录回调
 								try {
 									if (start_login_data_pack.have_uuid) 
@@ -103,6 +110,7 @@ void Proxy::Start()
 								flag = 1;
 								connection.SetSocketOption(IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag));
 								auto user_ptr = std::make_shared<User>(connection, remote_server);
+								
 								user_ptr->username = start_login_data_pack.user_name;
 								user_ptr->uuid = start_login_data_pack.GetUUID();
 								user_ptr->ip = connection.GetAddress();
@@ -113,7 +121,9 @@ void Proxy::Start()
 								lock.unlock();
 								try {
 									//发送握手申请
-									handshake_data_pack.server_address=RbsLib::DataType::String(this->remote_server_addr);
+									handshake_data_pack.server_address = RbsLib::DataType::String(this->remote_server_addr+remote_server_suffix);
+									
+
 									remote_server.Send(handshake_data_pack.ToBuffer());
 									//发送登录请求
 									remote_server.Send(login_start_row_packet);
