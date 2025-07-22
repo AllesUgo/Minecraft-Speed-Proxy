@@ -27,7 +27,6 @@ void Proxy::Start()
 						this->on_connected(connection);
 						int connection_status = 0;//未握手
 						//必须先握手
-						bool is_fml = false;
 						std::string remote_server_suffix;
 						HandshakeDataPack handshake_data_pack;
 						RbsLib::Network::TCP::TCPStream stream(connection);
