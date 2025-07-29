@@ -56,7 +56,7 @@ const char* ConfigException::what() const noexcept
 	return message.c_str();
 }
 
-void Config::SetDeafultConfig()
+void Config::SetDefaultConfig()
 {
 	//µÿ÷∑œ‡πÿ
 	Config::set_config("LocalAddress", "::");

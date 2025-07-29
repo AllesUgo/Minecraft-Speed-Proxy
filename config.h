@@ -14,7 +14,7 @@ public:
 class Config {
 public:
 	Config() = delete;
-	static void SetDeafultConfig();
+	static void SetDefaultConfig();
 	static void load_config(const std::string& path);
 	static void save_config(const std::string& path);
 	static void set_config(const std::string& key, const std::string& value);

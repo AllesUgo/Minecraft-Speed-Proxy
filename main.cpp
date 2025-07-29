@@ -70,7 +70,7 @@ void MainCmdline(int argc,const char** argv) {
 			cout << "参数错误,请使用-h参数获取帮助" << endl;
 			exit(0);
 		}
-		Config::SetDeafultConfig();
+		Config::SetDefaultConfig();
 		Config::save_config(cmdline[2]);
 		exit(0);
 	}
@@ -119,7 +119,7 @@ void MainCmdline(int argc,const char** argv) {
 			exit(0);
 		}
 		else {
-			Config::SetDeafultConfig();
+			Config::SetDefaultConfig();
 			Config::set_config("Address", cmdline[1]);
 			Config::set_config("RemotePort",std::stoi(cmdline[2]));
 			Config::set_config("LocalPort", std::stoi(cmdline[3]));
