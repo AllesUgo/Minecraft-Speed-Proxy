@@ -373,6 +373,11 @@ SOCKET RbsLib::Network::TCP::TCPConnection::GetSocket(void) const noexcept
 	return this->sock;
 }
 
+SOCKET RbsLib::Network::TCP::TCPConnection::GetRowSocket(void) const noexcept
+{
+	return this->sock;
+}
+
 std::string RbsLib::Network::TCP::TCPConnection::GetAddress(void) const noexcept
 {
 	char buffer[64];
@@ -606,88 +611,110 @@ void RbsLib::Network::HTTP::HTTPServer::LoopWait(bool use_thread_pool, int keep_
 			auto& post = this->on_post_request;
 			pool.Run([connection, protocol_version, get, post]() {
 				//读取Header
+				bool is_keep_alive = true;
 				try
 				{
-					RequestHeader header;
-					const char* p;
-					auto buffer = connection.Recv(1024 * 1024);
-					const char* now_ptr = (const char*)buffer.Data();
-					const char* end_ptr = (const char*)buffer.Data() + buffer.GetLength();
-					//读取协议行
-					std::string line = read_line(now_ptr, (int)(end_ptr - now_ptr));
-					if (is_empty_line(line)) return;
-					p = line.c_str();
-					std::string method = read_word(p, (int)line.length());
-					if (method == "GET") header.request_method = Method::GET;
-					else if (method == "POST") header.request_method = Method::POST;
-					else return;
-					header.path = read_word(p, (int)(line.c_str() + line.length() - p));
-					if (header.path.empty()) return;//错误的请求，URL为空
-					std::string p_version = read_word(p, (int)(line.c_str() + line.length() - p));
-					if (p_version != protocol_version) return;//不支持的版本
-					//循环读取
-					bool is_true_request = false;
-					while (now_ptr < end_ptr)
+					while (true)
 					{
-						line = read_line(now_ptr, (int)(end_ptr - now_ptr));
-						if (line == "\r\n")
+						RequestHeader header;
+						const char* p;
+						auto buffer = connection.Recv(1024 * 1024);
+						const char* now_ptr = (const char*)buffer.Data();
+						const char* end_ptr = (const char*)buffer.Data() + buffer.GetLength();
+						//读取协议行
+						std::string line = read_line(now_ptr, (int)(end_ptr - now_ptr));
+						if (is_empty_line(line)) return;
+						p = line.c_str();
+						std::string method = read_word(p, (int)line.length());
+						if (method == "GET") header.request_method = Method::GET;
+						else if (method == "POST") header.request_method = Method::POST;
+						else return;
+						header.path = read_word(p, (int)(line.c_str() + line.length() - p));
+						if (header.path.empty()) return;//错误的请求，URL为空
+						std::string p_version = read_word(p, (int)(line.c_str() + line.length() - p));
+						if (p_version != protocol_version) return;//不支持的版本
+						//循环读取
+						bool is_true_request = false;
+						while (now_ptr < end_ptr)
 						{
-							is_true_request = true;
-							break;
-						}
-						try
-						{
-							header.headers.AddHeader(line);
-						}
-						catch (const HTTPException&) {}
-					}
-					if (is_true_request == false) return;
-					if (header.request_method == Method::POST)
-					{
-						//检查是否具有ContentLength
-						Buffer post_content(end_ptr - now_ptr > 0 ? end_ptr - now_ptr : 1);
-						if (!header.headers["Content-Length"].empty())
-						{
-							//存在ContentLength
-							std::string str = header.headers["Content-Length"];
-							int len = 0;
-							std::stringstream(str) >> len;
-							if (len > 0) post_content.Resize(len);
-							else post_content.Resize(1);
-							if (end_ptr - now_ptr > 0)
+							line = read_line(now_ptr, (int)(end_ptr - now_ptr));
+							if (line == "\r\n")
 							{
-								//第一次接收的还有数据
-								if (end_ptr - now_ptr <= len)
+								is_true_request = true;
+								break;
+							}
+							try
+							{
+								header.headers.AddHeader(line);
+							}
+							catch (const HTTPException&) {}
+						}
+						if (is_true_request == false) return;
+						if (header.request_method == Method::POST)
+						{
+							//检查是否具有ContentLength
+							Buffer post_content(end_ptr - now_ptr > 0 ? end_ptr - now_ptr : 1);
+							if (!header.headers["Content-Length"].empty())
+							{
+								//存在ContentLength
+								std::string str = header.headers["Content-Length"];
+								int len = 0;
+								std::stringstream(str) >> len;
+								if (len > 0) post_content.Resize(len);
+								else post_content.Resize(1);
+								if (end_ptr - now_ptr > 0)
+								{
+									//第一次接收的还有数据
+									if (end_ptr - now_ptr <= len)
+									{
+										post_content.Data(now_ptr, end_ptr - now_ptr);
+										len -= (int)(end_ptr - now_ptr);
+									}
+									else
+									{
+										post_content.Data(now_ptr, len);
+										len = 0;
+									}
+								}
+								if (len > 0)
+								{
+									auto t = connection.Recv(len);
+									post_content.AppendToEnd(t);
+								}
+							}
+							else
+							{
+								if (end_ptr - now_ptr > 0)
 								{
 									post_content.Data(now_ptr, end_ptr - now_ptr);
-									len -= (int)(end_ptr - now_ptr);
 								}
-								else
+							}
+							//检查是否具有Connection
+							if (header.headers.ExistHeader("Connection"))
+							{
+								if (header.headers["Connection"] == "close")
 								{
-									post_content.Data(now_ptr, len);
-									len = 0;
+									is_keep_alive = false;
 								}
 							}
-							if (len > 0)
-							{
-								auto t = connection.Recv(len);
-								post_content.AppendToEnd(t);
-							}
+							if (post(connection, header, post_content))
+								is_keep_alive = false;
 						}
-						else
+						else if (header.request_method == Method::GET)
 						{
-							if (end_ptr - now_ptr > 0)
+							//检查是否具有Connection
+							if (header.headers.ExistHeader("Connection"))
 							{
-								post_content.Data(now_ptr, end_ptr - now_ptr);
+								if (header.headers["Connection"] == "close")
+								{
+									is_keep_alive = false;
+								}
 							}
+							if (get(connection, header))
+								is_keep_alive = false;
 						}
-						post(connection, header, post_content);
+						if (is_keep_alive == false) break;
 					}
-					else if (header.request_method == Method::GET)
-					{
-						get(connection, header);
-					}
-
 				}
 				catch (const std::exception& ex)
 				{
@@ -707,88 +734,110 @@ void RbsLib::Network::HTTP::HTTPServer::LoopWait(bool use_thread_pool, int keep_
 			auto& post = this->on_post_request;
 			std::thread([connection, protocol_version, get, post]() {
 				//读取Header
+				bool is_keep_alive = true;
 				try
 				{
-					RequestHeader header;
-					const char* p;
-					auto buffer = connection.Recv(1024 * 1024);
-					const char* now_ptr = (const char*)buffer.Data();
-					const char* end_ptr = (const char*)buffer.Data() + buffer.GetLength();
-					//读取协议行
-					std::string line = read_line(now_ptr, (int)(end_ptr - now_ptr));
-					if (is_empty_line(line)) return;
-					p = line.c_str();
-					std::string method = read_word(p, (int)line.length());
-					if (method == "GET") header.request_method = Method::GET;
-					else if (method == "POST") header.request_method = Method::POST;
-					else return;
-					header.path = read_word(p, (int)(line.c_str() + line.length() - p));
-					if (header.path.empty()) return;//错误的请求，URL为空
-					std::string p_version = read_word(p, (int)(line.c_str() + line.length() - p));
-					if (p_version != protocol_version) return;//不支持的版本
-					//循环读取
-					bool is_true_request = false;
-					while (now_ptr < end_ptr)
+					while (true)
 					{
-						line = read_line(now_ptr,(int)( end_ptr - now_ptr));
-						if (line == "\r\n")
+						RequestHeader header;
+						const char* p;
+						auto buffer = connection.Recv(1024 * 1024);
+						const char* now_ptr = (const char*)buffer.Data();
+						const char* end_ptr = (const char*)buffer.Data() + buffer.GetLength();
+						//读取协议行
+						std::string line = read_line(now_ptr, (int)(end_ptr - now_ptr));
+						if (is_empty_line(line)) return;
+						p = line.c_str();
+						std::string method = read_word(p, (int)line.length());
+						if (method == "GET") header.request_method = Method::GET;
+						else if (method == "POST") header.request_method = Method::POST;
+						else return;
+						header.path = read_word(p, (int)(line.c_str() + line.length() - p));
+						if (header.path.empty()) return;//错误的请求，URL为空
+						std::string p_version = read_word(p, (int)(line.c_str() + line.length() - p));
+						if (p_version != protocol_version) return;//不支持的版本
+						//循环读取
+						bool is_true_request = false;
+						while (now_ptr < end_ptr)
 						{
-							is_true_request = true;
-							break;
-						}
-						try
-						{
-							header.headers.AddHeader(line);
-						}
-						catch (const HTTPException&) {}
-					}
-					if (is_true_request == false) return;
-					if (header.request_method == Method::POST)
-					{
-						//检查是否具有ContentLength
-						Buffer post_content(end_ptr - now_ptr > 0 ? end_ptr - now_ptr : 1);
-						if (!header.headers["Content-Length"].empty())
-						{
-							//存在ContentLength
-							std::string str = header.headers["Content-Length"];
-							int len = 0;
-							std::stringstream(str) >> len;
-							if (len > 0) post_content.Resize(len);
-							else post_content.Resize(1);
-							if (end_ptr - now_ptr > 0)
+							line = read_line(now_ptr,(int)( end_ptr - now_ptr));
+							if (line == "\r\n")
 							{
-								//第一次接收的还有数据
-								if (end_ptr - now_ptr <= len)
+								is_true_request = true;
+								break;
+							}
+							try
+							{
+								header.headers.AddHeader(line);
+							}
+							catch (const HTTPException&) {}
+						}
+						if (is_true_request == false) return;
+						if (header.request_method == Method::POST)
+						{
+							//检查是否具有ContentLength
+							Buffer post_content(end_ptr - now_ptr > 0 ? end_ptr - now_ptr : 1);
+							if (!header.headers["Content-Length"].empty())
+							{
+								//存在ContentLength
+								std::string str = header.headers["Content-Length"];
+								int len = 0;
+								std::stringstream(str) >> len;
+								if (len > 0) post_content.Resize(len);
+								else post_content.Resize(1);
+								if (end_ptr - now_ptr > 0)
+								{
+									//第一次接收的还有数据
+									if (end_ptr - now_ptr <= len)
+									{
+										post_content.Data(now_ptr, end_ptr - now_ptr);
+										len -= (int)(end_ptr - now_ptr);
+									}
+									else
+									{
+										post_content.Data(now_ptr, len);
+										len = 0;
+									}
+								}
+								if (len > 0)
+								{
+									auto t = connection.Recv(len);
+									post_content.AppendToEnd(t);
+								}
+							}
+							else
+							{
+								if (end_ptr - now_ptr > 0)
 								{
 									post_content.Data(now_ptr, end_ptr - now_ptr);
-									len -= (int)(end_ptr - now_ptr);
 								}
-								else
+							}
+							//检查是否具有Connection
+							if (header.headers.ExistHeader("Connection"))
+							{
+								if (header.headers["Connection"] == "close")
 								{
-									post_content.Data(now_ptr, len);
-									len = 0;
+									is_keep_alive = false;
 								}
 							}
-							if (len > 0)
-							{
-								auto t = connection.Recv(len);
-								post_content.AppendToEnd(t);
-							}
+							if (post(connection, header, post_content))
+								is_keep_alive = false;
 						}
-						else
+						else if (header.request_method == Method::GET)
 						{
-							if (end_ptr - now_ptr > 0)
+							//检查是否具有Connection
+							if (header.headers.ExistHeader("Connection"))
 							{
-								post_content.Data(now_ptr, end_ptr - now_ptr);
+								if (header.headers["Connection"] == "close")
+								{
+									is_keep_alive = false;
+								}
 							}
+							if (get(connection, header))
+								is_keep_alive = false;
 						}
-						post(connection, header, post_content);
+						if (is_keep_alive == false) break;
 					}
-					else if (header.request_method == Method::GET)
-					{
-						get(connection, header);
-					}
-
 				}
 				catch (const std::exception& ex)
 				{
@@ -801,12 +850,12 @@ void RbsLib::Network::HTTP::HTTPServer::LoopWait(bool use_thread_pool, int keep_
 	
 }
 
-void RbsLib::Network::HTTP::HTTPServer::SetPostHandle(const std::function<void(const TCP::TCPConnection& connection, RequestHeader& header, Buffer& post_content)>& func)
+void RbsLib::Network::HTTP::HTTPServer::SetPostHandle(const std::function<int(const TCP::TCPConnection& connection, RequestHeader& header, Buffer& post_content)>& func)
 {
 	this->on_post_request = func;
 }
 
-void RbsLib::Network::HTTP::HTTPServer::SetGetHandle(const std::function<void(const TCP::TCPConnection& connection, RequestHeader& header)>& func)
+void RbsLib::Network::HTTP::HTTPServer::SetGetHandle(const std::function<int(const TCP::TCPConnection& connection, RequestHeader& header)>& func)
 {
 	this->on_get_request = func;
 }
@@ -833,7 +882,7 @@ void RbsLib::Network::HTTP::HTTPHeadersContent::AddHeader(const std::string& key
 void RbsLib::Network::HTTP::HTTPHeadersContent::AddHeader(const std::string& line)
 {
 	std::cmatch m;
-	std::regex reg("^\\s*([a-z,A-Z,_,-]+)\\s*:\\s*([^\\f\\n\\r\\t\\v]+)\\s*$");
+	static const std::regex reg("^\\s*([a-z,A-Z,_,-]+)\\s*:\\s*([^\\f\\n\\r\\t\\v]+)\\s*$");
 	std::regex_match(line.c_str(), m, reg);
 	if (m.size() != 3) throw HTTPException("HTTP Header line parse failed");
 	this->headers[m[1]] = m[2];
@@ -851,6 +900,17 @@ auto RbsLib::Network::HTTP::HTTPHeadersContent::operator[](const std::string& ke
 }
 
 auto RbsLib::Network::HTTP::HTTPHeadersContent::Headers(void)const -> const std::map<std::string, std::string>&
+{
+	return this->headers;
+}
+
+bool RbsLib::Network::HTTP::HTTPHeadersContent::ExistHeader(const std::string& key) const noexcept
+{
+	if (this->headers.find(key) == this->headers.end()) return false;
+	else return true;
+}
+
+auto RbsLib::Network::HTTP::HTTPHeadersContent::GetHeaderMap(void) const noexcept -> const std::map<std::string, std::string>&
 {
 	return this->headers;
 }
