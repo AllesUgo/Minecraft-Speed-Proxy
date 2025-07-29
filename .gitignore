@@ -76,3 +76,7 @@ motd.json
 config.json
 
 .vs
+
+
+CMakeCache.txt
+CMakeFiles/
