@@ -2,9 +2,9 @@
 #include "datapackage.h"
 #include "rbslib/Network.h"
 #include <stdexcept>
-auto Helper::GetRemoteServerMotd(const std::string& remote_server_addr, std::uint16_t remote_server_port, bool is_ipv6) -> neb::CJsonObject
+auto Helper::GetRemoteServerMotd(const std::string& remote_server_addr, std::uint16_t remote_server_port) -> neb::CJsonObject
 {
-	auto remote_server = is_ipv6 ? RbsLib::Network::TCP::TCPClient::Connect6(remote_server_addr, remote_server_port) : RbsLib::Network::TCP::TCPClient::Connect(remote_server_addr, remote_server_port);
+	auto remote_server =  RbsLib::Network::TCP::TCPClient::Connect(remote_server_addr, remote_server_port);
 	int flag = 1;
 	remote_server.SetSocketOption(IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag));
 	HandshakeDataPack handshake_data_pack;

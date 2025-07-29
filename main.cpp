@@ -81,24 +81,14 @@ void MainCmdline(int argc,const char** argv) {
 		}
 		std::string addr;
 		std::uint16_t port;
-		bool is_ipv6;
 		std::cout << "此功能帮助获取远程服务器的Motd信息，包含在线玩家数、版本号、图片等信息" << std::endl;
-		std::cout << "使用IPv6连接吗(一般服务器无需使用IPv6)？(y/n):";
-		std::string ipv6;
-		std::cin >> ipv6;
-		if (ipv6 == "y") {
-			is_ipv6 = true;
-		}
-		else {
-			is_ipv6 = false;
-		}
 		std::cout << "请输入远程服务器地址:";
 		std::cin >> addr;
 		std::cout << "请输入远程服务器端口:";
 		std::cin >> port;
 		try
 		{
-			auto result = Helper::GetRemoteServerMotd(addr, port, is_ipv6);
+			auto result = Helper::GetRemoteServerMotd(addr, port);
 			std::cout << "是否要将结果保存至文件中？(y/n) :";
 			std::string save;
 			std::cin >> save;
@@ -336,10 +326,8 @@ int main(int argc,const char**argv)
 		Logger::LogInfo("正在初始化日志服务");
 		if (Logger::Init(Config::get_config<std::string>("LogDir"), Config::get_config<int>("ShowLogLevel"), Config::get_config<int>("SaveLogLevel"))==false)
 			Logger::LogError("日志初始化失败，无法记录日志");
-		int is_ipv6_local = Config::get_config<bool>("LocalIPv6");
 		std::string local_address = Config::get_config<std::string>("LocalAddress");
 		std::uint16_t local_port = Config::get_config<int>("LocalPort");
-		int is_ipv6_remote = Config::get_config<bool>("RemoteIPv6");
 		std::string remote_server_addr = Config::get_config<std::string>("Address");
 		std::uint16_t remote_server_port = Config::get_config<int>("RemotePort");
 		bool enable_input = Config::get_config<bool>("AllowInput");
@@ -348,17 +336,9 @@ int main(int argc,const char**argv)
 		if (WhiteBlackList::IsWhiteListOn()) {
 			Logger::LogInfo("白名单已启用");
 		}
-		if (is_ipv6_local)
-			Logger::LogInfo("本地地址为IPv6地址");
-		else
-			Logger::LogInfo("本地地址为IPv4地址");
 		Logger::LogInfo("本地地址：%s 端口：%d", local_address.c_str(), local_port);
-		if (is_ipv6_remote)
-			Logger::LogInfo("远程服务器地址为IPv6地址");
-		else
-			Logger::LogInfo("远程服务器地址为IPv4地址");
 		Logger::LogInfo("远程服务器地址：%s 端口：%d", remote_server_addr.c_str(), remote_server_port);
-		proxy = std::make_unique<Proxy>(is_ipv6_local, local_address, local_port, is_ipv6_remote, remote_server_addr, remote_server_port);
+		proxy = std::make_unique<Proxy>(local_address, local_port, remote_server_addr, remote_server_port);
 		/*
 		proxy->on_connected += [](const RbsLib::Network::TCP::TCPConnection& client) {
 			//std::cout <<client.GetAddress() <<"connected" << std::endl;

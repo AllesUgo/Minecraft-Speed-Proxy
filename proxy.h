@@ -74,7 +74,7 @@ public:
 	RbsLib::Function::Function<void(const RbsLib::Network::TCP::TCPConnection& client, const UserInfo& userinfo)> on_logout;//发生在用户即将断开连接之前，用户已从在线用户列表中移除并且连接未从连接池断开，logout要求与disconnect要求一致，且保证logout先于disconnect。logout抛出异常将导致未定义行为
 	RbsLib::Function::Function<void(const std::exception& ex)> exception_handle;//用于输出错误日志，error_message_callback抛出的异常将导致未定义行为
 
-	Proxy(bool is_ipv6_local, const std::string& local_address, std::uint16_t local_port, bool is_ipv6_remote, const std::string& remote_server_addr, std::uint16_t);
+	Proxy(const std::string& local_address, std::uint16_t local_port, const std::string& remote_server_addr, std::uint16_t);
 	Proxy(const Proxy&) = delete;
 	Proxy& operator=(const Proxy&) = delete;
 	void Start();
@@ -94,7 +94,6 @@ protected:
 	RbsLib::Network::TCP::TCPServer local_server;
 	std::string remote_server_addr;
 	std::uint16_t remote_server_port;
-	bool is_ipv6_remote;
 	std::shared_mutex global_mutex;
 	RbsLib::Thread::TaskPool thread_pool = 11;
 };

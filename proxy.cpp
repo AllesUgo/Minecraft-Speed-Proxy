@@ -4,8 +4,8 @@
 #include <iostream>
 #include <mutex>
 
-Proxy::Proxy(bool is_ipv6_local, const std::string& local_address, std::uint16_t local_port, bool is_ipv6_remote, const std::string& remote_server_addr, std::uint16_t remote_server_port)
-	: local_server(local_port,local_address,is_ipv6_local), remote_server_addr(remote_server_addr), remote_server_port(remote_server_port), is_ipv6_remote(is_ipv6_remote)
+Proxy::Proxy(const std::string& local_address, std::uint16_t local_port, const std::string& remote_server_addr, std::uint16_t remote_server_port)
+	: local_server(local_port,local_address), remote_server_addr(remote_server_addr), remote_server_port(remote_server_port)
 {
 
 }
@@ -103,7 +103,7 @@ void Proxy::Start()
 									throw ProxyException(std::string("Callback disable user login: ") + e.what());
 								}
 								//连接远程服务器
-								auto remote_server = is_ipv6_remote ? RbsLib::Network::TCP::TCPClient::Connect6(remote_server_addr, remote_server_port) : RbsLib::Network::TCP::TCPClient::Connect(remote_server_addr, remote_server_port);
+								auto remote_server = RbsLib::Network::TCP::TCPClient::Connect(remote_server_addr, remote_server_port);
 								int flag = 1;
 								remote_server.SetSocketOption(IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag));
 								flag = 1;
@@ -116,6 +116,13 @@ void Proxy::Start()
 								user_ptr->connect_time = std::time(nullptr);
 								//加入用户池
 								lock.lock();
+								if (this->users.find(start_login_data_pack.user_name) != this->users.end()) 
+								{
+									lock.unlock();
+									LoginFailureDataPack login_failed_data_pack(start_login_data_pack.user_name+" already online");
+									stream.Write(login_failed_data_pack.ToBuffer());
+									throw ProxyException("User already online: " + start_login_data_pack.user_name);
+								}
 								this->users[user_ptr->username] = user_ptr;
 								lock.unlock();
 								try {
@@ -263,7 +270,7 @@ auto Proxy::PingTest() const -> std::uint64_t
 {
 	try
 	{
-		auto remote_server = is_ipv6_remote ? RbsLib::Network::TCP::TCPClient::Connect6(remote_server_addr, remote_server_port) : RbsLib::Network::TCP::TCPClient::Connect(remote_server_addr, remote_server_port);
+		auto remote_server = RbsLib::Network::TCP::TCPClient::Connect(remote_server_addr, remote_server_port);
 		int flag = 1;
 		remote_server.SetSocketOption(IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag));
 		HandshakeDataPack handshake_data_pack;

@@ -59,11 +59,9 @@ const char* ConfigException::what() const noexcept
 void Config::SetDeafultConfig()
 {
 	//µÿ÷∑œ‡πÿ
-	Config::set_config("LocalIPv6", false,false);
-	Config::set_config("LocalAddress", "0.0.0.0");
+	Config::set_config("LocalAddress", "::");
 	Config::set_config("LocalPort", 25565);
 
-	Config::set_config("RemoteIPv6", false,false);
 	Config::set_config("Address", "mc.hypixel.net");
 	Config::set_config("RemotePort", 25565);
 

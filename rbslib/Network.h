@@ -68,16 +68,12 @@ namespace RbsLib
 				/*同一时间同一连接对象只能有一个线程进行拷贝、移动、析构*/
 			private:
 				SOCKET sock;
-				union{
-					struct sockaddr_in connection_info;
-					struct sockaddr_in6 connection_info6;
-				} connection_info;
-				bool is_ipv6;
+				sockaddr_storage connection_info;
+				socklen_t connection_info_len;
 				//int info_len;
 				std::mutex* mutex = nullptr;
 				int* reference_counter = nullptr;
-				TCPConnection(SOCKET sock, const struct sockaddr_in& connection_info, int info_len)noexcept;
-				TCPConnection(SOCKET sock, const struct sockaddr_in6& connection_info, int info_len)noexcept;
+				TCPConnection(SOCKET sock, const struct sockaddr_storage& connection_info, int info_len)noexcept;
 				friend class TCPServer;
 				friend class TCPClient;
 			public:
@@ -106,16 +102,13 @@ namespace RbsLib
 				bool is_listen = false;
 				bool is_bind = false;
 				int* reference_counter = nullptr;
-				bool is_ipv6 = false;
 				bool is_force_closed = false;
 			public:
-				TCPServer();
-				TCPServer(int port, const std::string& address = "0.0.0.0",bool is_ipv6=false);
+				TCPServer(int port, const std::string& address = "::");
 				TCPServer(const TCPServer& server) noexcept;
 				~TCPServer(void)noexcept;
 				const TCPServer& operator=(const TCPServer& server)noexcept;
 				SOCKET GetSocket(void)const noexcept;
-				void Bind(int port, const std::string& address = "0.0.0.0");
 				void Listen(int listen_num = 5);
 				RbsLib::Network::TCP::TCPConnection Accept(void);
 				void Close(void) noexcept;
@@ -124,9 +117,7 @@ namespace RbsLib
 			class TCPClient
 			{
 			public:
-				static RbsLib::Network::TCP::TCPConnection Connect(std::string ip, int port);
-				static auto Connect6(std::string ip, int port)->RbsLib::Network::TCP::TCPConnection;
-				static auto Connect(const Address& addr) -> RbsLib::Network::TCP::TCPConnection;
+				static RbsLib::Network::TCP::TCPConnection Connect(std::string addresse, int port);
 			};
             /**
              * @class TCPStream

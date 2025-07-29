@@ -1,0 +1,15 @@
+{
+	"LocalAddress":	"::",
+	"LocalPort":	25565,
+	"Address":	"mc.hypixel.net",
+	"RemotePort":	25565,
+	"MaxPlayer":	-1,
+	"MotdPath":	"",
+	"DefaultEnableWhitelist":	true,
+	"WhiteBlcakListPath":	"./WhiteBlackList.json",
+	"AllowInput":	true,
+	"ShowOnlinePlayerNumber":	true,
+	"LogDir":	"./logs",
+	"ShowLogLevel":	0,
+	"SaveLogLevel":	0
+}
