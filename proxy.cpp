@@ -103,7 +103,21 @@ void Proxy::Start()
 									throw ProxyException(std::string("Callback disable user login: ") + e.what());
 								}
 								//连接远程服务器
-								auto remote_server = RbsLib::Network::TCP::TCPClient::Connect(remote_server_addr, remote_server_port);
+								std::string remote_server_addr_real;
+								std::uint32_t remote_server_port_real;
+								std::shared_lock<std::shared_mutex> share_lock(this->global_mutex);
+                                if (auto usr = this->user_proxy_map.find(start_login_data_pack.user_name); usr != this->user_proxy_map.end())
+                                {
+									remote_server_addr_real = usr->second.first;
+									remote_server_port_real = usr->second.second;
+                                }
+								else
+								{
+									remote_server_addr_real = this->remote_server_addr;
+									remote_server_port_real = this->remote_server_port;
+								}
+								share_lock.unlock();
+								auto remote_server = RbsLib::Network::TCP::TCPClient::Connect(remote_server_addr_real, remote_server_port_real);
 								int flag = 1;
 								remote_server.SetSocketOption(IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag));
 								flag = 1;
@@ -264,6 +278,35 @@ void Proxy::SetMaxPlayer(int n)
 	if (n<-1) throw ProxyException("Can not set maxplayer less than -1.");
 	std::unique_lock<std::shared_mutex> lock(this->global_mutex);
 	this->max_player = n;
+}
+
+void Proxy::SetUserProxy(const std::string& username, const std::string& proxy_address, std::uint16_t proxy_port)
+{
+	std::unique_lock<std::shared_mutex> lock(this->global_mutex);
+	this->user_proxy_map[username] = std::make_pair(proxy_address, proxy_port);
+}
+
+auto Proxy::GetUserProxyMap() const -> std::map<std::string, std::pair<std::string, std::uint16_t>>
+{
+	std::shared_lock<std::shared_mutex> lock(this->global_mutex);
+	return this->user_proxy_map;
+}
+
+void Proxy::DeleteUserProxy(const std::string& username)
+{
+	std::unique_lock<std::shared_mutex> lock(this->global_mutex);
+	auto it = this->user_proxy_map.find(username);
+	if (it != this->user_proxy_map.end()) {
+		this->user_proxy_map.erase(it);
+	} else {
+		throw ProxyException("User proxy not found.");
+	}
+}
+
+void Proxy::ClearUserProxy()
+{
+	std::unique_lock<std::shared_mutex> lock(this->global_mutex);
+	this->user_proxy_map.clear();
 }
 
 auto Proxy::PingTest() const -> std::uint64_t

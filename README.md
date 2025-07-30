@@ -72,10 +72,8 @@ chmod +x minecraftspeedproxy
 其默认内容如下
 ```json
 {
-	"LocalIPv6":	false,
-	"LocalAddress":	"0.0.0.0",
+	"LocalAddress":	"::",
 	"LocalPort":	25565,
-	"RemoteIPv6":	false,
 	"Address":	"mc.hypixel.net",
 	"RemotePort":	25565,
 	"MaxPlayer":	-1,
