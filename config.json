@@ -1,5 +1,5 @@
 {
-	"LocalAddress":	"::",
+	"LocalAddress":	"0.0.0.0",
 	"LocalPort":	25565,
 	"Address":	"mc.hypixel.net",
 	"RemotePort":	25565,
@@ -11,5 +11,6 @@
 	"ShowOnlinePlayerNumber":	true,
 	"LogDir":	"./logs",
 	"ShowLogLevel":	0,
-	"SaveLogLevel":	0
+	"SaveLogLevel":	0,
+	"Version":	"1.0"
 }
