@@ -12,9 +12,12 @@ public:
 };
 
 class Config {
+private:
+	//要求配置文件没有版本号（v1.0以前）
+	static void upgrade_config_v1_0();
 public:
 	Config() = delete;
-	static void SetDeafultConfig();
+	static void SetDefaultConfig();
 	static void load_config(const std::string& path);
 	static void save_config(const std::string& path);
 	static void set_config(const std::string& key, const std::string& value);

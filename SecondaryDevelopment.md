@@ -41,6 +41,10 @@
 |auto GetUsersInfo() -> std::list\<UserInfo\>|获取所有用户的状态信息|
 |void SetMotd(const std::string& motd)|设置MOTD,参数为motd的JSON字符串|
 |void SetMaxPlayers(std::uint16_t max_players)|设置最大玩家数|
+|void SetUserProxy(const std::string& username, const std::string& proxy_address, std::uint16_t proxy_port);|为指定用户设置代理|
+|auto GetUserProxyMap() const -> std::map<std::string, std::pair<std::string, std::uint16_t>>;|获取用户代理表|
+|void DeleteUserProxy(const std::string& username);|删除指定用户的代理设置|
+|void ClearUserProxy();|清除所有用户的代理设置|
 
 ### ::UserInfo类
 - UserInfo类用于存储用户的信息，包括用户名、UUID、IP地址、端口等信息。一般用于描述一个在线用户的状态

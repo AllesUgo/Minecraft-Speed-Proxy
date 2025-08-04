@@ -5,7 +5,8 @@
 
 static neb::CJsonObject ConfigJson;
 static void ThrowIfConfigItemNotExist(const std::string& key) {
-	if (ConfigJson.IsEmpty()) {
+	if (!ConfigJson.KeyExist(key)) 
+	{
 		throw ConfigException(std::string("Config option ")+key+" not exist");
 	}
 }
@@ -56,14 +57,28 @@ const char* ConfigException::what() const noexcept
 	return message.c_str();
 }
 
-void Config::SetDeafultConfig()
+void Config::upgrade_config_v1_0()
 {
+	try
+	{
+		Config::get_config<std::string>("Version");
+	}
+	catch (const ConfigException& ex)
+	{
+		Config::set_config("Version", "1.0");
+		ConfigJson.Delete("LocalIPv6");
+		ConfigJson.Delete("RemoteIPv6");
+	}
+}
+
+void Config::SetDefaultConfig()
+{
+	//配置文件版本相关
+	Config::set_config("Version", "1.0");
 	//地址相关
-	Config::set_config("LocalIPv6", false,false);
-	Config::set_config("LocalAddress", "0.0.0.0");
+	Config::set_config("LocalAddress", "::");
 	Config::set_config("LocalPort", 25565);
 
-	Config::set_config("RemoteIPv6", false,false);
 	Config::set_config("Address", "mc.hypixel.net");
 	Config::set_config("RemotePort", 25565);
 
@@ -91,6 +106,32 @@ void Config::load_config(const std::string& path)
 	RbsLib::Storage::FileIO::File file(path);
 	auto buffer = file.Read(RbsLib::Storage::StorageFile(path).GetFileSize());
 	ConfigJson.Parse(buffer.ToString());
+	//检查并升级配置文件
+	try
+	{
+		if (Config::get_config<std::string>("Version") != "1.0")
+			throw ConfigException("Config version not match, need 1.0");
+	}
+	catch (const ConfigException& ex)
+	{
+		//如果没有版本号，则升级到1.0
+		Config::upgrade_config_v1_0();
+		std::cout << "配置文件版本较低，已自动升级配置文件，是否保存？(y/n): ";
+		std::string save;
+		std::cin >> save;
+		getchar(); //清除输入缓冲区的换行符
+		if (save != "y" && save != "Y")
+		{
+			std::cout << "已取消保存配置文件" << std::endl;
+			return;
+		}
+		else
+		{
+			std::cout << "正在保存配置文件..." << std::endl;
+			Config::save_config(path);
+		}
+	}
+	
 }
 
 void Config::save_config(const std::string& path)

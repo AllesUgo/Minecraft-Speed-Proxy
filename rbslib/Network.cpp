@@ -13,6 +13,17 @@ static std::string read_line(const char* &buffer, int max_len);
 static int move_ptr_to_next_printable(const char*& ptr, int max_len);//返回值指示发生移动的距离，负数表示后方无可移动到的字符
 static bool is_empty_line(const std::string& str);
 
+static void close_socket(int sockfd); 
+
+void close_socket(int sockfd)
+{
+#ifdef _WIN32
+	closesocket(sockfd);
+#else
+	close(sockfd);
+#endif
+}
+
 void RbsLib::Network::init_network()
 {
 #ifdef WIN32
@@ -27,27 +38,82 @@ void RbsLib::Network::init_network()
 }
 
 
-RbsLib::Network::TCP::TCPServer::TCPServer()
+RbsLib::Network::TCP::TCPServer::TCPServer(int port, const std::string& address)
 {
 	net::init_network();
-	this->server_socket = socket(AF_INET, SOCK_STREAM, 0);
-	if (this->server_socket == INVALID_SOCKET)
-		throw net::NetworkException("Allocate socket failed");
-	this->reference_counter = new int;
-	*this->reference_counter = 1;
-}
+	struct addrinfo hints, * res, * p;
+	int opt;
+	if (is_bind) throw net::NetworkException("This object is already bind");
+	if (port < 0 || port>65535) throw net::NetworkException("Port mast be in range 0-65535");
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = AF_UNSPEC;    // 支持IPv4和IPv6
+	hints.ai_socktype = SOCK_STREAM; // TCP套接字
+	hints.ai_flags = AI_PASSIVE;    // 用于绑定
+	//若地址为空则绑定到所有地址
+	if (getaddrinfo(address.empty()? NULL : address.c_str(), std::to_string(port).c_str(), &hints, &res) != 0) {
+		throw net::NetworkException("Get address info failed");
+	}
 
-RbsLib::Network::TCP::TCPServer::TCPServer(int port, const std::string& address,bool is_ipv6)
-	:is_ipv6(is_ipv6)
-{
-	net::init_network();
-	if (is_ipv6)
-		this->server_socket = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
-	else
-		this->server_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-	if (this->server_socket == INVALID_SOCKET)
-		throw net::NetworkException("Allocate socket failed");
-	this->Bind(port, address);
+	for (p = res; p != NULL; p = p->ai_next) {
+		this->server_socket = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
+		if (this->server_socket == INVALID_SOCKET) continue;
+
+		// 设置SO_REUSEADDR选项
+		int yes = 1;
+		if (setsockopt(this->server_socket, SOL_SOCKET, SO_REUSEADDR, (char*) & yes, sizeof(yes)) == -1) {
+			freeaddrinfo(res);
+			std::string reason = "setsockopt failed";
+#ifdef LINUX
+			reason += ": ";
+			reason += strerror(errno);
+#endif // LINUX
+			close_socket(this->server_socket);
+			throw net::NetworkException(reason);
+		}
+		yes = 0;
+		if (p->ai_family == AF_INET6)
+		{
+			// IPv6允许IPv4连接
+			if (setsockopt(this->server_socket, IPPROTO_IPV6, IPV6_V6ONLY, (char*) & yes, sizeof(yes)))
+			{
+				freeaddrinfo(res);
+				std::string reason = "setsockopt IPV6_V6ONLY failed";
+#ifdef LINUX
+				reason += ": ";
+				reason += strerror(errno);
+#endif // LINUX
+#ifdef WIN32
+				reason += "; code: ";
+				reason += std::to_string(WSAGetLastError());
+#endif // WIN32
+				close_socket(this->server_socket);
+				throw net::NetworkException(reason);
+			}
+		}
+
+		if (bind(this->server_socket, p->ai_addr, p->ai_addrlen))
+		{
+			freeaddrinfo(res);
+			std::string reason = "Bind failed";
+#ifdef WIN32
+			reason += ": ";
+			reason += std::to_string(WSAGetLastError());
+#endif // WIN32
+#ifdef LINUX
+			reason += ": ";
+			reason += strerror(errno);
+#endif // LINUX
+			close_socket(this->server_socket);
+			throw net::NetworkException(reason);
+		}
+		break;
+	}
+	freeaddrinfo(res);
+	if (p == NULL)
+	{
+		throw net::NetworkException("Bind failed: No suitable address found");
+	}
+
 	this->reference_counter = new int;
 	*this->reference_counter = 1;
 }
@@ -83,72 +149,6 @@ SOCKET RbsLib::Network::TCP::TCPServer::GetSocket(void) const noexcept
 	return this->server_socket;
 }
 
-void RbsLib::Network::TCP::TCPServer::Bind(int port, const std::string& address)
-{
-	if (this->is_ipv6 == false)
-	{
-		struct sockaddr_in s_sin = {0};
-		int opt;
-		if (is_bind) throw net::NetworkException("This object is already bind");
-		if (port < 0 || port>65535) throw net::NetworkException("Port mast be in range 0-65535");
-		s_sin.sin_family = AF_INET;
-		s_sin.sin_port = htons(port);
-		s_sin.sin_addr.s_addr = address != "0.0.0.0" ? htonl(inet_addr(address.c_str())) : INADDR_ANY;
-
-#ifdef LINUX
-		opt = 1;
-		setsockopt(this->server_socket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
-#endif // linux
-
-
-		if (bind(this->server_socket, (struct sockaddr*)&s_sin, sizeof(s_sin)) != 0)
-		{
-			std::string reason = "Bind failed";
-#ifdef LINUX
-			reason += ": ";
-			reason += strerror(errno);
-#endif // linux
-#ifdef WIN32
-			reason += ": ";
-			reason += std::to_string(WSAGetLastError());
-#endif // WIN32
-			throw net::NetworkException(reason);
-		}
-	}
-	else {
-		struct sockaddr_in6 s_sin = {0};
-		int opt;
-		if (is_bind) throw net::NetworkException("This object is already bind");
-		if (port < 0 || port>65535) throw net::NetworkException("Port mast be in range 0-65535");
-		s_sin.sin6_family = AF_INET6;
-		s_sin.sin6_port = htons(port);
-		//若地址为空则绑定到所有地址
-		if (address.empty()||address=="0.0.0.0") {
-			s_sin.sin6_addr = in6addr_any;
-		} else {
-			inet_pton(AF_INET6, address.c_str(), &s_sin.sin6_addr);
-		}
-
-#ifdef LINUX
-		opt = 1;
-		setsockopt(this->server_socket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
-#endif // linux
-
-
-		if (bind(this->server_socket, (struct sockaddr*)&s_sin, sizeof(s_sin)) != 0)
-		{
-			std::string reason = "Bind failed";
-#ifdef LINUX
-			reason += ": ";
-			reason += strerror(errno);
-#endif // linux
-			throw net::NetworkException(reason);
-		}
-	}
-	this->is_bind = true;
-
-}
-
 void RbsLib::Network::TCP::TCPServer::Listen(int listen_num)
 {
 	if (!this->is_listen)
@@ -163,42 +163,22 @@ void RbsLib::Network::TCP::TCPServer::Listen(int listen_num)
 
 RbsLib::Network::TCP::TCPConnection RbsLib::Network::TCP::TCPServer::Accept(void)
 {
-	if (is_ipv6) {
-		struct sockaddr_in6 info = {0};
-        SOCKET sock;
-        socklen_t info_len = sizeof(info);
-        if (!this->is_listen)
-        {
-            if (listen(this->server_socket, 5) == SOCKET_ERROR)
-            {
-                throw net::NetworkException("Start listening mode failed");
-            }
-            else this->is_listen = true;
-        }
-        if ((sock = accept(this->server_socket, (struct sockaddr*)&info, &info_len)) == INVALID_SOCKET)
-        {
-            throw net::NetworkException("Accept connection failed");
-        }
-        return RbsLib::Network::TCP::TCPConnection(sock, info, info_len);
-	}
-	else {
-		struct sockaddr_in info = {0};
-		SOCKET sock;
-		socklen_t info_len = sizeof(info);
-		if (!this->is_listen)
+	struct sockaddr_storage info = { 0 };
+	SOCKET sock;
+	socklen_t info_len = sizeof(info);
+	if (!this->is_listen)
+	{
+		if (listen(this->server_socket, 5) == SOCKET_ERROR)
 		{
-			if (listen(this->server_socket, 5) == SOCKET_ERROR)
-			{
-				throw net::NetworkException("Start listening mode failed");
-			}
-			else this->is_listen = true;
+			throw net::NetworkException("Start listening mode failed");
 		}
-		if ((sock = accept(this->server_socket, (struct sockaddr*)&info, &info_len)) == INVALID_SOCKET)
-		{
-			throw net::NetworkException("Accept connection failed");
-		}
-		return RbsLib::Network::TCP::TCPConnection(sock, info, info_len);
+		else this->is_listen = true;
 	}
+	if ((sock = accept(this->server_socket, (struct sockaddr*)&info, &info_len)) == INVALID_SOCKET)
+	{
+		throw net::NetworkException("Accept connection failed");
+	}
+	return RbsLib::Network::TCP::TCPConnection(sock, info, info_len);
 }
 
 void RbsLib::Network::TCP::TCPServer::Close(void) noexcept
@@ -234,33 +214,24 @@ void RbsLib::Network::TCP::TCPServer::ForceClose(void)
 }
 
 
-RbsLib::Network::TCP::TCPConnection::TCPConnection(SOCKET sock, const struct sockaddr_in& connection_info, int info_len) noexcept
-	:is_ipv6(false)
+RbsLib::Network::TCP::TCPConnection::TCPConnection(SOCKET sock, const struct sockaddr_storage& connection_info, int info_len) noexcept
 {
 	this->mutex = new std::mutex;
 	this->sock = sock;
-	this->connection_info.connection_info = connection_info;
+	this->connection_info = connection_info;
+	this->connection_info_len = info_len;
 	this->reference_counter = new int;
 	*this->reference_counter = 1;
 }
 
-RbsLib::Network::TCP::TCPConnection::TCPConnection(SOCKET sock, const struct sockaddr_in6& connection_info, int info_len) noexcept
-	:is_ipv6(true)
-{
-	this->mutex = new std::mutex;
-	this->sock = sock;
-	this->connection_info.connection_info6 = connection_info;
-	this->reference_counter = new int;
-	*this->reference_counter = 1;
-}
 
 RbsLib::Network::TCP::TCPConnection::TCPConnection(const TCPConnection& connection) noexcept
 {
 	connection.mutex->lock();
 	this->sock = connection.sock;
-	this->is_ipv6 = connection.is_ipv6;
 	this->reference_counter = connection.reference_counter;
 	this->connection_info = connection.connection_info;
+	this->connection_info_len = connection.connection_info_len;
 	this->mutex = connection.mutex;
 	if (this->reference_counter) ++*this->reference_counter;
 	connection.mutex->unlock();
@@ -270,7 +241,6 @@ RbsLib::Network::TCP::TCPConnection::TCPConnection(TCPConnection&& connection) n
 {
 	connection.mutex->lock();
 	this->sock = connection.sock;
-	this->is_ipv6 = connection.is_ipv6;
 	this->reference_counter = connection.reference_counter;
 	this->connection_info = connection.connection_info;
 	this->mutex = connection.mutex;
@@ -293,6 +263,7 @@ const RbsLib::Network::TCP::TCPConnection& RbsLib::Network::TCP::TCPConnection::
 	this->sock = connection.sock;
 	this->reference_counter = connection.reference_counter;
 	this->connection_info = connection.connection_info;
+	this->connection_info_len = connection.connection_info_len;
 	*this->reference_counter += 1;
 	connection.mutex->unlock();
 	return *this;
@@ -307,6 +278,7 @@ const RbsLib::Network::TCP::TCPConnection& RbsLib::Network::TCP::TCPConnection::
 	this->sock = connection.sock;
 	this->reference_counter = connection.reference_counter;
 	this->connection_info = connection.connection_info;
+	this->connection_info_len = connection.connection_info_len;
 	connection.reference_counter = nullptr;
 	connection.mutex->unlock();
 	connection.mutex = nullptr;
@@ -373,10 +345,34 @@ SOCKET RbsLib::Network::TCP::TCPConnection::GetSocket(void) const noexcept
 	return this->sock;
 }
 
+SOCKET RbsLib::Network::TCP::TCPConnection::GetRowSocket(void) const noexcept
+{
+	return this->sock;
+}
+
 std::string RbsLib::Network::TCP::TCPConnection::GetAddress(void) const noexcept
 {
-	char buffer[64];
-	return this->is_ipv6?inet_ntop(AF_INET6,&this->connection_info.connection_info6.sin6_addr,buffer,64): inet_ntop(AF_INET, &this->connection_info.connection_info.sin_addr, buffer, 64);
+	char buffer[INET6_ADDRSTRLEN];
+	const void* src_addr = nullptr;
+
+	if (this->connection_info.ss_family == AF_INET) {
+		const sockaddr_in* sa = reinterpret_cast<const sockaddr_in*>(&this->connection_info);
+		src_addr = &(sa->sin_addr);
+	}
+	else if (this->connection_info.ss_family == AF_INET6) {
+		const sockaddr_in6* sa = reinterpret_cast<const sockaddr_in6*>(&this->connection_info);
+		src_addr = &(sa->sin6_addr);
+	}
+	else {
+		return "";  // 不是IPv4/IPv6地址
+	}
+
+	return inet_ntop(this->connection_info.ss_family,
+		src_addr,
+		buffer,
+		sizeof(buffer))
+		? std::string(buffer)
+		: "";
 }
 
 void RbsLib::Network::TCP::TCPConnection::Close(void)
@@ -435,14 +431,14 @@ void RbsLib::Network::TCP::TCPConnection::Disable(void) const
 	#endif
 }
 
-RbsLib::Network::TCP::TCPConnection RbsLib::Network::TCP::TCPClient::Connect(std::string ip, int port)
+RbsLib::Network::TCP::TCPConnection RbsLib::Network::TCP::TCPClient::Connect(std::string address, int port)
 {
 	net::init_network();
 	struct addrinfo* answer = nullptr, hint = { 0 };
-	hint.ai_family = AF_INET;
+	hint.ai_family = AF_UNSPEC;  // 自动选择IPv4或IPv6
 	hint.ai_socktype = SOCK_STREAM;
 	hint.ai_protocol = IPPROTO_TCP;
-	if (getaddrinfo(ip.c_str(), std::to_string(port).c_str(), &hint, &answer)) {
+	if (getaddrinfo(address.c_str(), std::to_string(port).c_str(), &hint, &answer)) {
 		throw net::NetworkException("Get address info failed");
 	}
 	SOCKET c_Socket = socket(answer->ai_family, answer->ai_socktype, answer->ai_protocol);
@@ -456,69 +452,15 @@ RbsLib::Network::TCP::TCPConnection RbsLib::Network::TCP::TCPClient::Connect(std
 		freeaddrinfo(answer);
 		throw net::NetworkException("Connect server failed");
 	}
-	struct sockaddr_in addr = { 0 };
+	struct sockaddr_storage addr = { 0 };
 
-	memcpy(&addr, answer->ai_addr, std::min<unsigned int>(sizeof(addr), answer->ai_addrlen));
+	memcpy(&addr, answer->ai_addr,answer->ai_addrlen);
 	freeaddrinfo(answer);
 	return net::TCP::TCPConnection(c_Socket, addr, sizeof(addr));
 }
 
-auto RbsLib::Network::TCP::TCPClient::Connect6(std::string ip, int port) -> RbsLib::Network::TCP::TCPConnection
-{
-	net::init_network();
-	struct addrinfo* answer=nullptr, hint = {0};
-	hint.ai_family = AF_INET6;
-	hint.ai_socktype = SOCK_STREAM;
-	hint.ai_protocol = IPPROTO_TCP;
-	if (getaddrinfo(ip.c_str(), std::to_string(port).c_str(), &hint, &answer)){
-		throw net::NetworkException("Get address info failed");
-	}
-	SOCKET c_Socket = socket(answer->ai_family, answer->ai_socktype, answer->ai_protocol);
-	if (SOCKET_ERROR == c_Socket)
-	{
-		freeaddrinfo(answer);
-		throw net::NetworkException("Allocate socket failed");
-	}
-	if (connect(c_Socket, answer->ai_addr, answer->ai_addrlen))
-	{
-		freeaddrinfo(answer);
-#ifdef WIN32
-		closesocket(c_Socket);
-#endif // WIN32
-#ifdef LINUX
-		close(c_Socket);
-#endif // LINUX
-		throw net::NetworkException("Connect server failed");
-	}
-	struct sockaddr_in6 addr = {0};
-	memcpy(&addr, answer->ai_addr,std::min<unsigned int>(sizeof(addr),answer->ai_addrlen));
-	freeaddrinfo(answer);
-	return net::TCP::TCPConnection(c_Socket,addr,sizeof(addr));
-}
 
-auto RbsLib::Network::TCP::TCPClient::Connect(const Address& addr) -> RbsLib::Network::TCP::TCPConnection
-{
-	net::init_network();
 
-	SOCKET c_Socket = socket(addr.family, SOCK_STREAM, IPPROTO_TCP);
-	if (SOCKET_ERROR == c_Socket)
-	{
-		throw net::NetworkException("Allocate socket failed");
-	}
-	if (connect(c_Socket, addr.GetAddressStructure(), addr.GetAddressStructureLength()))
-	{
-#ifdef WIN32
-		closesocket(c_Socket);
-#endif // WIN32
-#ifdef LINUX
-		close(c_Socket);
-#endif // LINUX
-		throw net::NetworkException("Connect server failed");
-	}
-	struct sockaddr_in6 ad = { 0 };
-	memcpy(&ad, addr.GetAddressStructure(), std::min<unsigned int>(sizeof(ad), addr.GetAddressStructureLength()));
-	return net::TCP::TCPConnection(c_Socket, ad, sizeof(ad));
-}
 
 static std::string read_word(const char* &buffer, int max_len)
 {
@@ -606,88 +548,110 @@ void RbsLib::Network::HTTP::HTTPServer::LoopWait(bool use_thread_pool, int keep_
 			auto& post = this->on_post_request;
 			pool.Run([connection, protocol_version, get, post]() {
 				//读取Header
+				bool is_keep_alive = true;
 				try
 				{
-					RequestHeader header;
-					const char* p;
-					auto buffer = connection.Recv(1024 * 1024);
-					const char* now_ptr = (const char*)buffer.Data();
-					const char* end_ptr = (const char*)buffer.Data() + buffer.GetLength();
-					//读取协议行
-					std::string line = read_line(now_ptr, (int)(end_ptr - now_ptr));
-					if (is_empty_line(line)) return;
-					p = line.c_str();
-					std::string method = read_word(p, (int)line.length());
-					if (method == "GET") header.request_method = Method::GET;
-					else if (method == "POST") header.request_method = Method::POST;
-					else return;
-					header.path = read_word(p, (int)(line.c_str() + line.length() - p));
-					if (header.path.empty()) return;//错误的请求，URL为空
-					std::string p_version = read_word(p, (int)(line.c_str() + line.length() - p));
-					if (p_version != protocol_version) return;//不支持的版本
-					//循环读取
-					bool is_true_request = false;
-					while (now_ptr < end_ptr)
+					while (true)
 					{
-						line = read_line(now_ptr, (int)(end_ptr - now_ptr));
-						if (line == "\r\n")
+						RequestHeader header;
+						const char* p;
+						auto buffer = connection.Recv(1024 * 1024);
+						const char* now_ptr = (const char*)buffer.Data();
+						const char* end_ptr = (const char*)buffer.Data() + buffer.GetLength();
+						//读取协议行
+						std::string line = read_line(now_ptr, (int)(end_ptr - now_ptr));
+						if (is_empty_line(line)) return;
+						p = line.c_str();
+						std::string method = read_word(p, (int)line.length());
+						if (method == "GET") header.request_method = Method::GET;
+						else if (method == "POST") header.request_method = Method::POST;
+						else return;
+						header.path = read_word(p, (int)(line.c_str() + line.length() - p));
+						if (header.path.empty()) return;//错误的请求，URL为空
+						std::string p_version = read_word(p, (int)(line.c_str() + line.length() - p));
+						if (p_version != protocol_version) return;//不支持的版本
+						//循环读取
+						bool is_true_request = false;
+						while (now_ptr < end_ptr)
 						{
-							is_true_request = true;
-							break;
-						}
-						try
-						{
-							header.headers.AddHeader(line);
-						}
-						catch (const HTTPException&) {}
-					}
-					if (is_true_request == false) return;
-					if (header.request_method == Method::POST)
-					{
-						//检查是否具有ContentLength
-						Buffer post_content(end_ptr - now_ptr > 0 ? end_ptr - now_ptr : 1);
-						if (!header.headers["Content-Length"].empty())
-						{
-							//存在ContentLength
-							std::string str = header.headers["Content-Length"];
-							int len = 0;
-							std::stringstream(str) >> len;
-							if (len > 0) post_content.Resize(len);
-							else post_content.Resize(1);
-							if (end_ptr - now_ptr > 0)
+							line = read_line(now_ptr, (int)(end_ptr - now_ptr));
+							if (line == "\r\n")
 							{
-								//第一次接收的还有数据
-								if (end_ptr - now_ptr <= len)
+								is_true_request = true;
+								break;
+							}
+							try
+							{
+								header.headers.AddHeader(line);
+							}
+							catch (const HTTPException&) {}
+						}
+						if (is_true_request == false) return;
+						if (header.request_method == Method::POST)
+						{
+							//检查是否具有ContentLength
+							Buffer post_content(end_ptr - now_ptr > 0 ? end_ptr - now_ptr : 1);
+							if (!header.headers["Content-Length"].empty())
+							{
+								//存在ContentLength
+								std::string str = header.headers["Content-Length"];
+								int len = 0;
+								std::stringstream(str) >> len;
+								if (len > 0) post_content.Resize(len);
+								else post_content.Resize(1);
+								if (end_ptr - now_ptr > 0)
+								{
+									//第一次接收的还有数据
+									if (end_ptr - now_ptr <= len)
+									{
+										post_content.Data(now_ptr, end_ptr - now_ptr);
+										len -= (int)(end_ptr - now_ptr);
+									}
+									else
+									{
+										post_content.Data(now_ptr, len);
+										len = 0;
+									}
+								}
+								if (len > 0)
+								{
+									auto t = connection.Recv(len);
+									post_content.AppendToEnd(t);
+								}
+							}
+							else
+							{
+								if (end_ptr - now_ptr > 0)
 								{
 									post_content.Data(now_ptr, end_ptr - now_ptr);
-									len -= (int)(end_ptr - now_ptr);
 								}
-								else
+							}
+							//检查是否具有Connection
+							if (header.headers.ExistHeader("Connection"))
+							{
+								if (header.headers["Connection"] == "close")
 								{
-									post_content.Data(now_ptr, len);
-									len = 0;
+									is_keep_alive = false;
 								}
 							}
-							if (len > 0)
-							{
-								auto t = connection.Recv(len);
-								post_content.AppendToEnd(t);
-							}
+							if (post(connection, header, post_content))
+								is_keep_alive = false;
 						}
-						else
+						else if (header.request_method == Method::GET)
 						{
-							if (end_ptr - now_ptr > 0)
+							//检查是否具有Connection
+							if (header.headers.ExistHeader("Connection"))
 							{
-								post_content.Data(now_ptr, end_ptr - now_ptr);
+								if (header.headers["Connection"] == "close")
+								{
+									is_keep_alive = false;
+								}
 							}
+							if (get(connection, header))
+								is_keep_alive = false;
 						}
-						post(connection, header, post_content);
+						if (is_keep_alive == false) break;
 					}
-					else if (header.request_method == Method::GET)
-					{
-						get(connection, header);
-					}
-
 				}
 				catch (const std::exception& ex)
 				{
@@ -707,88 +671,110 @@ void RbsLib::Network::HTTP::HTTPServer::LoopWait(bool use_thread_pool, int keep_
 			auto& post = this->on_post_request;
 			std::thread([connection, protocol_version, get, post]() {
 				//读取Header
+				bool is_keep_alive = true;
 				try
 				{
-					RequestHeader header;
-					const char* p;
-					auto buffer = connection.Recv(1024 * 1024);
-					const char* now_ptr = (const char*)buffer.Data();
-					const char* end_ptr = (const char*)buffer.Data() + buffer.GetLength();
-					//读取协议行
-					std::string line = read_line(now_ptr, (int)(end_ptr - now_ptr));
-					if (is_empty_line(line)) return;
-					p = line.c_str();
-					std::string method = read_word(p, (int)line.length());
-					if (method == "GET") header.request_method = Method::GET;
-					else if (method == "POST") header.request_method = Method::POST;
-					else return;
-					header.path = read_word(p, (int)(line.c_str() + line.length() - p));
-					if (header.path.empty()) return;//错误的请求，URL为空
-					std::string p_version = read_word(p, (int)(line.c_str() + line.length() - p));
-					if (p_version != protocol_version) return;//不支持的版本
-					//循环读取
-					bool is_true_request = false;
-					while (now_ptr < end_ptr)
+					while (true)
 					{
-						line = read_line(now_ptr,(int)( end_ptr - now_ptr));
-						if (line == "\r\n")
+						RequestHeader header;
+						const char* p;
+						auto buffer = connection.Recv(1024 * 1024);
+						const char* now_ptr = (const char*)buffer.Data();
+						const char* end_ptr = (const char*)buffer.Data() + buffer.GetLength();
+						//读取协议行
+						std::string line = read_line(now_ptr, (int)(end_ptr - now_ptr));
+						if (is_empty_line(line)) return;
+						p = line.c_str();
+						std::string method = read_word(p, (int)line.length());
+						if (method == "GET") header.request_method = Method::GET;
+						else if (method == "POST") header.request_method = Method::POST;
+						else return;
+						header.path = read_word(p, (int)(line.c_str() + line.length() - p));
+						if (header.path.empty()) return;//错误的请求，URL为空
+						std::string p_version = read_word(p, (int)(line.c_str() + line.length() - p));
+						if (p_version != protocol_version) return;//不支持的版本
+						//循环读取
+						bool is_true_request = false;
+						while (now_ptr < end_ptr)
 						{
-							is_true_request = true;
-							break;
-						}
-						try
-						{
-							header.headers.AddHeader(line);
-						}
-						catch (const HTTPException&) {}
-					}
-					if (is_true_request == false) return;
-					if (header.request_method == Method::POST)
-					{
-						//检查是否具有ContentLength
-						Buffer post_content(end_ptr - now_ptr > 0 ? end_ptr - now_ptr : 1);
-						if (!header.headers["Content-Length"].empty())
-						{
-							//存在ContentLength
-							std::string str = header.headers["Content-Length"];
-							int len = 0;
-							std::stringstream(str) >> len;
-							if (len > 0) post_content.Resize(len);
-							else post_content.Resize(1);
-							if (end_ptr - now_ptr > 0)
+							line = read_line(now_ptr,(int)( end_ptr - now_ptr));
+							if (line == "\r\n")
 							{
-								//第一次接收的还有数据
-								if (end_ptr - now_ptr <= len)
+								is_true_request = true;
+								break;
+							}
+							try
+							{
+								header.headers.AddHeader(line);
+							}
+							catch (const HTTPException&) {}
+						}
+						if (is_true_request == false) return;
+						if (header.request_method == Method::POST)
+						{
+							//检查是否具有ContentLength
+							Buffer post_content(end_ptr - now_ptr > 0 ? end_ptr - now_ptr : 1);
+							if (!header.headers["Content-Length"].empty())
+							{
+								//存在ContentLength
+								std::string str = header.headers["Content-Length"];
+								int len = 0;
+								std::stringstream(str) >> len;
+								if (len > 0) post_content.Resize(len);
+								else post_content.Resize(1);
+								if (end_ptr - now_ptr > 0)
+								{
+									//第一次接收的还有数据
+									if (end_ptr - now_ptr <= len)
+									{
+										post_content.Data(now_ptr, end_ptr - now_ptr);
+										len -= (int)(end_ptr - now_ptr);
+									}
+									else
+									{
+										post_content.Data(now_ptr, len);
+										len = 0;
+									}
+								}
+								if (len > 0)
+								{
+									auto t = connection.Recv(len);
+									post_content.AppendToEnd(t);
+								}
+							}
+							else
+							{
+								if (end_ptr - now_ptr > 0)
 								{
 									post_content.Data(now_ptr, end_ptr - now_ptr);
-									len -= (int)(end_ptr - now_ptr);
 								}
-								else
+							}
+							//检查是否具有Connection
+							if (header.headers.ExistHeader("Connection"))
+							{
+								if (header.headers["Connection"] == "close")
 								{
-									post_content.Data(now_ptr, len);
-									len = 0;
+									is_keep_alive = false;
 								}
 							}
-							if (len > 0)
-							{
-								auto t = connection.Recv(len);
-								post_content.AppendToEnd(t);
-							}
+							if (post(connection, header, post_content))
+								is_keep_alive = false;
 						}
-						else
+						else if (header.request_method == Method::GET)
 						{
-							if (end_ptr - now_ptr > 0)
+							//检查是否具有Connection
+							if (header.headers.ExistHeader("Connection"))
 							{
-								post_content.Data(now_ptr, end_ptr - now_ptr);
+								if (header.headers["Connection"] == "close")
+								{
+									is_keep_alive = false;
+								}
 							}
+							if (get(connection, header))
+								is_keep_alive = false;
 						}
-						post(connection, header, post_content);
+						if (is_keep_alive == false) break;
 					}
-					else if (header.request_method == Method::GET)
-					{
-						get(connection, header);
-					}
-
 				}
 				catch (const std::exception& ex)
 				{
@@ -801,12 +787,12 @@ void RbsLib::Network::HTTP::HTTPServer::LoopWait(bool use_thread_pool, int keep_
 	
 }
 
-void RbsLib::Network::HTTP::HTTPServer::SetPostHandle(const std::function<void(const TCP::TCPConnection& connection, RequestHeader& header, Buffer& post_content)>& func)
+void RbsLib::Network::HTTP::HTTPServer::SetPostHandle(const std::function<int(const TCP::TCPConnection& connection, RequestHeader& header, Buffer& post_content)>& func)
 {
 	this->on_post_request = func;
 }
 
-void RbsLib::Network::HTTP::HTTPServer::SetGetHandle(const std::function<void(const TCP::TCPConnection& connection, RequestHeader& header)>& func)
+void RbsLib::Network::HTTP::HTTPServer::SetGetHandle(const std::function<int(const TCP::TCPConnection& connection, RequestHeader& header)>& func)
 {
 	this->on_get_request = func;
 }
@@ -833,7 +819,7 @@ void RbsLib::Network::HTTP::HTTPHeadersContent::AddHeader(const std::string& key
 void RbsLib::Network::HTTP::HTTPHeadersContent::AddHeader(const std::string& line)
 {
 	std::cmatch m;
-	std::regex reg("^\\s*([a-z,A-Z,_,-]+)\\s*:\\s*([^\\f\\n\\r\\t\\v]+)\\s*$");
+	static const std::regex reg("^\\s*([a-z,A-Z,_,-]+)\\s*:\\s*([^\\f\\n\\r\\t\\v]+)\\s*$");
 	std::regex_match(line.c_str(), m, reg);
 	if (m.size() != 3) throw HTTPException("HTTP Header line parse failed");
 	this->headers[m[1]] = m[2];
@@ -851,6 +837,17 @@ auto RbsLib::Network::HTTP::HTTPHeadersContent::operator[](const std::string& ke
 }
 
 auto RbsLib::Network::HTTP::HTTPHeadersContent::Headers(void)const -> const std::map<std::string, std::string>&
+{
+	return this->headers;
+}
+
+bool RbsLib::Network::HTTP::HTTPHeadersContent::ExistHeader(const std::string& key) const noexcept
+{
+	if (this->headers.find(key) == this->headers.end()) return false;
+	else return true;
+}
+
+auto RbsLib::Network::HTTP::HTTPHeadersContent::GetHeaderMap(void) const noexcept -> const std::map<std::string, std::string>&
 {
 	return this->headers;
 }

@@ -68,16 +68,12 @@ namespace RbsLib
 				/*同一时间同一连接对象只能有一个线程进行拷贝、移动、析构*/
 			private:
 				SOCKET sock;
-				union{
-					struct sockaddr_in connection_info;
-					struct sockaddr_in6 connection_info6;
-				} connection_info;
-				bool is_ipv6;
+				sockaddr_storage connection_info;
+				socklen_t connection_info_len;
 				//int info_len;
 				std::mutex* mutex = nullptr;
 				int* reference_counter = nullptr;
-				TCPConnection(SOCKET sock, const struct sockaddr_in& connection_info, int info_len)noexcept;
-				TCPConnection(SOCKET sock, const struct sockaddr_in6& connection_info, int info_len)noexcept;
+				TCPConnection(SOCKET sock, const struct sockaddr_storage& connection_info, int info_len)noexcept;
 				friend class TCPServer;
 				friend class TCPClient;
 			public:
@@ -97,6 +93,7 @@ namespace RbsLib
 				void Close(void);
 				void SetSocketOption(int level, int optname, const void* optval, socklen_t optlen) const;
 				void Disable(void) const;
+				SOCKET GetRowSocket(void) const noexcept;//获取原始socket，但并不会取消对对象的引用计数
 			};
 			class TCPServer
 			{
@@ -105,16 +102,13 @@ namespace RbsLib
 				bool is_listen = false;
 				bool is_bind = false;
 				int* reference_counter = nullptr;
-				bool is_ipv6 = false;
 				bool is_force_closed = false;
 			public:
-				TCPServer();
-				TCPServer(int port, const std::string& address = "0.0.0.0",bool is_ipv6=false);
+				TCPServer(int port, const std::string& address = "::");
 				TCPServer(const TCPServer& server) noexcept;
 				~TCPServer(void)noexcept;
 				const TCPServer& operator=(const TCPServer& server)noexcept;
 				SOCKET GetSocket(void)const noexcept;
-				void Bind(int port, const std::string& address = "0.0.0.0");
 				void Listen(int listen_num = 5);
 				RbsLib::Network::TCP::TCPConnection Accept(void);
 				void Close(void) noexcept;
@@ -123,9 +117,7 @@ namespace RbsLib
 			class TCPClient
 			{
 			public:
-				static RbsLib::Network::TCP::TCPConnection Connect(std::string ip, int port);
-				static auto Connect6(std::string ip, int port)->RbsLib::Network::TCP::TCPConnection;
-				static auto Connect(const Address& addr) -> RbsLib::Network::TCP::TCPConnection;
+				static RbsLib::Network::TCP::TCPConnection Connect(std::string addresse, int port);
 			};
             /**
              * @class TCPStream
@@ -206,6 +198,8 @@ namespace RbsLib
 				auto GetHeader(const std::string& key) const->std::string;
 				auto operator[](const std::string& key) const ->std::string ;
 				auto Headers(void)const -> const std::map<std::string, std::string>& ;
+				bool ExistHeader(const std::string& key) const noexcept;
+				auto GetHeaderMap(void) const noexcept -> const std::map<std::string, std::string>&;
 			};
 			class RequestHeader
 			{
@@ -241,14 +235,14 @@ namespace RbsLib
 			private:
 				TCP::TCPServer server;
 				std::string protocol_version = "HTTP/1.1";
-				std::function<void(const TCP::TCPConnection& connection,RequestHeader&header)> on_get_request;
-				std::function<void(const TCP::TCPConnection& connection, RequestHeader& header,Buffer&post_content)> on_post_request;
+				std::function<int(const TCP::TCPConnection& connection,RequestHeader&header)> on_get_request;
+				std::function<int(const TCP::TCPConnection& connection, RequestHeader& header,Buffer&post_content)> on_post_request;
 			public:
 				HTTPServer(const std::string& host = "0.0.0.0", int port = 80);
 				HTTPServer(int port);
 				void LoopWait(bool use_thread_pool = false, int keep_threads_number = 0);
-				void SetPostHandle(const std::function<void(const TCP::TCPConnection& connection, RequestHeader& header, Buffer& post_content)>& func);
-				void SetGetHandle(const std::function<void(const TCP::TCPConnection& connection, RequestHeader& header)>& func);
+				void SetPostHandle(const std::function<int(const TCP::TCPConnection& connection, RequestHeader& header, Buffer& post_content)>& func);
+				void SetGetHandle(const std::function<int(const TCP::TCPConnection& connection, RequestHeader& header)>& func);
 			};
 		}
 		namespace UDP

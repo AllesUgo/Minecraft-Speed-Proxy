@@ -72,10 +72,9 @@ chmod +x minecraftspeedproxy
 其默认内容如下
 ```json
 {
-	"LocalIPv6":	false,
+	"Version":	"1.0",
 	"LocalAddress":	"0.0.0.0",
 	"LocalPort":	25565,
-	"RemoteIPv6":	false,
 	"Address":	"mc.hypixel.net",
 	"RemotePort":	25565,
 	"MaxPlayer":	-1,
@@ -94,6 +93,7 @@ chmod +x minecraftspeedproxy
 
 |键名|类型|键值|
 |-|-|-|
+|Version|字符串|配置文件版本号，软件自动根据该项升级配置文件|
 |LocalIPv6|布尔|本机地址是否使用IPv6|
 |LocalAddress|字符串|本机地址,一般填`0.0.0.0`,IPv6也可使用`::`|
 |LocalPort|整数|本机端口|

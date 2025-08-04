@@ -8,5 +8,5 @@
 
 namespace Helper 
 {
-	auto GetRemoteServerMotd(const std::string& remote_server_addr, std::uint16_t remote_server_port, bool is_ipv6) -> neb::CJsonObject;
+	auto GetRemoteServerMotd(const std::string& remote_server_addr, std::uint16_t remote_server_port) -> neb::CJsonObject;
 }

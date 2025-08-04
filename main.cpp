@@ -70,7 +70,7 @@ void MainCmdline(int argc,const char** argv) {
 			cout << "参数错误,请使用-h参数获取帮助" << endl;
 			exit(0);
 		}
-		Config::SetDeafultConfig();
+		Config::SetDefaultConfig();
 		Config::save_config(cmdline[2]);
 		exit(0);
 	}
@@ -81,24 +81,14 @@ void MainCmdline(int argc,const char** argv) {
 		}
 		std::string addr;
 		std::uint16_t port;
-		bool is_ipv6;
 		std::cout << "此功能帮助获取远程服务器的Motd信息，包含在线玩家数、版本号、图片等信息" << std::endl;
-		std::cout << "使用IPv6连接吗(一般服务器无需使用IPv6)？(y/n):";
-		std::string ipv6;
-		std::cin >> ipv6;
-		if (ipv6 == "y") {
-			is_ipv6 = true;
-		}
-		else {
-			is_ipv6 = false;
-		}
 		std::cout << "请输入远程服务器地址:";
 		std::cin >> addr;
 		std::cout << "请输入远程服务器端口:";
 		std::cin >> port;
 		try
 		{
-			auto result = Helper::GetRemoteServerMotd(addr, port, is_ipv6);
+			auto result = Helper::GetRemoteServerMotd(addr, port);
 			std::cout << "是否要将结果保存至文件中？(y/n) :";
 			std::string save;
 			std::cin >> save;
@@ -129,7 +119,7 @@ void MainCmdline(int argc,const char** argv) {
 			exit(0);
 		}
 		else {
-			Config::SetDeafultConfig();
+			Config::SetDefaultConfig();
 			Config::set_config("Address", cmdline[1]);
 			Config::set_config("RemotePort",std::stoi(cmdline[2]));
 			Config::set_config("LocalPort", std::stoi(cmdline[3]));
@@ -151,6 +141,7 @@ void InnerCmdline(int argc, const char** argv) {
 		cout<<"kick <player_name> [...]: 踢出用户"<<endl;
 		cout<<"motd: Motd管理"<<endl;
 		cout<<"maxplayer <number>: 设置最大玩家数"<<endl;
+		cout << "userproxy <set|list>: 用户代理服务器设置" << endl;
 		cout<<"ping: 测试与目标服务器的Ping延迟"<<endl;
 		cout<<"exit: 退出程序"<<endl;
 		});
@@ -319,6 +310,48 @@ void InnerCmdline(int argc, const char** argv) {
 			printf("%-15s %-36s %-19s %-10s %s\n", it.username.c_str(), it.uuid.c_str(), Time::ConvertTimeStampToFormattedTime(it.connect_time).c_str(), flow.c_str(), it.ip.c_str());
 		}
 		});
+	executer.CreateSubOption("userproxy", 0, "用户代理设置", true);
+	executer["userproxy"].CreateSubOption("set", 3, "set <username> <address> <port>\t设置指定用户的代理服务器", false, [](const RbsLib::Command::CommandExecuter::Args& args) {
+		if (args.find("set") == args.end() || args.find("set")->second.size() < 3) {
+			cout << "参数错误,请指定用户名、远程服务器地址和端口" << endl;
+			return;
+		}
+		if (proxy == nullptr) throw std::runtime_error("服务未启动");
+		auto it = args.find("set")->second.begin();
+		std::string username = *it++;
+		std::string remote_server_address = *it++;
+		std::uint16_t remote_server_port = std::stoi(*it);
+		proxy->SetUserProxy(username, remote_server_address, remote_server_port);
+		Logger::LogInfo("已设置%s的代理服务器为%s:%d", username.c_str(), remote_server_address.c_str(), remote_server_port);
+		});
+	executer["userproxy"].CreateSubOption("list", 0, "列出所有用户的代理服务器", false, [](const RbsLib::Command::CommandExecuter::Args& args) {
+		if (proxy == nullptr) throw std::runtime_error("服务未启动");
+		auto user_proxy_map = proxy->GetUserProxyMap();
+		if (user_proxy_map.empty()) {
+			cout << "没有设置任何用户的代理服务器" << endl;
+			return;
+		}
+		printf("%-15s %-36s\n", "username", "proxy");
+		for (const auto& it : user_proxy_map) {
+			printf("%-15s %-36s:%d\n", it.first.c_str(), it.second.first.c_str(), it.second.second);
+		}
+		});
+	executer["userproxy"].CreateSubOption("delete", 1, "delete <username>\t删除指定用户的代理服务器设置", false, [](const RbsLib::Command::CommandExecuter::Args& args) {
+		if (args.find("delete") == args.end() || args.find("delete")->second.empty()) {
+			cout << "参数错误,请指定要删除代理服务器设置的用户名" << endl;
+			return;
+		}
+		if (proxy == nullptr) throw std::runtime_error("服务未启动");
+		for (const auto& it : args.find("delete")->second) {
+			proxy->DeleteUserProxy(it);
+			Logger::LogInfo("已删除%s的代理服务器设置", it.c_str());
+		}
+		});
+	executer["userproxy"].CreateSubOption("clear", 0, "清除所有用户的代理服务器设置", false, [](const RbsLib::Command::CommandExecuter::Args& args) {
+		if (proxy == nullptr) throw std::runtime_error("服务未启动");
+		proxy->ClearUserProxy();
+		Logger::LogInfo("已清除所有用户的代理服务器设置");
+		});
 	executer.Execute(argc, argv);
 }
 
@@ -336,10 +369,8 @@ int main(int argc,const char**argv)
 		Logger::LogInfo("正在初始化日志服务");
 		if (Logger::Init(Config::get_config<std::string>("LogDir"), Config::get_config<int>("ShowLogLevel"), Config::get_config<int>("SaveLogLevel"))==false)
 			Logger::LogError("日志初始化失败，无法记录日志");
-		int is_ipv6_local = Config::get_config<bool>("LocalIPv6");
 		std::string local_address = Config::get_config<std::string>("LocalAddress");
 		std::uint16_t local_port = Config::get_config<int>("LocalPort");
-		int is_ipv6_remote = Config::get_config<bool>("RemoteIPv6");
 		std::string remote_server_addr = Config::get_config<std::string>("Address");
 		std::uint16_t remote_server_port = Config::get_config<int>("RemotePort");
 		bool enable_input = Config::get_config<bool>("AllowInput");
@@ -348,17 +379,9 @@ int main(int argc,const char**argv)
 		if (WhiteBlackList::IsWhiteListOn()) {
 			Logger::LogInfo("白名单已启用");
 		}
-		if (is_ipv6_local)
-			Logger::LogInfo("本地地址为IPv6地址");
-		else
-			Logger::LogInfo("本地地址为IPv4地址");
 		Logger::LogInfo("本地地址：%s 端口：%d", local_address.c_str(), local_port);
-		if (is_ipv6_remote)
-			Logger::LogInfo("远程服务器地址为IPv6地址");
-		else
-			Logger::LogInfo("远程服务器地址为IPv4地址");
 		Logger::LogInfo("远程服务器地址：%s 端口：%d", remote_server_addr.c_str(), remote_server_port);
-		proxy = std::make_unique<Proxy>(is_ipv6_local, local_address, local_port, is_ipv6_remote, remote_server_addr, remote_server_port);
+		proxy = std::make_unique<Proxy>(local_address, local_port, remote_server_addr, remote_server_port);
 		/*
 		proxy->on_connected += [](const RbsLib::Network::TCP::TCPConnection& client) {
 			//std::cout <<client.GetAddress() <<"connected" << std::endl;
