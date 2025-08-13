@@ -280,6 +280,12 @@ void Proxy::SetMaxPlayer(int n)
 	this->max_player = n;
 }
 
+int Proxy::GetMaxPlayer(void)
+{
+	std::shared_lock<std::shared_mutex> lock(this->global_mutex);
+	return this->max_player;
+}
+
 void Proxy::SetUserProxy(const std::string& username, const std::string& proxy_address, std::uint16_t proxy_port)
 {
 	std::unique_lock<std::shared_mutex> lock(this->global_mutex);
@@ -307,6 +313,11 @@ void Proxy::ClearUserProxy()
 {
 	std::unique_lock<std::shared_mutex> lock(this->global_mutex);
 	this->user_proxy_map.clear();
+}
+
+auto Proxy::GetDefaultProxy() -> std::pair<std::string, std::uint16_t>
+{
+	return std::pair<std::string, std::uint16_t>(this->remote_server_addr, this->remote_server_port);
 }
 
 auto Proxy::PingTest() const -> std::uint64_t

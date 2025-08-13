@@ -83,10 +83,12 @@ public:
 	auto GetUsersInfo() -> std::list<UserInfo>;
 	void SetMotd(const std::string& motd);
 	void SetMaxPlayer(int n);
+	int GetMaxPlayer(void);
 	void SetUserProxy(const std::string& username, const std::string& proxy_address, std::uint16_t proxy_port);
 	auto GetUserProxyMap() const -> std::map<std::string, std::pair<std::string, std::uint16_t>>;
 	void DeleteUserProxy(const std::string& username);
 	void ClearUserProxy();
+	auto GetDefaultProxy() -> std::pair<std::string, std::uint16_t>;//获取默认代理地址,first:address,second:port
 	auto PingTest()const->std::uint64_t;
 	~Proxy() noexcept;
 protected:

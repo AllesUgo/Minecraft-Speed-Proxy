@@ -71,10 +71,22 @@ void Config::upgrade_config_v1_0()
 	}
 }
 
+void Config::upgrade_config_v1_1()
+{
+	if (Config::get_config<std::string>("Version") == "1.0")
+	{
+		Config::set_config("Version", "1.1");
+		Config::set_config("WebAPIEnable", true);
+		Config::set_config("WebAPIAddress", "127.0.0.1");
+		Config::set_config("WebAPIPort", 8080);
+		Config::set_config("WebAPIPassword", "admin");
+	}
+}
+
 void Config::SetDefaultConfig()
 {
 	//配置文件版本相关
-	Config::set_config("Version", "1.0");
+	Config::set_config("Version", "1.1");
 	//地址相关
 	Config::set_config("LocalAddress", "::");
 	Config::set_config("LocalPort", 25565);
@@ -99,6 +111,12 @@ void Config::SetDefaultConfig()
 	Config::set_config("ShowLogLevel", 0);
 	Config::set_config("SaveLogLevel", 0);
 
+	//WebAPI相关
+	Config::set_config("WebAPIEnable", true);
+	Config::set_config("WebAPIAddress", "127.0.0.1");
+	Config::set_config("WebAPIPort", 8080);
+	Config::set_config("WebAPIPassword", "admin");
+
 }
 
 void Config::load_config(const std::string& path)
@@ -109,13 +127,14 @@ void Config::load_config(const std::string& path)
 	//检查并升级配置文件
 	try
 	{
-		if (Config::get_config<std::string>("Version") != "1.0")
-			throw ConfigException("Config version not match, need 1.0");
+		if (Config::get_config<std::string>("Version") != "1.1")
+			throw ConfigException("Config version not match, need 1.1");
 	}
 	catch (const ConfigException& ex)
 	{
 		//如果没有版本号，则升级到1.0
 		Config::upgrade_config_v1_0();
+		Config::upgrade_config_v1_1();
 		std::cout << "配置文件版本较低，已自动升级配置文件，是否保存？(y/n): ";
 		std::string save;
 		std::cin >> save;

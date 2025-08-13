@@ -14,10 +14,11 @@
 #include "rbslib/BaseType.h"
 #include "helper.h"
 #include <semaphore>
+#include "WebControl.h"
 
 using namespace std;
 
-std::unique_ptr<Proxy> proxy;
+std::shared_ptr<Proxy> proxy;
 
 class ExitRequest :public std::exception {
 public:
@@ -133,17 +134,17 @@ void InnerCmdline(int argc, const char** argv) {
 		cout << str << endl;
 		});
 	executer.CreateSubOption("help", 0, "显示帮助", false, [](const RbsLib::Command::CommandExecuter::Args& args) {
-		cout<<"help: 显示帮助"<<endl;
-		cout<<"whitelist: 白名单功能"<<endl;
-		cout<<"ban <player_name> [...]: 封禁用户"<<endl;
-		cout<<"pardon <player_name> [...]: 取消封禁用户"<<endl;
-		cout<<"list: 列出名单"<<endl;
-		cout<<"kick <player_name> [...]: 踢出用户"<<endl;
-		cout<<"motd: Motd管理"<<endl;
-		cout<<"maxplayer <number>: 设置最大玩家数"<<endl;
+		cout << "help: 显示帮助" << endl;
+		cout << "whitelist: 白名单功能" << endl;
+		cout << "ban <player_name> [...]: 封禁用户" << endl;
+		cout << "pardon <player_name> [...]: 取消封禁用户" << endl;
+		cout << "list: 列出名单" << endl;
+		cout << "kick <player_name> [...]: 踢出用户" << endl;
+		cout << "motd: Motd管理" << endl;
+		cout << "maxplayer [number]: 获取/设置最大玩家数" << endl;
 		cout << "userproxy <set|list>: 用户代理服务器设置" << endl;
-		cout<<"ping: 测试与目标服务器的Ping延迟"<<endl;
-		cout<<"exit: 退出程序"<<endl;
+		cout << "ping: 测试与目标服务器的Ping延迟" << endl;
+		cout << "exit: 退出程序" << endl;
 		});
 	executer.CreateSubOption("ping", 0, "测试与目标服务器的Ping延迟", false, [](const RbsLib::Command::CommandExecuter::Args& args) {
 		if (proxy == nullptr) throw std::runtime_error("服务未启动");
@@ -156,10 +157,11 @@ void InnerCmdline(int argc, const char** argv) {
 			Logger::LogWarn("Ping测试失败，请检查远程服务器状态：%s", e.what());
 		}
 		});
-	executer.CreateSubOption("maxplayer", 1, "设置最大玩家数", false, [](const RbsLib::Command::CommandExecuter::Args& args) {
+	executer.CreateSubOption("maxplayer", -1, "设置最大玩家数", false, [](const RbsLib::Command::CommandExecuter::Args& args) {
 		if (proxy == nullptr) throw std::runtime_error("服务未启动");
 		if (args.find("maxplayer") == args.end()) {
-			cout << "参数错误,请指定最大玩家数" << endl;
+			cout << "当前在线玩家数: " << proxy->GetUsersInfo().size() << endl;
+			cout << "最大玩家数: " << proxy->GetMaxPlayer() << endl;
 			return;
 		}
 		proxy->SetMaxPlayer(std::stoi(*args.find("maxplayer")->second.begin()));
@@ -381,7 +383,7 @@ int main(int argc,const char**argv)
 		}
 		Logger::LogInfo("本地地址：%s 端口：%d", local_address.c_str(), local_port);
 		Logger::LogInfo("远程服务器地址：%s 端口：%d", remote_server_addr.c_str(), remote_server_port);
-		proxy = std::make_unique<Proxy>(local_address, local_port, remote_server_addr, remote_server_port);
+		proxy = std::make_shared<Proxy>(local_address, local_port, remote_server_addr, remote_server_port);
 		/*
 		proxy->on_connected += [](const RbsLib::Network::TCP::TCPConnection& client) {
 			//std::cout <<client.GetAddress() <<"connected" << std::endl;
@@ -452,6 +454,30 @@ int main(int argc,const char**argv)
 			counting_semaphore sem(0);
 			sem.acquire(); //无限阻塞
 		}
+		//web启动
+		std::shared_ptr<WebControlServer> web_server = nullptr;
+		if (Config::get_config<bool>("WebAPIEnable"))
+		{
+			Logger::LogInfo("启动WebAPI");
+			std::string web_addr = Config::get_config<std::string>("WebAPIAddress");
+			std::uint16_t web_port = Config::get_config<int>("WebAPIPort");
+			std::string web_password = Config::get_config<std::string>("WebAPIPassword");
+			if (web_addr.empty() || web_port == 0 || web_password.empty())
+			{
+				Logger::LogError("WebAPI配置不完整，请检查配置文件");
+				return 1;
+			}
+			Logger::LogInfo("WebAPI地址: %s:%d", web_addr.c_str(), web_port);
+			web_server = std::make_shared<WebControlServer>(web_addr, web_port);
+			web_server->SetUserPassword(web_password);
+			web_server->Start(proxy);
+		}
+		else
+		{
+			Logger::LogInfo("Web控制台未启用");
+		}
+		
+
 		std::string cmd;
 		while (true)
 		{
@@ -486,6 +512,13 @@ int main(int argc,const char**argv)
 			}
 			catch (const ExitRequest& req)
 			{
+				std::thread([]() {
+					Sleep(3000);
+					Logger::LogInfo("服务器将在5秒内退出");
+					Sleep(5000);
+					std::exit(0);
+					}).detach();
+				web_server = nullptr;
 				proxy = nullptr;
 				Logger::LogInfo("服务器已退出，退出码：%d", req.exit_code);
 				return req.exit_code;
