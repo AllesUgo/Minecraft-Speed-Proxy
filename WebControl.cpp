@@ -125,6 +125,7 @@ bool WebControlServer::AddBlacklistUser(neb::CJsonObject& response, const neb::C
 		return false;
 	}
 	WhiteBlackList::AddBlackList(username);
+	Logger::LogInfo("WebAPI: 已将用户 %s 添加到黑名单", username.c_str());
 	response.Add("status", 200);
 	response.Add("message", "User added to black list successfully");
 	return true;
@@ -146,6 +147,7 @@ bool WebControlServer::RemoveBlacklistUser(neb::CJsonObject& response, const neb
 		return false;
 	}
 	WhiteBlackList::RemoveBlackList(username);
+	Logger::LogInfo("WebAPI: 已将用户 %s 从黑名单移除", username.c_str());
 	response.Add("status", 200);
 	response.Add("message", "User removed from black list successfully");
 	return true;
@@ -167,6 +169,7 @@ bool WebControlServer::AddWhitelistUser(neb::CJsonObject& response, const neb::C
 		return false;
 	}
 	WhiteBlackList::AddWhiteList(username);
+	Logger::LogInfo("WebAPI: 已将用户 %s 添加到白名单", username.c_str());
 	response.Add("status", 200);
 	response.Add("message", "User added to white list successfully");
 	return true;
@@ -188,6 +191,7 @@ bool WebControlServer::RemoveWhitelistUser(neb::CJsonObject& response, const neb
 		return false;
 	}
 	WhiteBlackList::RemoveWhiteList(username);
+	Logger::LogInfo("WebAPI: 已将用户 %s 从白名单移除", username.c_str());
 	response.Add("status", 200);
 	response.Add("message", "User removed from white list successfully");
 	return true;
@@ -204,6 +208,7 @@ bool WebControlServer::EnableWhitelist(neb::CJsonObject& response, const std::sh
 	else
 	{
 		WhiteBlackList::WhiteListOn();
+		Logger::LogInfo("WebAPI: 白名单已启用");
 		response.Add("status", 200);
 		response.Add("message", "Whitelist enabled successfully");
 		return true;
@@ -221,6 +226,7 @@ bool WebControlServer::DisableWhitelist(neb::CJsonObject& response, const std::s
 	else
 	{
 		WhiteBlackList::WhiteListOff();
+		Logger::LogInfo("WebAPI: 白名单已禁用");
 		response.Add("status", 200);
 		response.Add("message", "Whitelist disabled successfully");
 		return true;
@@ -261,6 +267,7 @@ bool WebControlServer::SetUserProxy(neb::CJsonObject& response, const neb::CJson
 		return false;
 	}
 	proxy_client->SetUserProxy(username, proxy_address, static_cast<std::uint16_t>(proxy_port));
+	Logger::LogInfo("WebAPI: 已为用户 %s 设置代理服务器 %s:%d", username.c_str(), proxy_address.c_str(), proxy_port);
 	response.Add("status", 200);
 	response.Add("message", "User proxy set successfully");
 	return true;
@@ -278,6 +285,7 @@ bool WebControlServer::RemoveUserProxy(neb::CJsonObject& response, const neb::CJ
 	try
 	{
 		proxy_client->DeleteUserProxy(username);
+		Logger::LogInfo("WebAPI: 已删除用户 %s 的代理服务器设置", username.c_str());
 	}
 	catch (ProxyException const& ex)
 	{
@@ -300,6 +308,7 @@ bool WebControlServer::SetMaxUsers(neb::CJsonObject& response, const neb::CJsonO
 		return false;
 	}
 	proxy_client->SetMaxPlayer(max_users);
+	Logger::LogInfo("WebAPI: 已设置最大用户数为 %d", max_users);
 	response.Add("status", 200);
 	response.Add("message", "Max users set successfully");
 	return true;
@@ -317,6 +326,7 @@ bool WebControlServer::KickPlayer(neb::CJsonObject& response, const neb::CJsonOb
 	try
 	{
 		proxy_client->KickByUsername(username);
+		Logger::LogInfo("WebAPI: 已踢出用户 %s", username.c_str());
 		response.Add("status", 200);
 		response.Add("message", "Player kicked successfully");
 		return true;
@@ -328,7 +338,6 @@ bool WebControlServer::KickPlayer(neb::CJsonObject& response, const neb::CJsonOb
 		return false;
 	}
 }
-
 
 
 
@@ -372,6 +381,7 @@ void WebControlServer::Start(std::shared_ptr<Proxy>& proxy_client)
 				{
 					this->user_token = "";
 					this->token_expiry_time = std::chrono::system_clock::time_point();
+					Logger::LogInfo("WebAPI: 用户退出登录");
 					response_body.Add("status", 200);
 					response_body.Add("message", "Logout successful");
 					response_header.status = 200;
@@ -460,6 +470,7 @@ void WebControlServer::Start(std::shared_ptr<Proxy>& proxy_client)
 				//生成token
 				this->user_token = std::to_string(std::chrono::system_clock::now().time_since_epoch().count());
 				this->token_expiry_time = std::chrono::system_clock::now() + std::chrono::hours(1); // token有效期1小时
+				Logger::LogInfo("WebAPI: 用户通过WebAPI登录成功");
 				neb::CJsonObject response;
 				response.Add("status", 200);
 				response.Add("message", "Login successful");
