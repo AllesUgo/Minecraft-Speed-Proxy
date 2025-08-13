@@ -431,6 +431,16 @@ void RbsLib::Network::TCP::TCPConnection::Disable(void) const
 	#endif
 }
 
+void RbsLib::Network::TCP::TCPServer::Disable(void) const
+{
+#ifdef WIN32
+	shutdown(this->server_socket, SD_BOTH);
+#endif
+#ifdef LINUX
+	shutdown(this->server_socket, SHUT_RDWR);
+#endif
+}
+
 RbsLib::Network::TCP::TCPConnection RbsLib::Network::TCP::TCPClient::Connect(std::string address, int port)
 {
 	net::init_network();
@@ -795,6 +805,11 @@ void RbsLib::Network::HTTP::HTTPServer::SetPostHandle(const std::function<int(co
 void RbsLib::Network::HTTP::HTTPServer::SetGetHandle(const std::function<int(const TCP::TCPConnection& connection, RequestHeader& header)>& func)
 {
 	this->on_get_request = func;
+}
+
+void RbsLib::Network::HTTP::HTTPServer::StopAndThrowExceptionInLoopThread(void)
+{
+	this->server.Disable();
 }
 
 

@@ -15,6 +15,7 @@ class Config {
 private:
 	//要求配置文件没有版本号（v1.0以前）
 	static void upgrade_config_v1_0();
+	static void upgrade_config_v1_1();
 public:
 	Config() = delete;
 	static void SetDefaultConfig();
