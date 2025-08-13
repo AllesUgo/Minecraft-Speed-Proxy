@@ -1,6 +1,7 @@
 ﻿#include "Commandline.h"
 #include <exception>
 #include <stdexcept>
+#include <algorithm>
 
 using namespace RbsLib::Command;
 
