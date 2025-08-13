@@ -52,6 +52,11 @@ add_executable (minecraftspeedproxy "main.cpp"
 "WebControl.cpp" "WebControl.h"
 ${RBS_LIB_SRC} ${JSON_LIB_SRC} )
 
+#如果是Windows平台，链接ws2_32.lib
+if (WIN32)
+  target_link_libraries(minecraftspeedproxy ws2_32.lib)
+endif()
+
 if (CMAKE_VERSION VERSION_GREATER 3.12)
   set_property(TARGET minecraftspeedproxy PROPERTY CXX_STANDARD 20)
 endif()
