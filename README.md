@@ -2,7 +2,7 @@
 # Minecraft-Speed-Proxy
 
 Minecraft加速IP程序  
-能够代理Minecraft服务器，并拥有白名单、用户控制、流量展示、MOTD自定义等功能，支持IPv6，能够代理Forge客户端    
+能够代理Minecraft服务器，并拥有白名单、用户控制、流量展示、MOTD自定义等功能，支持IPv6，能够代理Forge客户端。允许使用Web API控制服务器    
 ~~本项目使用C语言编写~~ 新版已改用C++，内存占用极低，在配置较低的服务器上拥有更好的表现  
 改用C++编写，大幅度降低了崩溃的发生率，降低了内存泄露的可能并有了更好的项目结构  
 新版已支持跨平台编译，支持Windows、Linux  
@@ -66,14 +66,22 @@ chmod +x minecraftspeedproxy
 3.**运行中的命令支持请在运行后输入 `help`以获取**
 
 4.更多参数请使用参数`-h`获取  
+## WebAPI
+WebAPI允许通过HTTP请求控制Minecraft-Speed-Proxy服务器，包含了控制台拥有的所有功能和一些拓展功能
+
+WebAPI默认启用，若不希望使用WebAPI，可以在配置文件中将`WebAPIEnable`设置为`0`
+
+API接口介绍参考 [Web API接口文档](WebAPI.md)
+
+将在后续版本逐步推出各功能管理网页
 ## 配置文件解释
 程序除通过命令行参数设置启动外，还可以使用配置文件启动  
 配置文件是一个JSON格式的文本文件，默认的配置文件可以通过`./minecraftspeedproxy -c config.json`生成(请注意权限问题)  
 其默认内容如下
 ```json
 {
-	"Version":	"1.0",
-	"LocalAddress":	"0.0.0.0",
+	"Version":	"1.1",
+	"LocalAddress":	"::",
 	"LocalPort":	25565,
 	"Address":	"mc.hypixel.net",
 	"RemotePort":	25565,
@@ -85,7 +93,11 @@ chmod +x minecraftspeedproxy
 	"ShowOnlinePlayerNumber":	true,
 	"LogDir":	"./logs",
 	"ShowLogLevel":	0,
-	"SaveLogLevel":	0
+	"SaveLogLevel":	0,
+    "WebAPIEnable":	1,
+	"WebAPIAddress":	"127.0.0.1",
+	"WebAPIPort":	8080,
+	"WebAPIPassword":	"admin"
 }
 ```  
 
@@ -109,6 +121,10 @@ chmod +x minecraftspeedproxy
 |LogDir|字符串|日志文件目录|
 |ShowLogLevel|整数|显示日志等级，-1为Debug日志，0为显示常规日志，1为显示警告及以上，2为显示错误及以上，3为显示玩家状态，一般填0|
 |SaveLogLevel|整数|保存日志等级，-1为Debug日志，1为保存警告及以上，2为保存错误及以上，3为保存玩家状态，一般填0|
+|WebAPIEnable|布尔|是否启用Web API|
+|WebAPIAddress|字符串|Web API监听地址。若不需要外网访问，建议设置为环回地址（127.0.0.1）|
+|WebAPIPort|整数|Web API监听端口|
+|WebAPIPassword|字符串|Web API访问密码|
 
 生成配置文件请使用
 ```bash
