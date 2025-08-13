@@ -513,9 +513,9 @@ int main(int argc,const char**argv)
 			catch (const ExitRequest& req)
 			{
 				std::thread([]() {
-					Sleep(3000);
+					this_thread::sleep_for(chrono::seconds(3));
 					Logger::LogInfo("服务器将在5秒内退出");
-					Sleep(5000);
+					this_thread::sleep_for(chrono::seconds(5));
 					std::exit(0);
 					}).detach();
 				web_server = nullptr;
