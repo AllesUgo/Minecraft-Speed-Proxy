@@ -96,7 +96,7 @@ RbsLib::Network::TCP::TCPServer::TCPServer(int port, const std::string& address)
 			freeaddrinfo(res);
 			std::string reason = "Bind failed";
 #ifdef WIN32
-			reason += ": ";
+			reason += ", ErrorCode: ";
 			reason += std::to_string(WSAGetLastError());
 #endif // WIN32
 #ifdef LINUX

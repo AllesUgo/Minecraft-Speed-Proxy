@@ -19,6 +19,7 @@ void WebControlServer::SendErrorResponse(const RbsLib::Network::TCP::TCPConnecti
 	response.status = http_status_code;
 	response.headers.AddHeader("Content-Type", "application/json; charset=utf-8");
 	response.headers.AddHeader("Content-Length", std::to_string(json.ToString().size()));
+	response.headers.AddHeader("Access-Control-Allow-Origin", "*");
 	RbsLib::Buffer response_buffer = response.ToBuffer();
 	connection.Send(response.ToBuffer());
 	connection.Send(json.ToString().c_str(), json.ToString().size());
@@ -34,6 +35,7 @@ void WebControlServer::SendSuccessResponse(const RbsLib::Network::TCP::TCPConnec
 	response.status = 200;
 	response.headers.AddHeader("Content-Type", "application/json; charset=utf-8");
 	response.headers.AddHeader("Content-Length", std::to_string(json_str.size()));
+	response.headers.AddHeader("Access-Control-Allow-Origin", "*");
 	connection.Send(response.ToBuffer());
 	connection.Send(json_str.c_str(), json_str.length());
 }
@@ -375,7 +377,7 @@ void WebControlServer::Start(std::shared_ptr<Proxy>& proxy_client)
 			else
 			{
 				//根据业务逻辑处理请求
-				RbsLib::Network::HTTP::ResponseHeader response_header;
+				
 				neb::CJsonObject response_body;
 				if (m[1].str() == "logout")
 				{
@@ -384,6 +386,8 @@ void WebControlServer::Start(std::shared_ptr<Proxy>& proxy_client)
 					Logger::LogInfo("WebAPI: 用户退出登录");
 					response_body.Add("status", 200);
 					response_body.Add("message", "Logout successful");
+					RbsLib::Network::HTTP::ResponseHeader response_header;
+					response_header.headers.AddHeader("Access-Control-Allow-Origin", "*");
 					response_header.status = 200;
 					response_header.headers.AddHeader("Content-Type", "application/json; charset=utf-8");
 					response_header.headers.AddHeader("Content-Length", std::to_string(response_body.ToString().size()));
@@ -477,6 +481,7 @@ void WebControlServer::Start(std::shared_ptr<Proxy>& proxy_client)
 				RbsLib::Network::HTTP::ResponseHeader response_header;
 				response_header.status = 200;
 				response_header.headers.AddHeader("Content-Type", "application/json; charset=utf-8");
+				response_header.headers.AddHeader("Access-Control-Allow-Origin", "*");
 				response_header.headers.AddHeader("Content-Length", std::to_string(response.ToString().size()));
 				response_header.headers.AddHeader("Set-Cookie", "token=" + this->user_token + "; HttpOnly; Max-Age=3600; Path=/");
 				connection.Send(response_header.ToBuffer());
@@ -493,7 +498,6 @@ void WebControlServer::Start(std::shared_ptr<Proxy>& proxy_client)
 				else
 				{
 					//根据业务逻辑处理请求
-					RbsLib::Network::HTTP::ResponseHeader response_header;
 					neb::CJsonObject response_body;
 					
 					if (m[1].str() == "add_whitelist_user")
