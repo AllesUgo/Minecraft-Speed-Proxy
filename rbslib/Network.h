@@ -180,7 +180,7 @@ namespace RbsLib
 			class HTTPException;
 			enum class Method
 			{
-				GET,POST
+				GET,POST,OPTIONS
 			};
 			class HTTPException : public std::exception
 			{
@@ -237,6 +237,7 @@ namespace RbsLib
 				TCP::TCPServer server;
 				std::string protocol_version = "HTTP/1.1";
 				std::function<int(const TCP::TCPConnection& connection,RequestHeader&header)> on_get_request;
+				std::function<int(const TCP::TCPConnection& connection, RequestHeader& header)> on_options_request;
 				std::function<int(const TCP::TCPConnection& connection, RequestHeader& header,Buffer&post_content)> on_post_request;
 			public:
 				HTTPServer(const std::string& host = "0.0.0.0", int port = 80);
@@ -248,6 +249,8 @@ namespace RbsLib
 				void SetPostHandle(const std::function<int(const TCP::TCPConnection& connection, RequestHeader& header, Buffer& post_content)>& func);
 				/*当发生Get请求时调用，若返回非零值，将不会保持与客户端的连接(HTTP1.1)*/
 				void SetGetHandle(const std::function<int(const TCP::TCPConnection& connection, RequestHeader& header)>& func);
+				/*当发生Options请求时调用，若返回非零值，将不会保持与客户端的连接(HTTP1.1)*/
+				void SetOptionsHandle(const std::function<int(const TCP::TCPConnection& connection, RequestHeader& header)>& func);
 				/*
 				* 将会利用禁止套接字的方式来中断阻塞的Accept函数，这将导致LoopWait函数抛出异常
 				*/

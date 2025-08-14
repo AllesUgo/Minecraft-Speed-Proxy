@@ -556,7 +556,8 @@ void RbsLib::Network::HTTP::HTTPServer::LoopWait(bool use_thread_pool, int keep_
 			std::string& protocol_version = this->protocol_version;
 			auto& get = this->on_get_request;
 			auto& post = this->on_post_request;
-			pool.Run([connection, protocol_version, get, post]() {
+			auto& options = this->on_options_request;
+			pool.Run([connection, protocol_version, get, post,options]() {
 				//读取Header
 				bool is_keep_alive = true;
 				try
@@ -575,6 +576,7 @@ void RbsLib::Network::HTTP::HTTPServer::LoopWait(bool use_thread_pool, int keep_
 						std::string method = read_word(p, (int)line.length());
 						if (method == "GET") header.request_method = Method::GET;
 						else if (method == "POST") header.request_method = Method::POST;
+						else if (method == "OPTIONS") header.request_method = Method::OPTIONS;
 						else return;
 						header.path = read_word(p, (int)(line.c_str() + line.length() - p));
 						if (header.path.empty()) return;//错误的请求，URL为空
@@ -660,6 +662,19 @@ void RbsLib::Network::HTTP::HTTPServer::LoopWait(bool use_thread_pool, int keep_
 							if (get(connection, header))
 								is_keep_alive = false;
 						}
+						else if (header.request_method == Method::OPTIONS)
+						{
+							//检查是否具有Connection
+							if (header.headers.ExistHeader("Connection"))
+							{
+								if (header.headers["Connection"] == "close")
+								{
+									is_keep_alive = false;
+								}
+							}
+							if (options(connection, header))
+								is_keep_alive = false;
+						}
 						if (is_keep_alive == false) break;
 					}
 				}
@@ -679,7 +694,8 @@ void RbsLib::Network::HTTP::HTTPServer::LoopWait(bool use_thread_pool, int keep_
 			std::string& protocol_version = this->protocol_version;
 			auto& get = this->on_get_request;
 			auto& post = this->on_post_request;
-			std::thread([connection, protocol_version, get, post]() {
+			auto& options = this->on_options_request;
+			std::thread([connection, protocol_version, get, post,options]() {
 				//读取Header
 				bool is_keep_alive = true;
 				try
@@ -698,6 +714,7 @@ void RbsLib::Network::HTTP::HTTPServer::LoopWait(bool use_thread_pool, int keep_
 						std::string method = read_word(p, (int)line.length());
 						if (method == "GET") header.request_method = Method::GET;
 						else if (method == "POST") header.request_method = Method::POST;
+						else if (method == "OPTIONS") header.request_method = Method::OPTIONS;
 						else return;
 						header.path = read_word(p, (int)(line.c_str() + line.length() - p));
 						if (header.path.empty()) return;//错误的请求，URL为空
@@ -783,6 +800,19 @@ void RbsLib::Network::HTTP::HTTPServer::LoopWait(bool use_thread_pool, int keep_
 							if (get(connection, header))
 								is_keep_alive = false;
 						}
+						else if (header.request_method == Method::OPTIONS)
+						{
+							//检查是否具有Connection
+							if (header.headers.ExistHeader("Connection"))
+							{
+								if (header.headers["Connection"] == "close")
+								{
+									is_keep_alive = false;
+								}
+							}
+							if (options(connection, header))
+								is_keep_alive = false;
+						}
 						if (is_keep_alive == false) break;
 					}
 				}
@@ -805,6 +835,11 @@ void RbsLib::Network::HTTP::HTTPServer::SetPostHandle(const std::function<int(co
 void RbsLib::Network::HTTP::HTTPServer::SetGetHandle(const std::function<int(const TCP::TCPConnection& connection, RequestHeader& header)>& func)
 {
 	this->on_get_request = func;
+}
+
+void RbsLib::Network::HTTP::HTTPServer::SetOptionsHandle(const std::function<int(const TCP::TCPConnection& connection, RequestHeader& header)>& func)
+{
+	this->on_options_request = func;
 }
 
 void RbsLib::Network::HTTP::HTTPServer::StopAndThrowExceptionInLoopThread(void)
