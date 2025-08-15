@@ -877,8 +877,21 @@ void RbsLib::Network::HTTP::HTTPHeadersContent::AddHeader(const std::string& lin
 
 auto RbsLib::Network::HTTP::HTTPHeadersContent::GetHeader(const std::string& key) const -> std::string
 {
-	if (this->headers.find(key) == this->headers.end()) return std::string();
-	else return this->headers.find(key)->second;
+	for (const auto& it: this->headers)
+	{
+		auto iter_a = it.first.begin(), iter_b = key.end();
+		while (iter_a != it.first.end() && iter_b != key.end())
+		{
+			if (std::tolower(*iter_a) != std::tolower(*iter_b)) break;
+			++iter_a;
+			++iter_b;
+		}
+		if (iter_a == it.first.end() && iter_b == key.end())
+		{
+			return it.second;
+		}
+	}
+	return std::string();
 }
 
 auto RbsLib::Network::HTTP::HTTPHeadersContent::operator[](const std::string& key)const -> std::string
@@ -893,8 +906,21 @@ auto RbsLib::Network::HTTP::HTTPHeadersContent::Headers(void)const -> const std:
 
 bool RbsLib::Network::HTTP::HTTPHeadersContent::ExistHeader(const std::string& key) const noexcept
 {
-	if (this->headers.find(key) == this->headers.end()) return false;
-	else return true;
+	for (const auto& it : this->headers)
+	{
+		auto iter_a = it.first.begin(), iter_b = key.end();
+		while (iter_a != it.first.end() && iter_b != key.end())
+		{
+			if (std::tolower(*iter_a) != std::tolower(*iter_b)) break;
+			++iter_a;
+			++iter_b;
+		}
+		if (iter_a == it.first.end() && iter_b == key.end())
+		{
+			return true;
+		}
+	}
+	return false;
 }
 
 auto RbsLib::Network::HTTP::HTTPHeadersContent::GetHeaderMap(void) const noexcept -> const std::map<std::string, std::string>&
