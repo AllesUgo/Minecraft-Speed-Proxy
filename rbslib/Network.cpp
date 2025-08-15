@@ -879,7 +879,7 @@ auto RbsLib::Network::HTTP::HTTPHeadersContent::GetHeader(const std::string& key
 {
 	for (const auto& it: this->headers)
 	{
-		auto iter_a = it.first.begin(), iter_b = key.end();
+		auto iter_a = it.first.begin(), iter_b = key.begin();
 		while (iter_a != it.first.end() && iter_b != key.end())
 		{
 			if (std::tolower(*iter_a) != std::tolower(*iter_b)) break;
@@ -908,7 +908,7 @@ bool RbsLib::Network::HTTP::HTTPHeadersContent::ExistHeader(const std::string& k
 {
 	for (const auto& it : this->headers)
 	{
-		auto iter_a = it.first.begin(), iter_b = key.end();
+		auto iter_a = it.first.begin(), iter_b = key.begin();
 		while (iter_a != it.first.end() && iter_b != key.end())
 		{
 			if (std::tolower(*iter_a) != std::tolower(*iter_b)) break;
