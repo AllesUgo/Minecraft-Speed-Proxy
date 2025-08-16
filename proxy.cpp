@@ -1,4 +1,4 @@
-#include "datapackage.h"
+ï»¿#include "datapackage.h"
 #include "proxy.h"
 #include <chrono>
 #include <iostream>
@@ -19,14 +19,14 @@ void Proxy::Start()
 				auto connection = this->local_server.Accept();
 				this->thread_pool.Run([this, connection]() {
 					try {
-						//¼ÓÈëÁ¬½Ó³Ø
+						//åŠ å…¥è¿æ¥æ± 
 						std::unique_lock<std::shared_mutex> lock(this->global_mutex);
 						this->connections.push_back(connection);
 						lock.unlock();
-						//µ÷ÓÃÁ¬½Ó»Øµ÷
+						//è°ƒç”¨è¿æ¥å›è°ƒ
 						this->on_connected(connection);
-						int connection_status = 0;//Î´ÎÕÊÖ
-						//±ØĞëÏÈÎÕÊÖ
+						int connection_status = 0;//æœªæ¡æ‰‹
+						//å¿…é¡»å…ˆæ¡æ‰‹
 						std::string remote_server_suffix;
 						HandshakeDataPack handshake_data_pack;
 						RbsLib::Network::TCP::TCPStream stream(connection);
@@ -39,7 +39,7 @@ void Proxy::Start()
 								switch (NoCompressionDataPack::GetID(buffer))
 								{
 								case 0: {
-									//×´Ì¬ÇëÇó£¬Ö±½ÓÏìÓ¦
+									//çŠ¶æ€è¯·æ±‚ï¼Œç›´æ¥å“åº”
 									StatusResponseDataPack status_response_data_pack;
 									std::shared_lock<std::shared_mutex> lock(this->motd_mutex);
 									auto motd = this->motd;
@@ -56,7 +56,7 @@ void Proxy::Start()
 									break;
 								}
 								case 1: {
-									//ping,ÏìÓ¦pong
+									//ping,å“åº”pong
 									PingDataPack ping_data_pack;
 									RbsLib::Streams::BufferInputStream bis(buffer);
 									ping_data_pack.ParseFromInputStream(bis);
@@ -71,8 +71,8 @@ void Proxy::Start()
 								break;
 							}
 							case 2: {
-								//µÇÂ¼ÇëÇó£¬½ÓÊÕµÇÂ¼ÇëÇó
-								//¼ì²éÊÇ·ñ´ïµ½×î´óÍæ¼ÒÊı
+								//ç™»å½•è¯·æ±‚ï¼Œæ¥æ”¶ç™»å½•è¯·æ±‚
+								//æ£€æŸ¥æ˜¯å¦è¾¾åˆ°æœ€å¤§ç©å®¶æ•°
 								std::shared_lock<std::shared_mutex> check_max_player(this->global_mutex);
 								if (this->max_player != -1 && this->users.size() >= this->max_player) {
 									LoginFailureDataPack login_failed_data_pack("Server is full.");
@@ -84,12 +84,12 @@ void Proxy::Start()
 								auto login_start_row_packet = DataPack::ReadFullData(stream);
 								RbsLib::Streams::BufferInputStream bis(login_start_row_packet);
 								start_login_data_pack.ParseFromInputStream(bis);
-								//¼ì²éÊÇ·ñÊÇFMLµÇÂ¼
+								//æ£€æŸ¥æ˜¯å¦æ˜¯FMLç™»å½•
 								if (handshake_data_pack.server_address.size()!=std::strlen(handshake_data_pack.server_address.c_str()))
 								{
 									remote_server_suffix = handshake_data_pack.server_address.substr(std::strlen(handshake_data_pack.server_address.c_str()));
 								}
-								//µ÷ÓÃµÇÂ¼»Øµ÷
+								//è°ƒç”¨ç™»å½•å›è°ƒ
 								try {
 									if (start_login_data_pack.have_uuid) 
 										this->on_login(connection, start_login_data_pack.user_name, start_login_data_pack.GetUUID());
@@ -97,12 +97,12 @@ void Proxy::Start()
 										this->on_login(connection, start_login_data_pack.user_name, std::string());
 								}
 								catch (const CallbackException& e) {
-									//µÇÂ¼Ê§°Ü
+									//ç™»å½•å¤±è´¥
 									LoginFailureDataPack login_failed_data_pack(e.what());
 									stream.Write(login_failed_data_pack.ToBuffer());
 									throw ProxyException(std::string("Callback disable user login: ") + e.what());
 								}
-								//Á¬½ÓÔ¶³Ì·şÎñÆ÷
+								//è¿æ¥è¿œç¨‹æœåŠ¡å™¨
 								std::string remote_server_addr_real;
 								std::uint32_t remote_server_port_real;
 								std::shared_lock<std::shared_mutex> share_lock(this->global_mutex);
@@ -128,7 +128,7 @@ void Proxy::Start()
 								user_ptr->uuid = start_login_data_pack.GetUUID();
 								user_ptr->ip = connection.GetAddress();
 								user_ptr->connect_time = std::time(nullptr);
-								//¼ÓÈëÓÃ»§³Ø
+								//åŠ å…¥ç”¨æˆ·æ± 
 								lock.lock();
 								if (this->users.find(start_login_data_pack.user_name) != this->users.end()) 
 								{
@@ -140,16 +140,16 @@ void Proxy::Start()
 								this->users[user_ptr->username] = user_ptr;
 								lock.unlock();
 								try {
-									//·¢ËÍÎÕÊÖÉêÇë
+									//å‘é€æ¡æ‰‹ç”³è¯·
 									handshake_data_pack.server_address = RbsLib::DataType::String(this->remote_server_addr+remote_server_suffix);
 									
 
 									remote_server.Send(handshake_data_pack.ToBuffer());
-									//·¢ËÍµÇÂ¼ÇëÇó
+									//å‘é€ç™»å½•è¯·æ±‚
 									remote_server.Send(login_start_row_packet);
-									//½øÈë´úÀí
+									//è¿›å…¥ä»£ç†
 									RbsLib::Buffer buffer(1024);
-									//½«¸ÃÓÃ»§¼ÇÂ¼
+									//å°†è¯¥ç”¨æˆ·è®°å½•
 									
 									this->thread_pool.Run([this, connection, remote_server,user_ptr]() {
 										std::unique_lock<std::shared_mutex> lock(this->global_mutex);
@@ -335,10 +335,10 @@ auto Proxy::PingTest() const -> std::uint64_t
 		handshake_data_pack.protocol_version = 754;
 		remote_server.Send(handshake_data_pack.ToBuffer());
 		RbsLib::Network::TCP::TCPStream stream(remote_server);
-		//·¢ËÍ×´Ì¬ÇëÇó
+		//å‘é€çŠ¶æ€è¯·æ±‚
 		StatusRequestDataPack status_request_data_pack;
 		remote_server.Send(status_request_data_pack.ToBuffer());
-		//½ÓÊÕ×´Ì¬²¢¶ªÆú
+		//æ¥æ”¶çŠ¶æ€å¹¶ä¸¢å¼ƒ
 		DataPack::Data(stream);
 		//ping
 		PingDataPack ping_data_pack,pong_data_pack;
@@ -416,7 +416,7 @@ void Motd::SetSampleUsers(std::list<UserInfo> const& users)
 {
 	this->motd_json.AddEmptySubObject("players");
 	if (this->motd_json["players"].KeyExist("sample") == true)
-		return;//Èç¹ûÒÑ¾­´æÔÚsampleÔò²»Ìí¼Ó
+		return;//å¦‚æœå·²ç»å­˜åœ¨sampleåˆ™ä¸æ·»åŠ 
 	this->motd_json["players"].AddEmptySubArray("sample");
 	if (this->motd_json["players"]["sample"].GetArraySize()==0) 
 	{
@@ -447,7 +447,7 @@ auto Motd::LoadMotdFromFile(const std::string& path) -> std::string
 	}
 	catch (const std::exception& e)
 	{
-		throw ProxyException(std::string("Motd¶ÁÈ¡Ê§°Ü: ")+e.what());
+		throw ProxyException(std::string("Motdè¯»å–å¤±è´¥: ")+e.what());
 	}
 
 }

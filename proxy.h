@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #ifndef PROXY_H
 #define PROXY_H
 #include "json/CJsonObject.h"
@@ -29,18 +29,18 @@ struct User {
 	User(const RbsLib::Network::TCP::TCPConnection& client, const RbsLib::Network::TCP::TCPConnection& server);
 };
 
-/*�����û���Ϣ��������������Ϣ�ȣ����ڷ���*/
+/*描述用户信息，不包括连接信息等，用于返回*/
 struct UserInfo {
     /**
-     * @brief �û���Ϣ�ṹ��
+     * @brief 用户信息结构体
      * 
-     * ���������û��Ļ�����Ϣ�������û�����UUID��IP��ַ���ϴ��ֽ���������ʱ�䡣
+     * 用于描述用户的基本信息，包括用户名、UUID、IP地址、上传字节数和连接时间。
      */
-    std::string username; /**< �û��� */
+    std::string username; /**< 用户名 */
     std::string uuid; /**< UUID */
-    std::string ip; /**< IP��ַ */
-    std::uint64_t upload_bytes; /**< �ϴ��������ֽ��� */
-    std::time_t connect_time; /**< ����ʱ�� */
+    std::string ip; /**< IP地址 */
+    std::uint64_t upload_bytes; /**< 上传及下载字节数 */
+    std::time_t connect_time; /**< 连接时间 */
 };
 
 struct Motd {
@@ -59,7 +59,7 @@ class Proxy {
 public:
 
 	class CallbackException : public std::exception {
-		//���������ڻص����׳����쳣�����쳣����ָʾ�ص���������״̬
+		//定义用于在回调中抛出的异常，该异常用于指示回调函数返回状态
 	protected:
 		std::string message;
 	public:
@@ -67,12 +67,12 @@ public:
 		const char* what() const noexcept override;
 	};
 
-	//����Ϊ�ص�������������֤�̰߳�ȫ����Ҫע���̰߳�ȫ����
-	RbsLib::Function::Function<void(const RbsLib::Network::TCP::TCPConnection& client)> on_connected;//���������ӳɹ��������Ӽ������ӳغ�,�׳��κ��쳣���������ӹر�
-	RbsLib::Function::Function<void(const RbsLib::Network::TCP::TCPConnection& client)> on_disconnect;//�����ڼ�����ͻ��˶Ͽ�����ǰ����ʱ�����Ѳ����ã����������������շ����ݣ������ڱ�ʶ���ӡ����������շ��������쳣���׳��쳣��Ч
-	RbsLib::Function::Function<void(const RbsLib::Network::TCP::TCPConnection& client, const std::string& username, const std::string& uuid)> on_login;//�������յ��ͻ��˵ĵ�¼���ݰ����û�δ���������û��б���login�׳����쳣������ʾ�ڿͻ���
-	RbsLib::Function::Function<void(const RbsLib::Network::TCP::TCPConnection& client, const UserInfo& userinfo)> on_logout;//�������û������Ͽ�����֮ǰ���û��Ѵ������û��б����Ƴ���������δ�����ӳضϿ���logoutҪ����disconnectҪ��һ�£��ұ�֤logout����disconnect��logout�׳��쳣������δ������Ϊ
-	RbsLib::Function::Function<void(const std::exception& ex)> exception_handle;//�������������־��error_message_callback�׳����쳣������δ������Ϊ
+	//以下为回调函数，均不保证线程安全，需要注意线程安全问题
+	RbsLib::Function::Function<void(const RbsLib::Network::TCP::TCPConnection& client)> on_connected;//发生在连接成功并将连接加入连接池后,抛出任何异常将导致连接关闭
+	RbsLib::Function::Function<void(const RbsLib::Network::TCP::TCPConnection& client)> on_disconnect;//发生在即将与客户端断开连接前，此时连接已不可用，不允许在连接上收发数据，仅用于标识连接。在连接上收发将导致异常。抛出异常无效
+	RbsLib::Function::Function<void(const RbsLib::Network::TCP::TCPConnection& client, const std::string& username, const std::string& uuid)> on_login;//发生在收到客户端的登录数据包后，用户未加入在线用户列表，login抛出的异常将会显示在客户端
+	RbsLib::Function::Function<void(const RbsLib::Network::TCP::TCPConnection& client, const UserInfo& userinfo)> on_logout;//发生在用户即将断开连接之前，用户已从在线用户列表中移除并且连接未从连接池断开，logout要求与disconnect要求一致，且保证logout先于disconnect。logout抛出异常将导致未定义行为
+	RbsLib::Function::Function<void(const std::exception& ex)> exception_handle;//用于输出错误日志，error_message_callback抛出的异常将导致未定义行为
 
 	Proxy(const std::string& local_address, std::uint16_t local_port, const std::string& remote_server_addr, std::uint16_t);
 	Proxy(const Proxy&) = delete;
@@ -88,7 +88,7 @@ public:
 	auto GetUserProxyMap() const -> std::map<std::string, std::pair<std::string, std::uint16_t>>;
 	void DeleteUserProxy(const std::string& username);
 	void ClearUserProxy();
-	auto GetDefaultProxy() -> std::pair<std::string, std::uint16_t>;//��ȡĬ�ϴ�����ַ,first:address,second:port
+	auto GetDefaultProxy() -> std::pair<std::string, std::uint16_t>;//获取默认代理地址,first:address,second:port
 	auto PingTest()const->std::uint64_t;
 	~Proxy() noexcept;
 protected:
