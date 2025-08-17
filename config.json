@@ -1,5 +1,5 @@
 {
-	"LocalAddress":	"::1",
+	"LocalAddress":	"0.0.0.0",
 	"LocalPort":	25565,
 	"Address":	"rbsstudio.cn",
 	"RemotePort":	25566,

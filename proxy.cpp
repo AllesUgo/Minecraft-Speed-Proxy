@@ -154,6 +154,7 @@ asio::awaitable<void> Proxy::AcceptLoop(asio::ip::tcp::acceptor& acceptor)
 
 asio::awaitable<void> Proxy::HandleConnection(asio::ip::tcp::socket socket)
 {
+	//std::string remote_endpoint_addr = socket.remote_endpoint().address().to_string();
 	std::time_t connect_time = std::time(nullptr);
 	//立即将连接加入连接池
 	co_await asio::dispatch(strand, asio::use_awaitable);
@@ -480,13 +481,15 @@ void Proxy::Start() {
 	// 4. 开始监听
 	this->acceptor->listen();
 
+	// 发布任务
+	asio::co_spawn(this->io_context, this->AcceptLoop(*this->acceptor), asio::detached);
+
 	// 启动线程池
 	for (auto& thread : this->io_threads) {
-		thread = std::thread([this]() { this->io_context.run(); });
+		thread = std::thread([this]() { 
+			this->io_context.run(); 
+			});
 	}
-
-	// 启动接收循环
-	asio::co_spawn(this->io_context, this->AcceptLoop(*this->acceptor), asio::detached);
 }
 
 void Proxy::KickByUsername(const std::string& username)
@@ -631,10 +634,24 @@ User::User(asio::ip::tcp::socket* client, asio::ip::tcp::socket* server)
 
 std::string Proxy::ConnectionControl::GetAddress(void) const noexcept
 {
-	return this->socket.remote_endpoint().address().to_string();
+	try
+	{
+		return this->socket.remote_endpoint().address().to_string();
+	}
+	catch (...)
+	{
+		return "";
+	}
 }
 
 std::string Proxy::ConnectionControl::GetPort(void) const noexcept
 {
-	return this->socket.remote_endpoint().port() == 0 ? "0" : std::to_string(this->socket.remote_endpoint().port());
+	try
+	{
+		return this->socket.remote_endpoint().port() == 0 ? "0" : std::to_string(this->socket.remote_endpoint().port());
+	}
+	catch (...)
+	{
+		return 0;
+	}
 }

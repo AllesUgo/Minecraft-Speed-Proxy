@@ -396,7 +396,7 @@ int main(int argc,const char**argv)
 			else if (WhiteBlackList::IsWhiteListOn() && !WhiteBlackList::IsInWhite(control.Username()))
 				control.isEnableConnect = false, control.reason = "You are not in white list";
 			else
-				Logger::LogInfo("玩家%s uuid:%s 登录于 %s", control.Username().c_str(), control.UUID().c_str(), control.GetAddress().c_str());
+				Logger::LogPlayer("玩家%s uuid:%s 登录于 %s", control.Username().c_str(), control.UUID().c_str(), control.GetAddress().c_str());
 			};
 		proxy->on_logout += [](Proxy::ConnectionControl& control) {
 			double flow = control.UploadBytes();
