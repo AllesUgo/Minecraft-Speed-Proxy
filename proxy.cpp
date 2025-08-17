@@ -3,370 +3,376 @@
 #include <chrono>
 #include <iostream>
 #include <mutex>
+#include "rbslib/Streams.h"
 
-Proxy::Proxy(const std::string& local_address, std::uint16_t local_port, const std::string& remote_server_addr, std::uint16_t remote_server_port)
-	: local_server(local_port,local_address), remote_server_addr(remote_server_addr), remote_server_port(remote_server_port)
+class AsyncInputSocketStream : public RbsLib::Streams::IAsyncInputStream
 {
+private:
+	asio::ip::tcp::socket& socket;
+public:
+	AsyncInputSocketStream(asio::ip::tcp::socket& socket) : socket(socket) {}
+	~AsyncInputSocketStream() noexcept {}
+	asio::awaitable<std::int64_t> ReadAsync(void* buffer, std::int64_t size) override
+	{
+		std::size_t n = co_await socket.async_read_some(asio::buffer(buffer, size), asio::use_awaitable);
+		co_return n;
+	}
+	asio::awaitable<const RbsLib::Buffer&> ReadAsync(RbsLib::Buffer& buffer, std::int64_t size = 0) override
+	{
+		buffer.Resize(size);
+		int64_t bytesRead = co_await socket.async_read_some(asio::buffer((void*)buffer.Data(), size), asio::use_awaitable);
+		buffer.SetLength(bytesRead);
+		buffer.Resize(bytesRead);
+		co_return buffer;
+	}
+};
 
-}
 
-void Proxy::Start()
+
+auto ProxyAsio::PingTest() const -> std::uint64_t
 {
-	this->thread_pool.Run([this]() {
+	return asio::co_spawn(this->strand, [this]() -> asio::awaitable<std::uint64_t> {
 		try
 		{
-			while (true) {
-				auto connection = this->local_server.Accept();
-				this->thread_pool.Run([this, connection]() {
-					try {
-						//加入连接池
-						std::unique_lock<std::shared_mutex> lock(this->global_mutex);
-						this->connections.push_back(connection);
-						lock.unlock();
-						//调用连接回调
-						this->on_connected(connection);
-						int connection_status = 0;//未握手
-						//必须先握手
-						std::string remote_server_suffix;
-						HandshakeDataPack handshake_data_pack;
-						RbsLib::Network::TCP::TCPStream stream(connection);
-						handshake_data_pack.ParseFromInputStream(stream);
-						connection_status = handshake_data_pack.next_state.Value();
-						while (true) {
-							switch (connection_status) {
-							case 1: {
-								RbsLib::Buffer buffer = DataPack::ReadFullData(stream);
-								switch (NoCompressionDataPack::GetID(buffer))
-								{
-								case 0: {
-									//状态请求，直接响应
-									StatusResponseDataPack status_response_data_pack;
-									std::shared_lock<std::shared_mutex> lock(this->motd_mutex);
-									auto motd = this->motd;
-									lock = std::shared_lock<std::shared_mutex>(this->global_mutex);
-									motd.SetOnlinePlayerNumber(this->users.size());
-									motd.SetSampleUsers(this->GetUsersInfo());
-									motd.SetVersion("", handshake_data_pack.protocol_version.Value());
-									this->max_player!=-1?motd.SetPlayerMaxNumber(this->max_player):motd.SetPlayerMaxNumber(9999999);
-									lock.unlock();
-									status_response_data_pack.json_response = RbsLib::DataType::String(motd.ToString());
-									stream.Write(status_response_data_pack.ToBuffer());
-									//debug motd
-									//std::cout << motd.motd_json.ToFormattedString() << std::endl;
-									break;
-								}
-								case 1: {
-									//ping,响应pong
-									PingDataPack ping_data_pack;
-									RbsLib::Streams::BufferInputStream bis(buffer);
-									ping_data_pack.ParseFromInputStream(bis);
-									PingDataPack pong_data_pack;
-									pong_data_pack.payload = ping_data_pack.payload;
-									stream.Write(pong_data_pack.ToBuffer());
-									break;
-								}
-								default:
-									throw ProxyException("Invalid data pack id.");
-								}
-								break;
-							}
-							case 2: {
-								//登录请求，接收登录请求
-								//检查是否达到最大玩家数
-								std::shared_lock<std::shared_mutex> check_max_player(this->global_mutex);
-								if (this->max_player != -1 && this->users.size() >= this->max_player) {
-									LoginFailureDataPack login_failed_data_pack("Server is full.");
-									stream.Write(login_failed_data_pack.ToBuffer());
-									throw ProxyException("Server is full.");
-								}
-								check_max_player.unlock();
-								StartLoginDataPack start_login_data_pack;
-								auto login_start_row_packet = DataPack::ReadFullData(stream);
-								RbsLib::Streams::BufferInputStream bis(login_start_row_packet);
-								start_login_data_pack.ParseFromInputStream(bis);
-								//检查是否是FML登录
-								if (handshake_data_pack.server_address.size()!=std::strlen(handshake_data_pack.server_address.c_str()))
-								{
-									remote_server_suffix = handshake_data_pack.server_address.substr(std::strlen(handshake_data_pack.server_address.c_str()));
-								}
-								//调用登录回调
-								try {
-									if (start_login_data_pack.have_uuid) 
-										this->on_login(connection, start_login_data_pack.user_name, start_login_data_pack.GetUUID());
-									else 
-										this->on_login(connection, start_login_data_pack.user_name, std::string());
-								}
-								catch (const CallbackException& e) {
-									//登录失败
-									LoginFailureDataPack login_failed_data_pack(e.what());
-									stream.Write(login_failed_data_pack.ToBuffer());
-									throw ProxyException(std::string("Callback disable user login: ") + e.what());
-								}
-								//连接远程服务器
-								std::string remote_server_addr_real;
-								std::uint32_t remote_server_port_real;
-								std::shared_lock<std::shared_mutex> share_lock(this->global_mutex);
-                                if (auto usr = this->user_proxy_map.find(start_login_data_pack.user_name); usr != this->user_proxy_map.end())
-                                {
-									remote_server_addr_real = usr->second.first;
-									remote_server_port_real = usr->second.second;
-                                }
-								else
-								{
-									remote_server_addr_real = this->remote_server_addr;
-									remote_server_port_real = this->remote_server_port;
-								}
-								share_lock.unlock();
-								auto remote_server = RbsLib::Network::TCP::TCPClient::Connect(remote_server_addr_real, remote_server_port_real);
-								int flag = 1;
-								remote_server.SetSocketOption(IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag));
-								flag = 1;
-								connection.SetSocketOption(IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag));
-								auto user_ptr = std::make_shared<User>(connection, remote_server);
-								
-								user_ptr->username = start_login_data_pack.user_name;
-								user_ptr->uuid = start_login_data_pack.GetUUID();
-								user_ptr->ip = connection.GetAddress();
-								user_ptr->connect_time = std::time(nullptr);
-								//加入用户池
-								lock.lock();
-								if (this->users.find(start_login_data_pack.user_name) != this->users.end()) 
-								{
-									lock.unlock();
-									LoginFailureDataPack login_failed_data_pack(start_login_data_pack.user_name+" already online");
-									stream.Write(login_failed_data_pack.ToBuffer());
-									throw ProxyException("User already online: " + start_login_data_pack.user_name);
-								}
-								this->users[user_ptr->username] = user_ptr;
-								lock.unlock();
-								try {
-									//发送握手申请
-									handshake_data_pack.server_address = RbsLib::DataType::String(this->remote_server_addr+remote_server_suffix);
-									
+			// 解析主机名和端口
+			asio::ip::tcp::resolver resolver(co_await asio::this_coro::executor);
+			auto endpoints = co_await resolver.async_resolve(this->remote_server_addr, std::to_string(this->remote_server_port), asio::use_awaitable);
 
-									remote_server.Send(handshake_data_pack.ToBuffer());
-									//发送登录请求
-									remote_server.Send(login_start_row_packet);
-									//进入代理
-									RbsLib::Buffer buffer(1024);
-									//将该用户记录
-									
-									this->thread_pool.Run([this, connection, remote_server,user_ptr]() {
-										std::unique_lock<std::shared_mutex> lock(this->global_mutex);
-										this->connections.push_back(connection);
-										lock.unlock();
-										try
-										{
-											std::unique_ptr<char[]> buffer = std::make_unique<char[]>(1024);
-											int size;
-											while (true) {
-												size = remote_server.Recv(buffer.get(), 1024, 0);
-												if (size<=0) throw ProxyException("Remote server disconnected or error.");
-												if (connection.Send(buffer.get(),size,0)<=0)
-													throw ProxyException("Client disconnected or error.");
-												user_ptr->upload_bytes += size;
-											}
-										}
-										catch (const std::exception& e)
-										{
-											exception_handle(e);
-											connection.Disable();
-											remote_server.Disable();
-											lock.lock();
-											this->connections.remove(remote_server);
-										}
-										});
-									
-									std::unique_ptr<char[]> b = std::make_unique<char[]>(1024);
-									int size;
-									while (true) {
-										size = connection.Recv(b.get(),1024,0);
-										if (size<=0) throw ProxyException("Client disconnected or error.");
-										if (remote_server.Send(b.get(),size,0)<=0)
-											throw ProxyException("Remote server disconnected or error.");
-										user_ptr->upload_bytes += size;
-									}
-								}
-								catch (...) {
-									remote_server.Disable();
-									this->users.erase(start_login_data_pack.user_name);
-									UserInfo user_info;
-									user_info.username = user_ptr->username;
-									user_info.uuid = user_ptr->uuid;
-									user_info.ip = user_ptr->ip;
-									user_info.upload_bytes = user_ptr->upload_bytes;
-									user_info.connect_time = user_ptr->connect_time;
-									this->on_logout(connection,user_info);
-									throw;
-								}
-							}
-								  break;
-							default:
-								throw ProxyException("Invalid connection status.");
-							}
-						}
+			// 创建socket并连接
+			asio::ip::tcp::socket remote_server(co_await asio::this_coro::executor);
+			co_await asio::async_connect(remote_server, endpoints, asio::use_awaitable);
+			remote_server.set_option(asio::ip::tcp::no_delay(true));
+
+			// 创建握手数据包
+			HandshakeDataPack handshake_data_pack;
+			handshake_data_pack.id = 0;
+			handshake_data_pack.server_address = RbsLib::DataType::String(this->remote_server_addr);
+			handshake_data_pack.server_port = this->remote_server_port;
+			handshake_data_pack.next_state = 1;
+			handshake_data_pack.protocol_version = 754;
+			auto handshake_buffer = handshake_data_pack.ToBuffer();
+			co_await remote_server.async_send(asio::buffer(handshake_buffer.Data(), handshake_buffer.GetLength()), asio::use_awaitable);
+
+			AsyncInputSocketStream stream(remote_server);
+			
+			// 发送状态请求
+			StatusRequestDataPack status_request_data_pack;
+			auto status_buffer = status_request_data_pack.ToBuffer();
+			co_await remote_server.async_send(asio::buffer(status_buffer.Data(), status_buffer.GetLength()), asio::use_awaitable);
+			
+			// 接收状态并丢弃
+			co_await DataPack::ReadFullData(stream);
+			
+			// ping
+			PingDataPack ping_data_pack, pong_data_pack;
+			ping_data_pack.payload = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+			auto start = std::chrono::system_clock::now();
+			auto ping_buffer = ping_data_pack.ToBuffer();
+			co_await remote_server.async_send(asio::buffer(ping_buffer.Data(), ping_buffer.GetLength()), asio::use_awaitable);
+			co_await pong_data_pack.ParseFromInputStream(stream);
+			auto end = std::chrono::system_clock::now();
+			auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+			
+			if (pong_data_pack.payload != ping_data_pack.payload) 
+				throw ProxyException("Ping test failed.");
+			
+			co_return duration.count();
+		}
+		catch (const std::exception& e)
+		{
+			throw ProxyException(std::string("Ping test failed: ") + e.what());
+		}
+	}, asio::use_future).get();
+}
+
+ProxyAsio::~ProxyAsio() noexcept
+{
+	//正常退出，关闭acceptor和所有连接，等待所有协程结束后其所属线程退出，然后关闭io_context
+	try
+	{
+		this->acceptor->close();
+		asio::co_spawn(this->strand,
+			[this]() -> asio::awaitable<void> {
+				for (auto& conn : this->connections)
+				{
+					try
+					{
+						conn->shutdown(asio::ip::tcp::socket::shutdown_both);
 					}
-					catch (const std::exception& e) {
-						exception_handle(e);
-						connection.Disable();
-						std::unique_lock<std::shared_mutex> lock(this->global_mutex);
-						this->connections.remove(connection);
-						try {
-							this->on_disconnect(connection);
-						}
-						catch (...) {
-						}
-					}
-					});
-			}
-		}
-		catch (const std::exception& ex) {
-		}
-		});
-
-}
-
-void Proxy::KickByUsername(const std::string& username) {
-	std::shared_lock<std::shared_mutex> lock(this->global_mutex);
-	auto iterator = this->users.find(username);
-	if (iterator != this->users.end()) {
-		iterator->second->client.Disable();
-		iterator->second->server.Disable();
+					catch (...) {}
+				}
+				co_return;
+			}(),
+			asio::use_future).get();
 	}
-	else throw ProxyException("User not found");
-}
-
-void Proxy::KickByUUID(const std::string& uuid)
-{
-	std::shared_lock<std::shared_mutex> lock(this->global_mutex);
-	for (auto& user : this->users) {
-		if (user.second->uuid == uuid) {
-			user.second->client.Disable();
-			user.second->server.Disable();
-			return;
-		}
+	catch (const std::exception* ex) 
+	{
+		this->log_output((std::string("关闭监听器或连接时发生异常: ") + ex->what()).c_str());
 	}
-	throw ProxyException("User not found");
-}
-
-auto Proxy::GetUsersInfo() -> std::list<UserInfo>
-{
-	std::shared_lock<std::shared_mutex> lock(this->global_mutex);
-	std::list<UserInfo> users_info;
-	for (auto& user : this->users) {
-		UserInfo user_info;
-		user_info.username = user.second->username;
-		user_info.uuid = user.second->uuid;
-		user_info.ip = user.second->ip;
-		user_info.upload_bytes = user.second->upload_bytes;
-		user_info.connect_time = user.second->connect_time;
-		users_info.push_back(user_info);
+	for (auto& thread : this->io_threads)
+	{
+		if (thread.joinable())
+			thread.join();
 	}
-	return users_info;
-}
-
-void Proxy::SetMotd(const std::string& motd)
-{
-	std::unique_lock<std::shared_mutex> lock(this->motd_mutex);
-	neb::CJsonObject motd_json;
-	if (motd_json.Parse(motd)==false) throw ProxyException("Invalid motd json.");
-	this->motd.motd_json = motd_json;
-}
-
-void Proxy::SetMaxPlayer(int n)
-{
-	if (n<-1) throw ProxyException("Can not set maxplayer less than -1.");
-	std::unique_lock<std::shared_mutex> lock(this->global_mutex);
-	this->max_player = n;
-}
-
-int Proxy::GetMaxPlayer(void)
-{
-	std::shared_lock<std::shared_mutex> lock(this->global_mutex);
-	return this->max_player;
-}
-
-void Proxy::SetUserProxy(const std::string& username, const std::string& proxy_address, std::uint16_t proxy_port)
-{
-	std::unique_lock<std::shared_mutex> lock(this->global_mutex);
-	this->user_proxy_map[username] = std::make_pair(proxy_address, proxy_port);
-}
-
-auto Proxy::GetUserProxyMap() const -> std::map<std::string, std::pair<std::string, std::uint16_t>>
-{
-	std::shared_lock<std::shared_mutex> lock(this->global_mutex);
-	return this->user_proxy_map;
-}
-
-void Proxy::DeleteUserProxy(const std::string& username)
-{
-	std::unique_lock<std::shared_mutex> lock(this->global_mutex);
-	auto it = this->user_proxy_map.find(username);
-	if (it != this->user_proxy_map.end()) {
-		this->user_proxy_map.erase(it);
-	} else {
-		throw ProxyException("User proxy not found.");
+	try
+	{
+		this->io_context.stop();
+	}
+	catch (const std::exception* ex)
+	{
+		this->log_output((std::string("停止IO上下文时发生异常: ") + ex->what()).c_str());
 	}
 }
 
-void Proxy::ClearUserProxy()
-{
-	std::unique_lock<std::shared_mutex> lock(this->global_mutex);
-	this->user_proxy_map.clear();
-}
-
-auto Proxy::GetDefaultProxy() -> std::pair<std::string, std::uint16_t>
-{
-	return std::pair<std::string, std::uint16_t>(this->remote_server_addr, this->remote_server_port);
-}
-
-auto Proxy::PingTest() const -> std::uint64_t
+asio::awaitable<void> ProxyAsio::AcceptLoop(asio::ip::tcp::acceptor& acceptor)
 {
 	try
 	{
-		auto remote_server = RbsLib::Network::TCP::TCPClient::Connect(remote_server_addr, remote_server_port);
-		int flag = 1;
-		remote_server.SetSocketOption(IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag));
-		HandshakeDataPack handshake_data_pack;
-		handshake_data_pack.id = 0;
-		handshake_data_pack.server_address = RbsLib::DataType::String(remote_server_addr);
-		handshake_data_pack.server_port = remote_server_port;
-		handshake_data_pack.next_state = 1;
-		handshake_data_pack.protocol_version = 754;
-		remote_server.Send(handshake_data_pack.ToBuffer());
-		RbsLib::Network::TCP::TCPStream stream(remote_server);
-		//发送状态请求
-		StatusRequestDataPack status_request_data_pack;
-		remote_server.Send(status_request_data_pack.ToBuffer());
-		//接收状态并丢弃
-		DataPack::Data(stream);
-		//ping
-		PingDataPack ping_data_pack,pong_data_pack;
-		ping_data_pack.payload = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-		auto start = std::chrono::system_clock::now();
-		remote_server.Send(ping_data_pack.ToBuffer());
-		pong_data_pack.ParseFromInputStream(stream);
-		auto end = std::chrono::system_clock::now();
-		auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-		if (pong_data_pack.payload != ping_data_pack.payload) throw ProxyException("Ping test failed.");
-		return duration.count();
+		while (true)
+		{
+			auto socket = co_await acceptor.async_accept(asio::use_awaitable);
+			asio::co_spawn(socket.get_executor(),
+				this->HandleConnection(std::move(socket)),
+				asio::detached);
+		}
 	}
-	catch (const std::exception& e)
+	catch (std::system_error const& ex)
 	{
-		throw ProxyException(std::string("Ping test failed: ") + e.what());
+		if (ex.code() != asio::error::operation_aborted) {
+			throw;
+		}
 	}
 }
 
-Proxy::~Proxy() noexcept
+asio::awaitable<void> ProxyAsio::HandleConnection(asio::ip::tcp::socket socket)
 {
-	this->local_server.ForceClose();
-	std::unique_lock<std::shared_mutex> lock(this->global_mutex);
-	for (auto& connection : this->connections) {
-		connection.Disable();
+	//立即将连接加入连接池
+	co_await asio::dispatch(strand, asio::use_awaitable);
+	this->connections.push_back(&socket);
+	try
+	{
+		ConnectionControl user_control(socket);
+		int connection_status = 0;//未握手
+		//必须先握手
+		std::string remote_server_suffix;
+		HandshakeDataPack handshake_data_pack;
+		AsyncInputSocketStream stream(socket);
+		co_await handshake_data_pack.ParseFromInputStream(stream);
+		connection_status = handshake_data_pack.next_state.Value();
+		bool is_continue_loop = true;
+		while (is_continue_loop)
+		{
+			switch (connection_status)
+			{
+			case 1: {
+				RbsLib::Buffer buffer = co_await DataPack::ReadFullData(stream);
+				switch (NoCompressionDataPack::GetID(buffer))
+				{
+				case 0: {
+					//状态请求，直接响应
+					StatusResponseDataPack status_response_data_pack;
+					co_await asio::dispatch(strand, asio::use_awaitable); //确保在线程安全的环境中访问用户数据
+					auto motd = this->motd;
+					motd.SetOnlinePlayerNumber(this->users.size());
+					motd.SetSampleUsers(this->GetUsersInfo());
+					motd.SetVersion("", handshake_data_pack.protocol_version.Value());
+					this->max_player != -1 ? motd.SetPlayerMaxNumber(this->max_player) : motd.SetPlayerMaxNumber(9999999);
+					status_response_data_pack.json_response = RbsLib::DataType::String(motd.ToString());
+					co_await socket.async_send(asio::buffer(status_response_data_pack.ToBuffer().Data(), status_response_data_pack.ToBuffer().GetLength()), asio::use_awaitable);
+					//debug motd
+					//std::cout << motd.motd_json.ToFormattedString() << std::endl;
+					break;
+				}
+				case 1: {
+					//ping,响应pong
+					PingDataPack ping_data_pack;
+					RbsLib::Streams::BufferInputStream bis(buffer);
+					ping_data_pack.ParseFromInputStream(bis);
+					PingDataPack pong_data_pack;
+					pong_data_pack.payload = ping_data_pack.payload;
+					co_await socket.async_send(asio::buffer(pong_data_pack.ToBuffer().Data(), pong_data_pack.ToBuffer().GetLength()), asio::use_awaitable);
+					break;
+				}
+				default:
+					throw ProxyException("Invalid data pack id.");
+				}
+				break;
+			}
+			case 2: {
+				//登录请求，接收登录请求
+				//检查是否达到最大玩家数
+				co_await asio::dispatch(strand, asio::use_awaitable); //确保在线程安全的环境中访问用户数据
+				if (this->max_player != -1 && this->users.size() >= this->max_player) {
+					LoginFailureDataPack login_failed_data_pack("Server is full.");
+					co_await socket.async_send(asio::buffer(login_failed_data_pack.ToBuffer().Data(), login_failed_data_pack.ToBuffer().GetLength()), asio::use_awaitable);
+					throw ProxyException("Server is full.");
+				}
+				StartLoginDataPack start_login_data_pack;
+				auto login_start_row_packet = co_await DataPack::ReadFullData(stream);
+				RbsLib::Streams::BufferInputStream bis(login_start_row_packet);
+				start_login_data_pack.ParseFromInputStream(bis);
+				//检查是否是FML登录
+				if (handshake_data_pack.server_address.size() != std::strlen(handshake_data_pack.server_address.c_str()))
+				{
+					remote_server_suffix = handshake_data_pack.server_address.substr(std::strlen(handshake_data_pack.server_address.c_str()));
+				}
+				//调用登录回调
+				user_control.username = start_login_data_pack.user_name;
+				if (start_login_data_pack.have_uuid)
+				{
+					user_control.uuid = start_login_data_pack.GetUUID();
+				}
+				co_await asio::dispatch(strand, asio::use_awaitable);//串行化
+				this->on_login(user_control);
+				if (user_control.isEnableConnect == false)
+				{
+					LoginFailureDataPack login_failed_data_pack(user_control.reason);
+					auto buffer = login_failed_data_pack.ToBuffer();
+					co_await socket.async_send(asio::buffer(buffer.Data(), buffer.GetLength()), asio::use_awaitable);
+					throw ProxyException(std::string("Callback disable user login: ") + user_control.reason);
+				}
+
+				//连接远程服务器
+				std::string remote_server_addr_real;
+				std::uint32_t remote_server_port_real;
+				co_await asio::dispatch(strand, asio::use_awaitable); //确保在线程安全的环境中访问用户数据
+				if (auto usr = this->user_proxy_map.find(start_login_data_pack.user_name); usr != this->user_proxy_map.end())
+				{
+					remote_server_addr_real = usr->second.first;
+					remote_server_port_real = usr->second.second;
+				}
+				else
+				{
+					remote_server_addr_real = this->remote_server_addr;
+					remote_server_port_real = this->remote_server_port;
+				}
+				asio::ip::tcp::socket remote_server(socket.get_executor());
+				try
+				{
+					// 解析主机名和端口
+					asio::ip::tcp::resolver resolver(socket.get_executor());
+					auto endpoints = co_await resolver.async_resolve(remote_server_addr_real, std::to_string(remote_server_port_real), asio::use_awaitable);
+
+					// 尝试连接每个解析到的端点
+					co_await asio::async_connect(remote_server, endpoints, asio::use_awaitable);
+				}
+				catch (const std::exception& e)
+				{
+					throw; // 重新抛出异常
+				}
+				remote_server.set_option(asio::ip::tcp::no_delay(true));
+				socket.set_option(asio::ip::tcp::no_delay(true));
+				auto user_ptr = std::make_shared<User>(socket, remote_server);
+
+				user_ptr->username = start_login_data_pack.user_name;
+				user_ptr->uuid = start_login_data_pack.GetUUID();
+				user_ptr->ip = socket.remote_endpoint().address().to_string();
+				user_ptr->connect_time = std::time(nullptr);
+				//加入用户池
+				co_await asio::dispatch(strand, asio::use_awaitable); //串行化
+				if (this->users.find(start_login_data_pack.user_name) != this->users.end())
+				{
+					LoginFailureDataPack login_failed_data_pack(start_login_data_pack.user_name + " already online");
+					RbsLib::Buffer buffer = login_failed_data_pack.ToBuffer();
+					co_await socket.async_send(asio::buffer(buffer.Data(), buffer.GetLength()), asio::use_awaitable);
+					throw ProxyException("User already online: " + start_login_data_pack.user_name);
+				}
+				this->users[user_ptr->username] = user_ptr;
+				bool error_occurred = false;
+				//将远程服务器也加入连接池
+				co_await asio::dispatch(strand, asio::use_awaitable); //串行化
+				this->connections.push_back(&remote_server);
+				try
+				{
+					//此阶段若要断开连接需要从用户表中删除用户
+					//发送握手申请
+					handshake_data_pack.server_address = RbsLib::DataType::String(this->remote_server_addr + remote_server_suffix);
+					auto buffer = start_login_data_pack.ToBuffer();
+					co_await remote_server.async_send(asio::buffer(buffer.Data(), buffer.GetLength()), asio::use_awaitable);
+					//发送登录请求
+					co_await remote_server.async_send(asio::buffer(login_start_row_packet.Data(), login_start_row_packet.GetLength()), asio::use_awaitable);
+					//进入代理
+					RbsLib::Buffer buffer(1024);
+				}
+				catch (...)
+				{
+					error_occurred = true;
+				}
+				if (!error_occurred)
+				{
+					//无错误进入转发，期间一般不会抛出异常，出现异常一般都是致命错误
+					//将连接加入连接池，用于退出服务器时关闭
+					co_await asio::dispatch(strand, asio::use_awaitable); //串行化
+					this->connections.push_back(&remote_server);
+					this->connections.push_back(&socket);
+					//开始转发数据
+					{
+						using namespace asio::experimental::awaitable_operators;
+						co_await(ForwardData(socket, remote_server, *user_ptr) && ForwardData(remote_server, socket, *user_ptr));
+					}
+					//转发结束，关闭连接
+					co_await asio::dispatch(strand, asio::use_awaitable); //串行化
+					this->connections.remove(&remote_server);
+					this->connections.remove(&socket);
+				}
+				//清理资源
+				co_await asio::dispatch(strand, asio::use_awaitable); //串行化
+				this->connections.remove(&remote_server);//将远程服务器连接从连接池删除
+				this->users.erase(start_login_data_pack.user_name);//从用户池中删除用户
+				ConnectionControl user_info(socket);
+				user_info.username = user_ptr->username;
+				user_info.uuid = user_ptr->uuid;
+				this->on_logout(user_info); //调用登出回调
+				is_continue_loop = false; //退出循环
+			}
+				  break;
+			default:
+				throw ProxyException("Invalid connection status.");
+			}
+		}
 	}
-	this->connections.clear();
-	lock.unlock();
+	catch (...) {}
+	//删除连接池中的连接
+	co_await asio::dispatch(strand, asio::use_awaitable); //串行化
+	this->connections.remove(&socket);
 }
+
+asio::awaitable<void> ProxyAsio::ForwardData(asio::ip::tcp::socket& client_socket, asio::ip::tcp::socket& server_socket, User& user_control) noexcept
+{
+	try
+	{
+		std::unique_ptr<char[]> buffer = std::make_unique<char[]>(1024);
+		std::size_t size;
+		while (true)
+		{
+			size = co_await client_socket.async_receive(asio::buffer(buffer.get(), 1024), asio::use_awaitable);
+			co_await server_socket.async_send(asio::buffer(buffer.get(), size), asio::use_awaitable);
+			user_control.upload_bytes += size;
+		}
+	}
+	catch (const std::exception& e)
+	{
+	}
+	try
+	{
+		//禁用两个方向的连接
+		user_control.client->shutdown(asio::ip::tcp::socket::shutdown_both);
+	}
+	catch (const std::exception& e)
+	{
+		//忽略禁用连接时的异常
+	}
+	try
+	{
+		user_control.server->shutdown(asio::ip::tcp::socket::shutdown_both);
+	}
+	catch (const std::exception& e)
+	{
+		//忽略禁用连接时的异常
+	}
+}
+
+
 
 ProxyException::ProxyException(const std::string& message) noexcept
 	: message(message)
@@ -378,20 +384,6 @@ const char* ProxyException::what() const noexcept
 	return this->message.c_str();
 }
 
-User::User(const RbsLib::Network::TCP::TCPConnection& client, const RbsLib::Network::TCP::TCPConnection& server)
-	: client(client), server(server)
-{
-}
-
-Proxy::CallbackException::CallbackException(const std::string& message) noexcept
-	: message(message)
-{
-}
-
-const char* Proxy::CallbackException::what() const noexcept
-{
-	return this->message.c_str();
-}
 
 void Motd::SetVersion(const std::string& version_name, int protocol)
 {
@@ -418,9 +410,9 @@ void Motd::SetSampleUsers(std::list<UserInfo> const& users)
 	if (this->motd_json["players"].KeyExist("sample") == true)
 		return;//如果已经存在sample则不添加
 	this->motd_json["players"].AddEmptySubArray("sample");
-	if (this->motd_json["players"]["sample"].GetArraySize()==0) 
+	if (this->motd_json["players"]["sample"].GetArraySize() == 0)
 	{
-		for (auto& user : users) 
+		for (auto& user : users)
 		{
 			if (user.uuid.empty()) continue;
 			neb::CJsonObject user_json;
@@ -447,7 +439,156 @@ auto Motd::LoadMotdFromFile(const std::string& path) -> std::string
 	}
 	catch (const std::exception& e)
 	{
-		throw ProxyException(std::string("Motd读取失败: ")+e.what());
+		throw ProxyException(std::string("Motd读取失败: ") + e.what());
 	}
 
+}
+
+
+ProxyAsio::ProxyAsio(const std::string& local_address, std::uint16_t local_port, const std::string& remote_server_addr, std::uint16_t)
+	:local_address(local_address), local_port(local_port), remote_server_addr(remote_server_addr), remote_server_port(remote_server_port)
+{
+	this->strand = asio::make_strand(io_context.get_executor());
+	this->io_threads.resize(std::thread::hardware_concurrency());
+}
+
+void ProxyAsio::Start()
+{
+	this->acceptor = std::make_unique<asio::ip::tcp::acceptor>(this->io_context, asio::ip::tcp::endpoint(asio::ip::make_address(this->local_address), this->local_port));
+	for (auto& thread : this->io_threads)
+	{
+		thread = std::thread([this]() {
+			this->io_context.run();
+			});
+	}
+	this->acceptor->set_option(asio::socket_base::reuse_address(true));
+	//若是IPv6地址，则允许IPv4映射
+	if (this->local_address.find(':') != std::string::npos)
+	{
+		this->acceptor->set_option(asio::ip::v6_only(false));
+	}
+	asio::co_spawn(this->io_context, this->AcceptLoop(*this->acceptor), asio::detached);
+}
+
+void ProxyAsio::KickByUsername(const std::string& username)
+{
+
+	asio::co_spawn(this->strand, [this, username]() -> asio::awaitable<void> {
+
+		co_await asio::dispatch(this->strand, asio::use_awaitable);
+		auto it = this->users.find(username);
+		if (it != this->users.end())
+		{
+			it->second->client->shutdown(asio::ip::tcp::socket::shutdown_both);
+		}
+		}, asio::use_future).get();
+}
+
+void ProxyAsio::KickByUUID(const std::string& uuid)
+{
+	asio::co_spawn(this->strand, [this, &uuid]() -> asio::awaitable<void> {
+		co_await asio::dispatch(this->strand, asio::use_awaitable);
+		for (auto it = this->users.begin(); it != this->users.end(); ++it)
+		{
+			if (it->second->uuid == uuid)
+			{
+				it->second->client->shutdown(asio::ip::tcp::socket::shutdown_both);
+				break;
+			}
+		}
+		}, asio::use_future).get();
+}
+
+auto ProxyAsio::GetUsersInfo() -> std::list<UserInfo>
+{
+	asio::co_spawn(this->strand, [this]() -> asio::awaitable<std::list<UserInfo>> {
+		std::list<UserInfo> users_info;
+		co_await asio::dispatch(this->strand, asio::use_awaitable);
+		for (auto& user : this->users)
+		{
+			UserInfo user_info;
+			user_info.username = user.second->username;
+			user_info.uuid = user.second->uuid;
+			user_info.ip = user.second->ip;
+			user_info.connect_time = user.second->connect_time;
+			user_info.upload_bytes = user.second->upload_bytes;
+			users_info.push_back(user_info);
+		}
+		co_return users_info;
+		}, asio::use_future).get();
+}
+
+void ProxyAsio::SetMotd(const std::string& motd)
+{
+	asio::co_spawn(this->strand, [this, motd]() -> asio::awaitable<void> {
+		co_await asio::dispatch(this->strand, asio::use_awaitable);
+		this->motd.motd_json = neb::CJsonObject(motd);
+		}, asio::use_future).get();
+}
+
+void ProxyAsio::SetMaxPlayer(int n)
+{
+	this->max_player.store(n);//原子变量不需要发送到协程
+}
+
+int ProxyAsio::GetMaxPlayer(void)
+{
+	return this->max_player.load();//原子变量不需要发送到协程
+}
+
+void ProxyAsio::SetUserProxy(const std::string& username, const std::string& proxy_address, std::uint16_t proxy_port)
+{
+	asio::co_spawn(this->strand, [this, username, proxy_address, proxy_port]() -> asio::awaitable<void> {
+		co_await asio::dispatch(this->strand, asio::use_awaitable);
+		this->user_proxy_map[username] = std::make_pair(proxy_address, proxy_port);
+		}, asio::use_future).get();
+}
+
+auto ProxyAsio::GetUserProxyMap() const -> std::map<std::string, std::pair<std::string, std::uint16_t>>
+{
+	return asio::co_spawn(this->strand, [this]() -> asio::awaitable<std::map<std::string, std::pair<std::string, std::uint16_t>>> {
+		co_await asio::dispatch(this->strand, asio::use_awaitable);
+		co_return this->user_proxy_map;
+		}, asio::use_future).get();
+}
+
+void ProxyAsio::DeleteUserProxy(const std::string& username)
+{
+	asio::co_spawn(this->strand, [this, username]() -> asio::awaitable<void> {
+		co_await asio::dispatch(this->strand, asio::use_awaitable);
+		this->user_proxy_map.erase(username);
+		}, asio::use_future).get();
+}
+
+void ProxyAsio::ClearUserProxy()
+{
+	asio::co_spawn(this->strand, [this]() -> asio::awaitable<void> {
+		co_await asio::dispatch(this->strand, asio::use_awaitable);
+		this->user_proxy_map.clear();
+		}, asio::use_future).get();
+}
+
+auto ProxyAsio::GetDefaultProxy() -> std::pair<std::string, std::uint16_t>
+{
+	return std::make_pair(this->remote_server_addr, this->remote_server_port);
+}
+
+ProxyAsio::ConnectionControl::ConnectionControl(asio::ip::tcp::socket& connection)
+	: socket(connection)
+{
+}
+
+const std::string& ProxyAsio::ConnectionControl::Username(void) const noexcept
+{
+	return this->username;
+}
+
+const std::string& ProxyAsio::ConnectionControl::UUID(void) const noexcept
+{
+	return this->uuid;
+}
+
+User::User(asio::ip::tcp::socket* client, asio::ip::tcp::socket* server)
+	:client(client), server(server)
+{
 }

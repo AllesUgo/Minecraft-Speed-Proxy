@@ -6,6 +6,7 @@
 #include "rbslib/Streams.h"
 #include <cstdint>
 #include <exception>
+#include "asio/import_asio.h"
 
 class DataPackException : public std::exception {
 private:
@@ -18,7 +19,9 @@ public:
 class DataPack {
 public:
 	static RbsLib::Buffer Data(RbsLib::Streams::IInputStream& input_stream);
+	static asio::awaitable<RbsLib::Buffer> Data(RbsLib::Streams::IAsyncInputStream& input_stream);
 	static RbsLib::Buffer ReadFullData(RbsLib::Streams::IInputStream& input_stream);
+	static asio::awaitable<RbsLib::Buffer> ReadFullData(RbsLib::Streams::IAsyncInputStream& input_stream);
 	virtual auto ToBuffer() const -> RbsLib::Buffer = 0;
 };
 
@@ -35,6 +38,7 @@ public:
 	std::uint16_t server_port;
 	RbsLib::DataType::Integer next_state;
 	void ParseFromInputStream(RbsLib::Streams::IInputStream& input_stream);
+	asio::awaitable<void> ParseFromInputStream(RbsLib::Streams::IAsyncInputStream& input_stream);
 	// 通过 NoCompressionDataPack 继承
 	auto ToBuffer() const->RbsLib::Buffer override;
 
@@ -44,6 +48,7 @@ class StatusResponseDataPack : public NoCompressionDataPack {
 public:
 	StatusResponseDataPack();
 	void ParseFromInputStream(RbsLib::Streams::IInputStream& input_stream);
+	asio::awaitable<void> ParseFromInputStream(RbsLib::Streams::IAsyncInputStream& input_stream);
 	RbsLib::DataType::String json_response;
 	// 通过 NoCompressionDataPack 继承
 	auto ToBuffer() const->RbsLib::Buffer override;
@@ -52,6 +57,7 @@ class StatusRequestDataPack : public NoCompressionDataPack {
 public:
 	StatusRequestDataPack();
 	void ParseFromInputStream(RbsLib::Streams::IInputStream& input_stream);
+	asio::awaitable<void> ParseFromInputStream(RbsLib::Streams::IAsyncInputStream& input_stream);
 	// 通过 NoCompressionDataPack 继承
 	auto ToBuffer() const->RbsLib::Buffer override;
 };
@@ -61,6 +67,7 @@ class PingDataPack : public NoCompressionDataPack {
 		PingDataPack();
 	std::uint64_t payload;
 	void ParseFromInputStream(RbsLib::Streams::IInputStream& input_stream);
+	asio::awaitable<void> ParseFromInputStream(RbsLib::Streams::IAsyncInputStream& input_stream);
 	// 通过 NoCompressionDataPack 继承
 	auto ToBuffer() const->RbsLib::Buffer override;
 };
@@ -72,6 +79,7 @@ public:
 	bool have_uuid = false;
 	auto GetUUID() const -> std::string;
 	void ParseFromInputStream(RbsLib::Streams::IInputStream& input_stream);
+	asio::awaitable<void> ParseFromInputStream(RbsLib::Streams::IAsyncInputStream& input_stream);
 	// 通过 NoCompressionDataPack 继承
 	auto ToBuffer() const->RbsLib::Buffer override;
 };

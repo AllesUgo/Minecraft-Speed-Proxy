@@ -154,6 +154,25 @@ bool RbsLib::DataType::Integer::ParseFromVarint(RbsLib::Streams::IInputStream& i
 	return false;
 }
 
+asio::awaitable<bool> RbsLib::DataType::Integer::ParseFromVarint(RbsLib::Streams::IAsyncInputStream& is)
+{
+	std::uint8_t byte;
+	int n = 0;
+	std::uint64_t temp = 0;
+	for (int i = 0; i < 10; i++)
+	{
+		int recved = co_await is.ReadAsync(&byte, 1);
+		if (1 != recved) break;
+		temp |= ((std::uint64_t)(byte & 0x7F) << (n++ * 7));
+		if ((byte & 0x80) == 0)
+		{
+			this->Value(temp);
+			co_return true;
+		}
+	}
+	co_return false;
+}
+
 void RbsLib::DataType::String::ParseFromInputStream(RbsLib::Streams::IInputStream& is)
 {
 	std::uint8_t byte;
@@ -169,6 +188,33 @@ void RbsLib::DataType::String::ParseFromInputStream(RbsLib::Streams::IInputStrea
 	while (need_read > 0)
 	{
 		std::int64_t n = is.Read(ptr.get(), need_read);
+		if (n <= 0)
+		{
+			throw DataTypeException("String::ParseFromInputStream: failed to read data from input_stream");
+		}
+		else
+		{
+			need_read -= n;
+		}
+	}
+	this->assign(ptr.get(), size);
+}
+
+asio::awaitable<bool> RbsLib::DataType::String::ParseFromInputStream(RbsLib::Streams::IAsyncInputStream& is)
+{
+	std::uint8_t byte;
+	std::int64_t size;
+	RbsLib::DataType::Integer size_data;
+	if (!co_await size_data.ParseFromVarint(is))
+	{
+		throw DataTypeException("String::ParseFromInputStream: failed to parse size from varint");
+	}
+	size = size_data.Value();
+	std::unique_ptr<char[]> ptr = std::make_unique<char[]>(size);
+	std::int64_t need_read = size;
+	while (need_read > 0)
+	{
+		std::int64_t n = co_await is.ReadAsync(ptr.get(), need_read);
 		if (n <= 0)
 		{
 			throw DataTypeException("String::ParseFromInputStream: failed to read data from input_stream");

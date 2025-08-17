@@ -37,11 +37,13 @@ namespace RbsLib::DataType {
 		auto ToString() const -> std::string;
 		auto ToVarint() const -> Buffer;
 		bool ParseFromVarint(RbsLib::Streams::IInputStream& is);
+		asio::awaitable<bool> ParseFromVarint(RbsLib::Streams::IAsyncInputStream& is);
 	};
 
 	class String :public std::string {
 	public:
 		void ParseFromInputStream(RbsLib::Streams::IInputStream& is);
+		asio::awaitable<bool> ParseFromInputStream(RbsLib::Streams::IAsyncInputStream& is);
 		auto ToBuffer(void) const->RbsLib::Buffer;
 	};
 }
