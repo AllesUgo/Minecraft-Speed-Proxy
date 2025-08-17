@@ -390,19 +390,16 @@ int main(int argc,const char**argv)
 			};//注册连接回调
 			*/
 
-		proxy->on_login += [](const RbsLib::Network::TCP::TCPConnection& client, const std::string& username, const std::string& uuid) {
-			if (WhiteBlackList::IsInBlack(username))
-				throw Proxy::CallbackException("You are in black list");
+		proxy->on_login += [](Proxy::ConnectionControl& control) {
+			if (WhiteBlackList::IsInBlack(control.Username()))
+				control.isEnableConnect = false, control.reason = "You are in black list";
+			else if (WhiteBlackList::IsWhiteListOn() && !WhiteBlackList::IsInWhite(control.Username()))
+				control.isEnableConnect = false, control.reason = "You are not in white list";
+			else
+				Logger::LogInfo("玩家%s uuid:%s 登录于 %s", control.Username().c_str(), control.UUID().c_str(), control.GetAddress().c_str());
 			};
-		proxy->on_login += [](const RbsLib::Network::TCP::TCPConnection& client, const std::string& username, const std::string& uuid) {
-			if (!WhiteBlackList::IsInWhite(username))
-				throw Proxy::CallbackException("You are not in white list");
-			};
-		proxy->on_login += [](const RbsLib::Network::TCP::TCPConnection& client, const std::string& username, const std::string& uuid) {
-			Logger::LogPlayer("玩家%s uuid:%s 登录于 %s", username.c_str(), uuid.c_str(), client.GetAddress().c_str());
-			};//注册登录回调
-		proxy->on_logout += [](const RbsLib::Network::TCP::TCPConnection& client, const UserInfo& userinfo) {
-			double flow = userinfo.upload_bytes;
+		proxy->on_logout += [](Proxy::ConnectionControl& control) {
+			double flow = control.UploadBytes();
 			std::string unit = "bytes";
 			if (flow > 10000) {
 				flow /= 1024;
@@ -416,7 +413,7 @@ int main(int argc,const char**argv)
 				flow /= 1024;
 				unit = "GB";
 			}
-			double time = std::time(nullptr) - userinfo.connect_time;
+			double time = std::time(nullptr) - control.ConnectTime();
 			std::string time_unit = "秒";
 			if (time > 100) {
 				time /= 60;
@@ -426,14 +423,9 @@ int main(int argc,const char**argv)
 				time /= 60;
 				time_unit = "小时";
 			}
-			Logger::LogPlayer("玩家%s uuid:%s 退出于 %s，在线时长%.1lf %s，使用流量%.3lf %s", userinfo.username.c_str(), userinfo.uuid.c_str(), client.GetAddress().c_str(), time, time_unit.c_str(), flow, unit.c_str());
+			Logger::LogPlayer("玩家%s uuid:%s 退出于 %s，在线时长%.1lf %s，使用流量%.3lf %s", control.Username().c_str(), control.UUID().c_str(), control.GetAddress().c_str(), time, time_unit.c_str(), flow, unit.c_str());
 			};//注册登出回调
-		proxy->on_disconnect += [](const RbsLib::Network::TCP::TCPConnection& client) {
-			//std::cout << client.GetAddress() << "disconnect" << std::endl;
-			};//注册断开回调
-		proxy->exception_handle += [](const std::exception& ex) {
-			Logger::LogDebug("Exception: %s Reason: %s", typeid(ex).name(),ex.what());
-			};//注册异常处理回调
+		proxy->Start();
 		proxy->SetMotd(Motd::LoadMotdFromFile(Config::get_config<std::string>("MotdPath")));
 		proxy->SetMaxPlayer(Config::get_config<int>("MaxPlayer"));
 		Logger::LogInfo("正在测试与目标服务器的Ping");
@@ -445,7 +437,7 @@ int main(int argc,const char**argv)
 		{
 			Logger::LogWarn("Ping测试失败，请检查远程服务器状态：%s", e.what());
 		}
-		proxy->Start();
+		
 		Logger::LogInfo("服务已启动");
 		//检查是否开启命令行，如果不开启，则阻塞
 		if (!enable_input)

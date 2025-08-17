@@ -42,7 +42,7 @@ namespace RbsLib
 		class IAsyncInputStream
 		{
 		public:
-			virtual asio::awaitable<const Buffer&> ReadAsync(Buffer& buffer, int64_t size = 0) = 0;
+			virtual asio::awaitable<const Buffer*> ReadAsync(Buffer& buffer, int64_t size = 0) = 0;
 			virtual asio::awaitable<int64_t> ReadAsync(void* ptr, int64_t size) = 0;
 		};
 		class IAsyncOutputStream

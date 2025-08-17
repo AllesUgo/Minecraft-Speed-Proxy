@@ -56,7 +56,7 @@ struct Motd {
 };
 
 /*利用asio库实现的异步高性能代理*/
-class ProxyAsio 
+class Proxy 
 {
 public:
 	class ConnectionControl
@@ -69,11 +69,15 @@ public:
 		std::string GetPort(void) const noexcept;
 		bool isEnableConnect = true;
 		std::string reason;
-		friend class ProxyAsio;
+		std::size_t UploadBytes(void) const noexcept;
+		std::time_t ConnectTime(void) const noexcept;
+		friend class Proxy;
 	private:
 		std::string username;
 		std::string uuid;
 		asio::ip::tcp::socket& socket;
+		std::size_t upload_bytes = 0;
+		std::time_t connect_time;
 	};
 
 
@@ -85,14 +89,15 @@ public:
 	RbsLib::Function::Function<void(ConnectionControl&)> exception_handle;//用于输出错误日志，error_message_callback抛出的异常将导致未定义行为
 	RbsLib::Function::Function<void(const char*)> log_output;//用于输出日志，log_output抛出的异常将导致未定义行为
 
-	ProxyAsio(const std::string& local_address, std::uint16_t local_port, const std::string& remote_server_addr, std::uint16_t);
-	ProxyAsio(const ProxyAsio&) = delete;
-	ProxyAsio& operator=(const ProxyAsio&) = delete;
+	Proxy(const std::string& local_address, std::uint16_t local_port, const std::string& remote_server_addr, std::uint16_t);
+	Proxy(const Proxy&) = delete;
+	Proxy& operator=(const Proxy&) = delete;
 	void Start();
 	//以下函数禁止在回调函数中调用
 	void KickByUsername(const std::string& username);
 	void KickByUUID(const std::string& uuid);
 	auto GetUsersInfo() -> std::list<UserInfo>;
+	auto GetUsersInfoAsync() -> asio::awaitable<std::list<UserInfo>>;
 	void SetMotd(const std::string& motd);
 	void SetMaxPlayer(int n);
 	int GetMaxPlayer(void);
@@ -102,7 +107,7 @@ public:
 	void ClearUserProxy();
 	auto GetDefaultProxy() -> std::pair<std::string, std::uint16_t>;//获取默认代理地址,first:address,second:port
 	auto PingTest()const -> std::uint64_t;
-	~ProxyAsio() noexcept;
+	~Proxy() noexcept;
 protected:
 	asio::awaitable<void> AcceptLoop(asio::ip::tcp::acceptor& acceptor);
 	asio::awaitable<void> HandleConnection(asio::ip::tcp::socket socket);

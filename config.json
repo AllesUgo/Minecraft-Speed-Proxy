@@ -1,8 +1,8 @@
 {
 	"LocalAddress":	"::1",
 	"LocalPort":	25565,
-	"Address":	"mc.hypixel.net",
-	"RemotePort":	25565,
+	"Address":	"rbsstudio.cn",
+	"RemotePort":	25566,
 	"MaxPlayer":	-1,
 	"MotdPath":	"",
 	"DefaultEnableWhitelist":	true,

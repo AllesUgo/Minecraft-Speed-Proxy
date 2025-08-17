@@ -6,7 +6,6 @@
 #include <regex>
 #include <sstream>
 #include <thread>
-#include "proxy.h"
 namespace net = RbsLib::Network;
 
 static std::string read_word(const char* &buffer, int max_len);

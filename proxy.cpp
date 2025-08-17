@@ -17,19 +17,27 @@ public:
 		std::size_t n = co_await socket.async_read_some(asio::buffer(buffer, size), asio::use_awaitable);
 		co_return n;
 	}
-	asio::awaitable<const RbsLib::Buffer&> ReadAsync(RbsLib::Buffer& buffer, std::int64_t size = 0) override
+	asio::awaitable<const RbsLib::Buffer*> ReadAsync(RbsLib::Buffer& buffer, std::int64_t size = 0) override
 	{
 		buffer.Resize(size);
 		int64_t bytesRead = co_await socket.async_read_some(asio::buffer((void*)buffer.Data(), size), asio::use_awaitable);
 		buffer.SetLength(bytesRead);
 		buffer.Resize(bytesRead);
-		co_return buffer;
+		co_return &buffer;
 	}
 };
 
+std::size_t Proxy::ConnectionControl::UploadBytes(void) const noexcept
+{
+	return this->upload_bytes;
+}
 
+std::time_t Proxy::ConnectionControl::ConnectTime(void) const noexcept
+{
+	return this->connect_time;
+}
 
-auto ProxyAsio::PingTest() const -> std::uint64_t
+auto Proxy::PingTest() const -> std::uint64_t
 {
 	return asio::co_spawn(this->strand, [this]() -> asio::awaitable<std::uint64_t> {
 		try
@@ -85,7 +93,7 @@ auto ProxyAsio::PingTest() const -> std::uint64_t
 	}, asio::use_future).get();
 }
 
-ProxyAsio::~ProxyAsio() noexcept
+Proxy::~Proxy() noexcept
 {
 	//正常退出，关闭acceptor和所有连接，等待所有协程结束后其所属线程退出，然后关闭io_context
 	try
@@ -124,7 +132,7 @@ ProxyAsio::~ProxyAsio() noexcept
 	}
 }
 
-asio::awaitable<void> ProxyAsio::AcceptLoop(asio::ip::tcp::acceptor& acceptor)
+asio::awaitable<void> Proxy::AcceptLoop(asio::ip::tcp::acceptor& acceptor)
 {
 	try
 	{
@@ -144,14 +152,16 @@ asio::awaitable<void> ProxyAsio::AcceptLoop(asio::ip::tcp::acceptor& acceptor)
 	}
 }
 
-asio::awaitable<void> ProxyAsio::HandleConnection(asio::ip::tcp::socket socket)
+asio::awaitable<void> Proxy::HandleConnection(asio::ip::tcp::socket socket)
 {
+	std::time_t connect_time = std::time(nullptr);
 	//立即将连接加入连接池
 	co_await asio::dispatch(strand, asio::use_awaitable);
 	this->connections.push_back(&socket);
 	try
 	{
 		ConnectionControl user_control(socket);
+		user_control.connect_time = connect_time;
 		int connection_status = 0;//未握手
 		//必须先握手
 		std::string remote_server_suffix;
@@ -174,7 +184,7 @@ asio::awaitable<void> ProxyAsio::HandleConnection(asio::ip::tcp::socket socket)
 					co_await asio::dispatch(strand, asio::use_awaitable); //确保在线程安全的环境中访问用户数据
 					auto motd = this->motd;
 					motd.SetOnlinePlayerNumber(this->users.size());
-					motd.SetSampleUsers(this->GetUsersInfo());
+					motd.SetSampleUsers(co_await this->GetUsersInfoAsync());
 					motd.SetVersion("", handshake_data_pack.protocol_version.Value());
 					this->max_player != -1 ? motd.SetPlayerMaxNumber(this->max_player) : motd.SetPlayerMaxNumber(9999999);
 					status_response_data_pack.json_response = RbsLib::DataType::String(motd.ToString());
@@ -262,7 +272,7 @@ asio::awaitable<void> ProxyAsio::HandleConnection(asio::ip::tcp::socket socket)
 				}
 				remote_server.set_option(asio::ip::tcp::no_delay(true));
 				socket.set_option(asio::ip::tcp::no_delay(true));
-				auto user_ptr = std::make_shared<User>(socket, remote_server);
+				auto user_ptr = std::make_shared<User>(&socket, &remote_server);
 
 				user_ptr->username = start_login_data_pack.user_name;
 				user_ptr->uuid = start_login_data_pack.GetUUID();
@@ -287,12 +297,10 @@ asio::awaitable<void> ProxyAsio::HandleConnection(asio::ip::tcp::socket socket)
 					//此阶段若要断开连接需要从用户表中删除用户
 					//发送握手申请
 					handshake_data_pack.server_address = RbsLib::DataType::String(this->remote_server_addr + remote_server_suffix);
-					auto buffer = start_login_data_pack.ToBuffer();
+					auto buffer = handshake_data_pack.ToBuffer();
 					co_await remote_server.async_send(asio::buffer(buffer.Data(), buffer.GetLength()), asio::use_awaitable);
 					//发送登录请求
 					co_await remote_server.async_send(asio::buffer(login_start_row_packet.Data(), login_start_row_packet.GetLength()), asio::use_awaitable);
-					//进入代理
-					RbsLib::Buffer buffer(1024);
 				}
 				catch (...)
 				{
@@ -319,10 +327,10 @@ asio::awaitable<void> ProxyAsio::HandleConnection(asio::ip::tcp::socket socket)
 				co_await asio::dispatch(strand, asio::use_awaitable); //串行化
 				this->connections.remove(&remote_server);//将远程服务器连接从连接池删除
 				this->users.erase(start_login_data_pack.user_name);//从用户池中删除用户
-				ConnectionControl user_info(socket);
-				user_info.username = user_ptr->username;
-				user_info.uuid = user_ptr->uuid;
-				this->on_logout(user_info); //调用登出回调
+				user_control.username = user_ptr->username;
+				user_control.uuid = user_ptr->uuid;
+				user_control.upload_bytes = user_ptr->upload_bytes;
+				this->on_logout(user_control); //调用登出回调
 				is_continue_loop = false; //退出循环
 			}
 				  break;
@@ -337,7 +345,7 @@ asio::awaitable<void> ProxyAsio::HandleConnection(asio::ip::tcp::socket socket)
 	this->connections.remove(&socket);
 }
 
-asio::awaitable<void> ProxyAsio::ForwardData(asio::ip::tcp::socket& client_socket, asio::ip::tcp::socket& server_socket, User& user_control) noexcept
+asio::awaitable<void> Proxy::ForwardData(asio::ip::tcp::socket& client_socket, asio::ip::tcp::socket& server_socket, User& user_control) noexcept
 {
 	try
 	{
@@ -352,6 +360,7 @@ asio::awaitable<void> ProxyAsio::ForwardData(asio::ip::tcp::socket& client_socke
 	}
 	catch (const std::exception& e)
 	{
+		std::string x = e.what();
 	}
 	try
 	{
@@ -445,32 +454,42 @@ auto Motd::LoadMotdFromFile(const std::string& path) -> std::string
 }
 
 
-ProxyAsio::ProxyAsio(const std::string& local_address, std::uint16_t local_port, const std::string& remote_server_addr, std::uint16_t)
-	:local_address(local_address), local_port(local_port), remote_server_addr(remote_server_addr), remote_server_port(remote_server_port)
+Proxy::Proxy(const std::string& local_address, std::uint16_t local_port, const std::string& remote_server_addr, std::uint16_t remote_server_port)
+	:local_address(local_address), local_port(local_port), remote_server_addr(remote_server_addr), remote_server_port(remote_server_port), strand(asio::make_strand(io_context.get_executor()))
 {
-	this->strand = asio::make_strand(io_context.get_executor());
 	this->io_threads.resize(std::thread::hardware_concurrency());
 }
 
-void ProxyAsio::Start()
-{
-	this->acceptor = std::make_unique<asio::ip::tcp::acceptor>(this->io_context, asio::ip::tcp::endpoint(asio::ip::make_address(this->local_address), this->local_port));
-	for (auto& thread : this->io_threads)
-	{
-		thread = std::thread([this]() {
-			this->io_context.run();
-			});
+void Proxy::Start() {
+	auto addr = asio::ip::make_address(this->local_address);
+	asio::ip::tcp::endpoint endpoint(addr, this->local_port);
+
+	// 1. 先创建 acceptor（未绑定）
+	this->acceptor = std::make_unique<asio::ip::tcp::acceptor>(this->io_context);
+
+	// 2. 设置选项（必须在 bind 前）
+	this->acceptor->open(endpoint.protocol()); // 显式打开协议
+	if (endpoint.protocol() == asio::ip::tcp::v6()) {
+		this->acceptor->set_option(asio::ip::v6_only(false)); // 关键：在 bind 前设置
 	}
 	this->acceptor->set_option(asio::socket_base::reuse_address(true));
-	//若是IPv6地址，则允许IPv4映射
-	if (this->local_address.find(':') != std::string::npos)
-	{
-		this->acceptor->set_option(asio::ip::v6_only(false));
+
+	// 3. 绑定到端点
+	this->acceptor->bind(endpoint);
+
+	// 4. 开始监听
+	this->acceptor->listen();
+
+	// 启动线程池
+	for (auto& thread : this->io_threads) {
+		thread = std::thread([this]() { this->io_context.run(); });
 	}
+
+	// 启动接收循环
 	asio::co_spawn(this->io_context, this->AcceptLoop(*this->acceptor), asio::detached);
 }
 
-void ProxyAsio::KickByUsername(const std::string& username)
+void Proxy::KickByUsername(const std::string& username)
 {
 
 	asio::co_spawn(this->strand, [this, username]() -> asio::awaitable<void> {
@@ -484,7 +503,7 @@ void ProxyAsio::KickByUsername(const std::string& username)
 		}, asio::use_future).get();
 }
 
-void ProxyAsio::KickByUUID(const std::string& uuid)
+void Proxy::KickByUUID(const std::string& uuid)
 {
 	asio::co_spawn(this->strand, [this, &uuid]() -> asio::awaitable<void> {
 		co_await asio::dispatch(this->strand, asio::use_awaitable);
@@ -499,9 +518,9 @@ void ProxyAsio::KickByUUID(const std::string& uuid)
 		}, asio::use_future).get();
 }
 
-auto ProxyAsio::GetUsersInfo() -> std::list<UserInfo>
+auto Proxy::GetUsersInfo() -> std::list<UserInfo>
 {
-	asio::co_spawn(this->strand, [this]() -> asio::awaitable<std::list<UserInfo>> {
+	return asio::co_spawn(this->strand, [this]() -> asio::awaitable<std::list<UserInfo>> {
 		std::list<UserInfo> users_info;
 		co_await asio::dispatch(this->strand, asio::use_awaitable);
 		for (auto& user : this->users)
@@ -518,7 +537,24 @@ auto ProxyAsio::GetUsersInfo() -> std::list<UserInfo>
 		}, asio::use_future).get();
 }
 
-void ProxyAsio::SetMotd(const std::string& motd)
+auto Proxy::GetUsersInfoAsync() -> asio::awaitable<std::list<UserInfo>>
+{
+	std::list<UserInfo> users_info;
+	co_await asio::dispatch(this->strand, asio::use_awaitable);
+	for (auto& user : this->users)
+	{
+		UserInfo user_info;
+		user_info.username = user.second->username;
+		user_info.uuid = user.second->uuid;
+		user_info.ip = user.second->ip;
+		user_info.connect_time = user.second->connect_time;
+		user_info.upload_bytes = user.second->upload_bytes;
+		users_info.push_back(user_info);
+	}
+	co_return users_info;
+}
+
+void Proxy::SetMotd(const std::string& motd)
 {
 	asio::co_spawn(this->strand, [this, motd]() -> asio::awaitable<void> {
 		co_await asio::dispatch(this->strand, asio::use_awaitable);
@@ -526,17 +562,17 @@ void ProxyAsio::SetMotd(const std::string& motd)
 		}, asio::use_future).get();
 }
 
-void ProxyAsio::SetMaxPlayer(int n)
+void Proxy::SetMaxPlayer(int n)
 {
 	this->max_player.store(n);//原子变量不需要发送到协程
 }
 
-int ProxyAsio::GetMaxPlayer(void)
+int Proxy::GetMaxPlayer(void)
 {
 	return this->max_player.load();//原子变量不需要发送到协程
 }
 
-void ProxyAsio::SetUserProxy(const std::string& username, const std::string& proxy_address, std::uint16_t proxy_port)
+void Proxy::SetUserProxy(const std::string& username, const std::string& proxy_address, std::uint16_t proxy_port)
 {
 	asio::co_spawn(this->strand, [this, username, proxy_address, proxy_port]() -> asio::awaitable<void> {
 		co_await asio::dispatch(this->strand, asio::use_awaitable);
@@ -544,7 +580,7 @@ void ProxyAsio::SetUserProxy(const std::string& username, const std::string& pro
 		}, asio::use_future).get();
 }
 
-auto ProxyAsio::GetUserProxyMap() const -> std::map<std::string, std::pair<std::string, std::uint16_t>>
+auto Proxy::GetUserProxyMap() const -> std::map<std::string, std::pair<std::string, std::uint16_t>>
 {
 	return asio::co_spawn(this->strand, [this]() -> asio::awaitable<std::map<std::string, std::pair<std::string, std::uint16_t>>> {
 		co_await asio::dispatch(this->strand, asio::use_awaitable);
@@ -552,7 +588,7 @@ auto ProxyAsio::GetUserProxyMap() const -> std::map<std::string, std::pair<std::
 		}, asio::use_future).get();
 }
 
-void ProxyAsio::DeleteUserProxy(const std::string& username)
+void Proxy::DeleteUserProxy(const std::string& username)
 {
 	asio::co_spawn(this->strand, [this, username]() -> asio::awaitable<void> {
 		co_await asio::dispatch(this->strand, asio::use_awaitable);
@@ -560,7 +596,7 @@ void ProxyAsio::DeleteUserProxy(const std::string& username)
 		}, asio::use_future).get();
 }
 
-void ProxyAsio::ClearUserProxy()
+void Proxy::ClearUserProxy()
 {
 	asio::co_spawn(this->strand, [this]() -> asio::awaitable<void> {
 		co_await asio::dispatch(this->strand, asio::use_awaitable);
@@ -568,22 +604,22 @@ void ProxyAsio::ClearUserProxy()
 		}, asio::use_future).get();
 }
 
-auto ProxyAsio::GetDefaultProxy() -> std::pair<std::string, std::uint16_t>
+auto Proxy::GetDefaultProxy() -> std::pair<std::string, std::uint16_t>
 {
 	return std::make_pair(this->remote_server_addr, this->remote_server_port);
 }
 
-ProxyAsio::ConnectionControl::ConnectionControl(asio::ip::tcp::socket& connection)
+Proxy::ConnectionControl::ConnectionControl(asio::ip::tcp::socket& connection)
 	: socket(connection)
 {
 }
 
-const std::string& ProxyAsio::ConnectionControl::Username(void) const noexcept
+const std::string& Proxy::ConnectionControl::Username(void) const noexcept
 {
 	return this->username;
 }
 
-const std::string& ProxyAsio::ConnectionControl::UUID(void) const noexcept
+const std::string& Proxy::ConnectionControl::UUID(void) const noexcept
 {
 	return this->uuid;
 }
@@ -591,4 +627,14 @@ const std::string& ProxyAsio::ConnectionControl::UUID(void) const noexcept
 User::User(asio::ip::tcp::socket* client, asio::ip::tcp::socket* server)
 	:client(client), server(server)
 {
+}
+
+std::string Proxy::ConnectionControl::GetAddress(void) const noexcept
+{
+	return this->socket.remote_endpoint().address().to_string();
+}
+
+std::string Proxy::ConnectionControl::GetPort(void) const noexcept
+{
+	return this->socket.remote_endpoint().port() == 0 ? "0" : std::to_string(this->socket.remote_endpoint().port());
 }
