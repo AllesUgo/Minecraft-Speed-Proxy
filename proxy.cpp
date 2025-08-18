@@ -384,58 +384,107 @@ asio::awaitable<void> Proxy::ForwardData(asio::ip::tcp::socket& client_socket, a
 }
 */
 
+
+
 asio::awaitable<void> Proxy::ForwardData(
 	asio::ip::tcp::socket& from_socket,
 	asio::ip::tcp::socket& to_socket,
 	User& user_control) noexcept
 {
-	try {
-		// 设置更小的缓冲区以减少延迟
-		from_socket.set_option(asio::socket_base::receive_buffer_size(8192));
-		to_socket.set_option(asio::socket_base::send_buffer_size(8192));
-	}
-	catch (...) {
-		// 忽略socket选项设置失败
-	}
+
+	constexpr size_t MAX_BUFFER_NUM = 100;			   // 最大缓冲区数量
+	constexpr size_t CHUNK_SIZE = 4096;                // 数据块大小
+
+	asio::experimental::channel<void(asio::error_code)> flow_control(co_await asio::this_coro::executor);
+
+	// 有界缓冲区队列
+	struct Buffer {
+		std::unique_ptr<char[]> data;
+		size_t size;
+	};
+	std::deque<Buffer> buffer_queue;
+	size_t total_buffer_num = 0; // 当前缓冲区数量
+	bool read_stopped = false;
+
+	auto strand = asio::make_strand(from_socket.get_executor());
+
+	// 发送协程
+	auto sender = [&]() -> asio::awaitable<void> {
+		
+		while (true) {
+			if (buffer_queue.empty()) {
+				if (read_stopped) break; // 无数据且读取已停止
+
+				// 等待新数据或流控信号
+				co_await flow_control.async_receive(asio::use_awaitable);
+				continue;
+			}
+			auto buffer = std::move(buffer_queue.front());
+			auto buffer_row_ptr = buffer.data.get();
+			buffer_queue.pop_front();
+			total_buffer_num -= 1;
+
+			// 触发流控（如果有等待的读取）
+			if (read_stopped && total_buffer_num < MAX_BUFFER_NUM)
+			{
+				read_stopped = false;
+				flow_control.try_send(asio::error_code{});
+			}
+
+			try {
+				co_await async_write(to_socket, asio::buffer(buffer_row_ptr, buffer.size),
+					asio::use_awaitable);
+				// 更新统计
+				user_control.upload_bytes += buffer.size;
+			}
+			catch (const std::exception& ex) {
+				break; // 发送失败终止
+			}
+		}
+		flow_control.close(); // 关闭流控通道
+		};
+
+	// 接收协程
+	auto receiver = [&]() -> asio::awaitable<void> {
+		
+		try {
+			while (true) {
+				auto buffer = std::make_unique<char[]>(CHUNK_SIZE);
+				size_t n = co_await from_socket.async_read_some(
+					asio::buffer(buffer.get(), CHUNK_SIZE), asio::use_awaitable);
+
+				// 检查缓冲区限制
+				while (total_buffer_num >= MAX_BUFFER_NUM) {
+					read_stopped = true;
+					co_await flow_control.async_receive(asio::use_awaitable);
+				}
+				
+				buffer_queue.push_back({ std::move(buffer), n });
+				total_buffer_num += 1;
+
+				// 触发发送协程
+				flow_control.try_send(asio::error_code{});
+			}
+		}
+		catch (const std::exception& ex) {
+			// 读取结束或出错
+		}
+		read_stopped = true;
+		flow_control.try_send(asio::error_code{}); // 唤醒发送协程
+		};
+
+	// 并行运行收发协程
+
+
 	try
 	{
-		// 使用更大的缓冲区提高效率
-		constexpr size_t BUFFER_SIZE = 64 * 1024; // 64KB缓冲区
-		std::vector<char> buffer(BUFFER_SIZE);
-		
-		while (true)
-		{
-			// 接收数据
-			std::size_t bytes_received = co_await from_socket.async_receive(
-				asio::buffer(buffer), 
-				asio::use_awaitable
-			);
-			
-			user_control.upload_bytes += bytes_received;
-			
-			// 立即异步发送，不等待完成 - 使用co_spawn避免阻塞
-			asio::co_spawn(
-				to_socket.get_executor(),
-				[&to_socket, data = std::vector<char>(buffer.begin(), buffer.begin() + bytes_received)]() -> asio::awaitable<void> {
-					try {
-						co_await to_socket.async_send(
-							asio::buffer(data),
-							asio::use_awaitable
-						);
-					} catch (...) {
-						// 发送失败时忽略错误，主循环会处理连接关闭
-					}
-				},
-				asio::detached
-			);
-		}
+		using namespace asio::experimental::awaitable_operators;
+		co_await (asio::co_spawn(strand,receiver, asio::use_awaitable) && asio::co_spawn(strand, sender, asio::use_awaitable));
 	}
 	catch (const std::exception& e)
 	{
-		// 记录错误原因，便于调试 - 任何一方出现错误就停止
-		std::string error_msg = e.what();
+		std::string x = e.what();
 	}
-	
 	try
 	{
 		//禁用两个方向的连接
