@@ -1,7 +1,7 @@
 ﻿# CMakeList.txt: rbslib 的 CMake 项目，在此处包括源代码并定义
 # 项目特定的逻辑。
 #
-cmake_minimum_required (VERSION 3.8)
+cmake_minimum_required (VERSION 3.12)
 
 # 如果支持，请为 MSVC 编译器启用热重载。
 if (POLICY CMP0141)
@@ -11,11 +11,6 @@ endif()
 
 set(proj_name "minecraftspeedproxy")
 project (${proj_name})
-if(MSVC)
-    # Windows上的编译器设置 (MSVC)
-    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT")
-    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MTd")
-endif()
 set(CMAKE_CXX_STANDARD 20)
 
 EXECUTE_PROCESS(COMMAND git describe --tags --always --dirty=-dev
@@ -29,7 +24,6 @@ add_definitions(-DBUILD_VERSION=\"${GIT_VERSION}\")
 if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
 	add_definitions(-DDEBUG)
 else ()
-	# -UDEV_CODE 表示取消 DEV_CODE 的定义
 	add_definitions(-DRELEASE)
 endif ()
 
@@ -55,15 +49,11 @@ add_executable (minecraftspeedproxy "main.cpp"
 "asio/import_asio.h"
 ${RBS_LIB_SRC} ${JSON_LIB_SRC} )
 
-
-
 #如果是Windows平台，链接ws2_32.lib
 if (WIN32)
   target_link_libraries(minecraftspeedproxy ws2_32.lib)
 endif()
 
-if (CMAKE_VERSION VERSION_GREATER 3.12)
-  set_property(TARGET minecraftspeedproxy PROPERTY CXX_STANDARD 20)
-endif()
+set_property(TARGET minecraftspeedproxy PROPERTY CXX_STANDARD 20)
 
 # TODO: 如有需要，请添加测试并安装目标。
