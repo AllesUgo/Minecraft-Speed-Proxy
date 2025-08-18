@@ -346,16 +346,17 @@ asio::awaitable<void> Proxy::HandleConnection(asio::ip::tcp::socket socket)
 	this->connections.remove(&socket);
 }
 
+/*
 asio::awaitable<void> Proxy::ForwardData(asio::ip::tcp::socket& client_socket, asio::ip::tcp::socket& server_socket, User& user_control) noexcept
 {
 	try
 	{
-		std::unique_ptr<char[]> buffer = std::make_unique<char[]>(1024);
+		std::unique_ptr<char[]> recv_buffer = std::make_unique<char[]>(1024);
 		std::size_t size;
 		while (true)
 		{
-			size = co_await client_socket.async_receive(asio::buffer(buffer.get(), 1024), asio::use_awaitable);
-			co_await server_socket.async_send(asio::buffer(buffer.get(), size), asio::use_awaitable);
+			size = co_await client_socket.async_receive(asio::buffer(recv_buffer.get(), 1024), asio::use_awaitable);
+			co_await server_socket.async_send(asio::buffer(recv_buffer.get(), size), asio::use_awaitable);
 			user_control.upload_bytes += size;
 		}
 	}
@@ -381,7 +382,70 @@ asio::awaitable<void> Proxy::ForwardData(asio::ip::tcp::socket& client_socket, a
 		//忽略禁用连接时的异常
 	}
 }
+*/
 
+asio::awaitable<void> Proxy::ForwardData(
+	asio::ip::tcp::socket& from_socket,
+	asio::ip::tcp::socket& to_socket,
+	User& user_control) noexcept
+{
+	try
+	{
+		// 使用更大的缓冲区提高效率
+		constexpr size_t BUFFER_SIZE = 64 * 1024; // 64KB缓冲区
+		std::vector<char> buffer(BUFFER_SIZE);
+		
+		while (true)
+		{
+			// 接收数据
+			std::size_t bytes_received = co_await from_socket.async_receive(
+				asio::buffer(buffer), 
+				asio::use_awaitable
+			);
+			
+			user_control.upload_bytes += bytes_received;
+			
+			// 立即异步发送，不等待完成 - 使用co_spawn避免阻塞
+			asio::co_spawn(
+				to_socket.get_executor(),
+				[&to_socket, data = std::vector<char>(buffer.begin(), buffer.begin() + bytes_received)]() -> asio::awaitable<void> {
+					try {
+						co_await to_socket.async_send(
+							asio::buffer(data),
+							asio::use_awaitable
+						);
+					} catch (...) {
+						// 发送失败时忽略错误，主循环会处理连接关闭
+					}
+				},
+				asio::detached
+			);
+		}
+	}
+	catch (const std::exception& e)
+	{
+		// 记录错误原因，便于调试 - 任何一方出现错误就停止
+		std::string error_msg = e.what();
+	}
+	
+	try
+	{
+		//禁用两个方向的连接
+		user_control.client->shutdown(asio::ip::tcp::socket::shutdown_both);
+	}
+	catch (const std::exception& e)
+	{
+		//忽略禁用连接时的异常
+	}
+	try
+	{
+		user_control.server->shutdown(asio::ip::tcp::socket::shutdown_both);
+	}
+	catch (const std::exception& e)
+	{
+		//忽略禁用连接时的异常
+	}
+}
 
 
 ProxyException::ProxyException(const std::string& message) noexcept
