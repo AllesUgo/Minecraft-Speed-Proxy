@@ -389,6 +389,14 @@ asio::awaitable<void> Proxy::ForwardData(
 	asio::ip::tcp::socket& to_socket,
 	User& user_control) noexcept
 {
+	try {
+		// 设置更小的缓冲区以减少延迟
+		from_socket.set_option(asio::socket_base::receive_buffer_size(8192));
+		to_socket.set_option(asio::socket_base::send_buffer_size(8192));
+	}
+	catch (...) {
+		// 忽略socket选项设置失败
+	}
 	try
 	{
 		// 使用更大的缓冲区提高效率
