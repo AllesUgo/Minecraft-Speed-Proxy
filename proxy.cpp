@@ -297,7 +297,7 @@ asio::awaitable<void> Proxy::HandleConnection(asio::ip::tcp::socket socket)
 				{
 					//此阶段若要断开连接需要从用户表中删除用户
 					//发送握手申请
-					handshake_data_pack.server_address = RbsLib::DataType::String(this->remote_server_addr + remote_server_suffix);
+					handshake_data_pack.server_address = RbsLib::DataType::String(remote_server_addr_real + remote_server_suffix);
 					auto buffer = handshake_data_pack.ToBuffer();
 					co_await remote_server.async_send(asio::buffer(buffer.Data(), buffer.GetLength()), asio::use_awaitable);
 					//发送登录请求
