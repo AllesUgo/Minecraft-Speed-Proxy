@@ -76,7 +76,7 @@ void Config::upgrade_config_v1_1()
 	if (Config::get_config<std::string>("Version") == "1.0")
 	{
 		Config::set_config("Version", "1.1");
-		Config::set_config("WebAPIEnable", true);
+		Config::set_config("WebAPIEnable", true,true);
 		Config::set_config("WebAPIAddress", "127.0.0.1");
 		Config::set_config("WebAPIPort", 8080);
 		Config::set_config("WebAPIPassword", "admin");
@@ -112,7 +112,7 @@ void Config::SetDefaultConfig()
 	Config::set_config("SaveLogLevel", 0);
 
 	//WebAPIœ‡πÿ
-	Config::set_config("WebAPIEnable", true);
+	Config::set_config("WebAPIEnable", true,true);
 	Config::set_config("WebAPIAddress", "127.0.0.1");
 	Config::set_config("WebAPIPort", 8080);
 	Config::set_config("WebAPIPassword", "admin");
