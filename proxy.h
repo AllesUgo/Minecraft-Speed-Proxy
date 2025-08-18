@@ -107,6 +107,7 @@ public:
 	void ClearUserProxy();
 	auto GetDefaultProxy() -> std::pair<std::string, std::uint16_t>;//获取默认代理地址,first:address,second:port
 	auto PingTest()const -> std::uint64_t;
+	std::time_t GetStartTime(void) const noexcept;
 	~Proxy() noexcept;
 protected:
 	asio::awaitable<void> AcceptLoop(asio::ip::tcp::acceptor& acceptor);
@@ -125,6 +126,7 @@ protected:
 	Motd motd;
 	std::map<std::string, std::pair<std::string, std::uint16_t>> user_proxy_map;
 	std::list<asio::ip::tcp::socket*> connections;
+	std::time_t start_time;
 };
 
 

@@ -38,6 +38,7 @@ protected:
 	//设置最大玩家数，-1表示不限制
 	static bool SetMaxUsers(neb::CJsonObject& response, const neb::CJsonObject& request, const std::shared_ptr<Proxy>& proxy_client);
 	static bool KickPlayer(neb::CJsonObject& response, const neb::CJsonObject& request, const std::shared_ptr<Proxy>& proxy_client);
+	static void GetStartTime(neb::CJsonObject& response, const std::shared_ptr<Proxy>& proxy_client);
 public:
 	WebControlServer(const std::string& address, std::uint16_t port);
 	~WebControlServer() noexcept;

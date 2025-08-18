@@ -4,6 +4,7 @@
 #include <iostream>
 #include <mutex>
 #include "rbslib/Streams.h"
+#include <time.h>
 
 class AsyncInputSocketStream : public RbsLib::Streams::IAsyncInputStream
 {
@@ -91,6 +92,11 @@ auto Proxy::PingTest() const -> std::uint64_t
 			throw ProxyException(std::string("Ping test failed: ") + e.what());
 		}
 	}, asio::use_future).get();
+}
+
+std::time_t Proxy::GetStartTime(void) const noexcept
+{
+	return this->start_time;
 }
 
 Proxy::~Proxy() noexcept
@@ -611,6 +617,7 @@ void Proxy::Start() {
 			this->io_context.run(); 
 			});
 	}
+	this->start_time = std::time(nullptr);
 }
 
 void Proxy::KickByUsername(const std::string& username)

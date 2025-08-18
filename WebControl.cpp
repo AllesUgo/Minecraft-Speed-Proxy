@@ -341,6 +341,15 @@ bool WebControlServer::KickPlayer(neb::CJsonObject& response, const neb::CJsonOb
 	}
 }
 
+void WebControlServer::GetStartTime(neb::CJsonObject& response, const std::shared_ptr<Proxy>& proxy_client)
+{
+	auto start_time = proxy_client->GetStartTime();
+	response.Add("start_time", start_time);
+	response.Add("now_time", std::time(nullptr));
+	response.Add("status", 200);
+	response.Add("message", "Start time retrieved successfully");
+}
+
 
 
 WebControlServer::WebControlServer(const std::string& address, std::uint16_t port)
@@ -436,6 +445,11 @@ void WebControlServer::Start(std::shared_ptr<Proxy>& proxy_client)
 				else if (m[1].str() == "get_user_proxies")
 				{
 					this->GetUserProxyList(response_body, proxy);
+					this->SendSuccessResponse(connection, response_body);
+				}
+				else if (m[1].str() == "get_start_time")
+				{
+					this->GetStartTime(response_body, proxy);
 					this->SendSuccessResponse(connection, response_body);
 				}
 				else
