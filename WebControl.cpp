@@ -335,6 +335,21 @@ void WebControlServer::GetStartTime(neb::CJsonObject& response, const std::share
 	response.Add("message", "Start time retrieved successfully");
 }
 
+void WebControlServer::GetLogs(neb::CJsonObject& response, const std::shared_ptr<Proxy>& proxy_client)
+{
+	response.AddEmptySubArray("logs");
+	std::shared_lock<std::shared_mutex> lock(this->log_mutex);
+	for (const auto& log : this->logs)
+	{
+		neb::CJsonObject log_entry;
+		log_entry.Add("timestamp", log.first);
+		log_entry.Add("message", log.second);
+		response["logs"].Add(log_entry);
+	}
+	lock.unlock();
+	response.Add("status", 200);
+	response.Add("message", "Logs retrieved successfully");
+}
 
 
 WebControlServer::WebControlServer(const std::string& address, std::uint16_t port)
@@ -357,6 +372,47 @@ void WebControlServer::SetUserPassword(const std::string& password)
 
 void WebControlServer::Start(std::shared_ptr<Proxy>& proxy_client)
 {
+	//注册日志回调
+	proxy_client->on_login += [this](Proxy::ConnectionControl& control) {
+		std::unique_lock<std::shared_mutex> lock(this->log_mutex);
+		this->logs.push_back({ std::time(nullptr), RbsLib::Encoding::CharsetConvert::ANSItoUTF8("玩家" + control.Username() + " uuid:" + control.UUID() + " 登录于 " + control.GetAddress()) });
+		if (this->max_log_size > this->max_log_size)
+		{
+			this->logs.pop_front(); //删除最旧的日志
+		}
+		};
+	proxy_client->on_logout += [this](Proxy::ConnectionControl& control) {
+		double flow = control.UploadBytes();
+		std::string unit = "bytes";
+		if (flow > 10000) {
+			flow /= 1024;
+			unit = "KB";
+		}
+		if (flow > 10000) {
+			flow /= 1024;
+			unit = "MB";
+		}
+		if (flow > 10000) {
+			flow /= 1024;
+			unit = "GB";
+		}
+		double time = std::time(nullptr) - control.ConnectTime();
+		std::string time_unit = "秒";
+		if (time > 100) {
+			time /= 60;
+			time_unit = "分钟";
+		}
+		if (time > 100) {
+			time /= 60;
+			time_unit = "小时";
+		}
+		std::unique_lock<std::shared_mutex> lock(this->log_mutex);
+		this->logs.push_back({ std::time(nullptr), RbsLib::Encoding::CharsetConvert::ANSItoUTF8("玩家" + control.Username() + " uuid:" + control.UUID() + " 退出于 " + control.GetAddress() + "，在线时长" + std::to_string(time) + time_unit + "，使用流量" + std::to_string(flow) + unit) });
+		if (this->logs.size() > this->max_log_size)
+		{
+			this->logs.pop_front(); //删除最旧的日志
+		}
+		};
 	this->server.SetGetHandle([proxy = proxy_client, this](const RbsLib::Network::TCP::TCPConnection& connection, RbsLib::Network::HTTP::RequestHeader& header) -> int {
 		static const std::regex re_userproxy(R"(^/api/([a-zA-Z0-9_]{1,256})$)");
 		std::cmatch m;
@@ -434,6 +490,11 @@ void WebControlServer::Start(std::shared_ptr<Proxy>& proxy_client)
 				else if (m[1].str() == "get_start_time")
 				{
 					this->GetStartTime(response_body, proxy);
+					this->SendSuccessResponse(connection, response_body);
+				}
+				else if (m[1].str() == "get_logs")
+				{
+					this->GetLogs(response_body, proxy);
 					this->SendSuccessResponse(connection, response_body);
 				}
 				else

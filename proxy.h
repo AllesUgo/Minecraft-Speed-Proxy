@@ -126,7 +126,7 @@ protected:
 	Motd motd;
 	std::map<std::string, std::pair<std::string, std::uint16_t>> user_proxy_map;
 	std::list<asio::ip::tcp::socket*> connections;
-	std::time_t start_time;
+	std::time_t start_time = 0;
 };
 
 

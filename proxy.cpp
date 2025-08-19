@@ -596,6 +596,7 @@ Proxy::Proxy(const std::string& local_address, std::uint16_t local_port, const s
 	:local_address(local_address), local_port(local_port), remote_server_addr(remote_server_addr), remote_server_port(remote_server_port), strand(asio::make_strand(io_context.get_executor()))
 {
 	this->io_threads.resize(std::thread::hardware_concurrency());
+	
 }
 
 void Proxy::Start() {
@@ -620,13 +621,13 @@ void Proxy::Start() {
 
 	// 发布任务
 	asio::co_spawn(this->io_context, this->AcceptLoop(*this->acceptor), asio::detached);
-
 	// 启动线程池
 	for (auto& thread : this->io_threads) {
-		thread = std::thread([this]() { 
-			this->io_context.run(); 
+		thread = std::thread([this]() {
+			this->io_context.run();
 			});
 	}
+	
 	this->start_time = std::time(nullptr);
 }
 
