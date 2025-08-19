@@ -4,6 +4,24 @@
 #include "json/CJsonObject.h"
 #include "rbslib/CharsetConvert.h"
 #include "WhiteBlackList.h"
+#include <ranges>
+
+asio::awaitable<void> WebControlServer::TimeTaskUsers(std::shared_ptr<Proxy>& proxy_client)
+{
+	try
+	{
+		asio::steady_timer timer(co_await asio::this_coro::executor);
+		while (true) 
+		{
+			std::shared_lock<std::shared_mutex> lock(time_online_users_mutex);
+			time_online_users[std::time(nullptr)] = proxy_client->GetUsersInfo().size();
+			lock.unlock();
+			timer.expires_after(std::chrono::minutes(1));
+			co_await timer.async_wait(asio::use_awaitable);
+		}
+	}
+	catch (...){}
+}
 
 void WebControlServer::SendErrorResponse(const RbsLib::Network::TCP::TCPConnection& connection, int status_code, const std::string& message)
 {
@@ -335,6 +353,78 @@ void WebControlServer::GetStartTime(neb::CJsonObject& response, const std::share
 	response.Add("message", "Start time retrieved successfully");
 }
 
+// 修复后的 GetUserNumberList 相关代码
+bool WebControlServer::GetUserNumberList(neb::CJsonObject& response, neb::CJsonObject& request, const std::shared_ptr<Proxy>& proxy_client)
+{
+	// 获取时间范围
+	std::time_t start_time, end_time;
+	if (!request.Get("start_time", start_time) || !request.Get("end_time", end_time) || start_time >= end_time)
+	{
+		response.Add("status", 400);
+		response.Add("message", "Invalid 'start_time' or 'end_time' value");
+		return false;
+	}
+	// 获取粒度 minute分钟、hour小时、day天、week周、month月
+	std::string granularity;
+	if (!request.Get("granularity", granularity) || (granularity != "minute" && granularity != "hour" && granularity != "day" && granularity != "week" && granularity != "month"))
+	{
+		response.Add("status", 400);
+		response.Add("message", "Invalid 'granularity' value");
+		return false;
+	}
+	// 利用ranges库获取时间范围内的在线用户数量
+	std::shared_lock<std::shared_mutex> lock(this->time_online_users_mutex);
+	auto filtered_view = std::ranges::views::filter(this->time_online_users, [start_time, end_time](const auto& item) {
+		return item.first >= start_time && item.first <= end_time;
+		});
+
+	// 按照粒度分组统计
+	std::map<std::time_t, uint32_t> grouped;
+	for (const auto& item : filtered_view)
+	{
+		std::time_t key = 0;
+		if (granularity == "minute")
+		{
+			key = item.first / 60 * 60;
+		}
+		else if (granularity == "hour")
+		{
+			key = item.first / 3600 * 3600;
+		}
+		else if (granularity == "day")
+		{
+			key = item.first / 86400 * 86400;
+		}
+		else if (granularity == "week")
+		{
+			key = item.first / (7 * 86400) * (7 * 86400);
+		}
+		else if (granularity == "month")
+		{
+			std::tm tm = *std::localtime(&item.first);
+			tm.tm_mday = 1; // 设置为当月第一天
+			tm.tm_hour = 0;
+			tm.tm_min = 0;
+			tm.tm_sec = 0;
+			key = std::mktime(&tm);
+		}
+		grouped[key] += item.second;
+	}
+
+	response.AddEmptySubArray("user_numbers");
+	for (const auto& item : grouped)
+	{
+		neb::CJsonObject user_number;
+		user_number.Add("timestamp", item.first);
+		user_number.Add("online_users", item.second);
+		response["user_numbers"].Add(user_number);
+	}
+	lock.unlock();
+	response.Add("status", 200);
+	response.Add("message", "User number list retrieved successfully");
+	return true;
+}
+
 void WebControlServer::GetLogs(neb::CJsonObject& response, const std::shared_ptr<Proxy>& proxy_client)
 {
 	response.AddEmptySubArray("logs");
@@ -648,6 +738,17 @@ void WebControlServer::Start(std::shared_ptr<Proxy>& proxy_client)
 							WebControlServer::SendErrorResponse(connection, response_body);
 						}
 					}
+					else if (m[1].str() == "get_online_number_list")
+					{
+						if (this->GetUserNumberList(response_body, data, proxy))
+						{
+							this->SendSuccessResponse(connection, response_body);
+						}
+						else
+						{
+							WebControlServer::SendErrorResponse(connection, response_body);
+						}
+					}
 					else
 					{
 						WebControlServer::SendErrorResponse(connection, 404, "Unknown API endpoint");
@@ -683,10 +784,21 @@ void WebControlServer::Start(std::shared_ptr<Proxy>& proxy_client)
 
 		}
 		}).detach();
+	std::thread([this, &proxy_client]() {
+		try
+		{
+			asio::co_spawn(this->io_context, this->TimeTaskUsers(proxy_client), asio::detached);
+			this->io_context.run();
+		}
+		catch (const std::exception& e)
+		{
+		}
+		}).detach();
 }
 
 void WebControlServer::Stop(void)
 {
 	this->is_request_stop = true;
 	this->server.StopAndThrowExceptionInLoopThread();
+	this->io_context.stop();
 }

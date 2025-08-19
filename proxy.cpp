@@ -329,10 +329,12 @@ asio::awaitable<void> Proxy::HandleConnection(asio::ip::tcp::socket socket)
 					this->connections.push_back(&socket);
 					//开始转发数据
 					{
+						this->on_proxy_start(user_control); //调用代理开始回调
 						this->log_output(("Forwarding data between " + socket.remote_endpoint().address().to_string() + ":" + std::to_string(socket.remote_endpoint().port()) + " and " + remote_server.remote_endpoint().address().to_string() + ":" + std::to_string(remote_server.remote_endpoint().port())).c_str());
 						using namespace asio::experimental::awaitable_operators;
 						co_await(ForwardData(socket, remote_server, *user_ptr) && ForwardData(remote_server, socket, *user_ptr));
 						this->log_output(("Forwarding data between " + socket.remote_endpoint().address().to_string() + ":" + std::to_string(socket.remote_endpoint().port()) + " and " + remote_server.remote_endpoint().address().to_string() + ":" + std::to_string(remote_server.remote_endpoint().port()) + " ended.").c_str());
+						this->on_proxy_end(user_control); //调用代理结束回调
 					}
 					//转发结束，关闭连接
 					co_await asio::dispatch(strand, asio::use_awaitable); //串行化
@@ -361,45 +363,6 @@ asio::awaitable<void> Proxy::HandleConnection(asio::ip::tcp::socket socket)
 	co_await asio::dispatch(strand, asio::use_awaitable); //串行化
 	this->connections.remove(&socket);
 }
-
-/*
-asio::awaitable<void> Proxy::ForwardData(asio::ip::tcp::socket& client_socket, asio::ip::tcp::socket& server_socket, User& user_control) noexcept
-{
-	try
-	{
-		std::unique_ptr<char[]> recv_buffer = std::make_unique<char[]>(1024);
-		std::size_t size;
-		while (true)
-		{
-			size = co_await client_socket.async_receive(asio::buffer(recv_buffer.get(), 1024), asio::use_awaitable);
-			co_await server_socket.async_send(asio::buffer(recv_buffer.get(), size), asio::use_awaitable);
-			user_control.upload_bytes += size;
-		}
-	}
-	catch (const std::exception& e)
-	{
-		std::string x = e.what();
-	}
-	try
-	{
-		//禁用两个方向的连接
-		user_control.client->shutdown(asio::ip::tcp::socket::shutdown_both);
-	}
-	catch (const std::exception& e)
-	{
-		//忽略禁用连接时的异常
-	}
-	try
-	{
-		user_control.server->shutdown(asio::ip::tcp::socket::shutdown_both);
-	}
-	catch (const std::exception& e)
-	{
-		//忽略禁用连接时的异常
-	}
-}
-*/
-
 
 
 asio::awaitable<void> Proxy::ForwardData(

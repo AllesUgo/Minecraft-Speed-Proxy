@@ -6,6 +6,7 @@
 #include "json/CJsonObject.h"
 #include <list>
 #include <shared_mutex>
+#include "asio/import_asio.h"
 
 
 /*
@@ -23,6 +24,11 @@ protected:
 	std::list<std::pair<std::time_t, std::string>> logs;
 	int max_log_size = 100; //最大日志条数
 	std::shared_mutex log_mutex; //日志互斥锁
+	asio::io_context io_context;
+	std::map<std::time_t, uint32_t> time_online_users;
+	std::shared_mutex time_online_users_mutex;
+
+	asio::awaitable<void> TimeTaskUsers(std::shared_ptr<Proxy>& proxy_client);
 
 	static void SendErrorResponse(const RbsLib::Network::TCP::TCPConnection& connection, int status_code, const std::string& message = "");
 	static void SendErrorResponse(const RbsLib::Network::TCP::TCPConnection& connection, const neb::CJsonObject& json, int http_status_code = 200);
@@ -44,6 +50,7 @@ protected:
 	static bool SetMaxUsers(neb::CJsonObject& response, const neb::CJsonObject& request, const std::shared_ptr<Proxy>& proxy_client);
 	static bool KickPlayer(neb::CJsonObject& response, const neb::CJsonObject& request, const std::shared_ptr<Proxy>& proxy_client);
 	static void GetStartTime(neb::CJsonObject& response, const std::shared_ptr<Proxy>& proxy_client);
+	 bool GetUserNumberList(neb::CJsonObject& response,neb::CJsonObject& request, const std::shared_ptr<Proxy>& proxy_client);
 	void GetLogs(neb::CJsonObject& response, const std::shared_ptr<Proxy>& proxy_client);
 public:
 	WebControlServer(const std::string& address, std::uint16_t port);
