@@ -425,6 +425,7 @@ int main(int argc,const char**argv)
 			}
 			Logger::LogPlayer("玩家%s uuid:%s 退出于 %s，在线时长%.1lf %s，使用流量%.3lf %s", control.Username().c_str(), control.UUID().c_str(), control.GetAddress().c_str(), time, time_unit.c_str(), flow, unit.c_str());
 			};//注册登出回调
+		//proxy->log_output += [](const char* str) {puts(str); };
 		proxy->Start();
 		proxy->SetMotd(Motd::LoadMotdFromFile(Config::get_config<std::string>("MotdPath")));
 		proxy->SetMaxPlayer(Config::get_config<int>("MaxPlayer"));

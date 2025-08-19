@@ -167,6 +167,7 @@ asio::awaitable<void> Proxy::HandleConnection(asio::ip::tcp::socket socket)
 	this->connections.push_back(&socket);
 	try
 	{
+		this->log_output(("New connection from " + socket.remote_endpoint().address().to_string() + ":" + std::to_string(socket.remote_endpoint().port())).c_str());
 		ConnectionControl user_control(socket);
 		user_control.connect_time = connect_time;
 		int connection_status = 0;//未握手
@@ -187,6 +188,7 @@ asio::awaitable<void> Proxy::HandleConnection(asio::ip::tcp::socket socket)
 				{
 				case 0: {
 					//状态请求，直接响应
+					this->log_output(("Status request from " + socket.remote_endpoint().address().to_string() + ":" + std::to_string(socket.remote_endpoint().port())).c_str());
 					StatusResponseDataPack status_response_data_pack;
 					co_await asio::dispatch(strand, asio::use_awaitable); //确保在线程安全的环境中访问用户数据
 					auto motd = this->motd;
@@ -208,6 +210,7 @@ asio::awaitable<void> Proxy::HandleConnection(asio::ip::tcp::socket socket)
 					PingDataPack pong_data_pack;
 					pong_data_pack.payload = ping_data_pack.payload;
 					co_await socket.async_send(asio::buffer(pong_data_pack.ToBuffer().Data(), pong_data_pack.ToBuffer().GetLength()), asio::use_awaitable);
+					this->log_output(("Ping from " + socket.remote_endpoint().address().to_string() + ":" + std::to_string(socket.remote_endpoint().port()) + ", payload: " + std::to_string(ping_data_pack.payload)).c_str());
 					break;
 				}
 				default:
@@ -218,10 +221,12 @@ asio::awaitable<void> Proxy::HandleConnection(asio::ip::tcp::socket socket)
 			case 2: {
 				//登录请求，接收登录请求
 				//检查是否达到最大玩家数
+				this->log_output(("Login request from " + socket.remote_endpoint().address().to_string() + ":" + std::to_string(socket.remote_endpoint().port())).c_str());
 				co_await asio::dispatch(strand, asio::use_awaitable); //确保在线程安全的环境中访问用户数据
 				if (this->max_player != -1 && this->users.size() >= this->max_player) {
 					LoginFailureDataPack login_failed_data_pack("Server is full.");
 					co_await socket.async_send(asio::buffer(login_failed_data_pack.ToBuffer().Data(), login_failed_data_pack.ToBuffer().GetLength()), asio::use_awaitable);
+					this->log_output(("Refused connection " + socket.remote_endpoint().address().to_string() + ":" + std::to_string(socket.remote_endpoint().port()) + ", reason: Server is full.").c_str());
 					throw ProxyException("Server is full.");
 				}
 				StartLoginDataPack start_login_data_pack;
@@ -232,6 +237,7 @@ asio::awaitable<void> Proxy::HandleConnection(asio::ip::tcp::socket socket)
 				if (handshake_data_pack.server_address.size() != std::strlen(handshake_data_pack.server_address.c_str()))
 				{
 					remote_server_suffix = handshake_data_pack.server_address.substr(std::strlen(handshake_data_pack.server_address.c_str()));
+					this->log_output(("FML login detected on " + socket.remote_endpoint().address().to_string() + ":" + std::to_string(socket.remote_endpoint().port()) + ", suffix: " + remote_server_suffix).c_str());
 				}
 				//调用登录回调
 				user_control.username = start_login_data_pack.user_name;
@@ -272,6 +278,7 @@ asio::awaitable<void> Proxy::HandleConnection(asio::ip::tcp::socket socket)
 
 					// 尝试连接每个解析到的端点
 					co_await asio::async_connect(remote_server, endpoints, asio::use_awaitable);
+					this->log_output(("Connected to remote server " + remote_server_addr_real + ":" + std::to_string(remote_server_port_real)).c_str());
 				}
 				catch (const std::exception& e)
 				{
@@ -322,8 +329,10 @@ asio::awaitable<void> Proxy::HandleConnection(asio::ip::tcp::socket socket)
 					this->connections.push_back(&socket);
 					//开始转发数据
 					{
+						this->log_output(("Forwarding data between " + socket.remote_endpoint().address().to_string() + ":" + std::to_string(socket.remote_endpoint().port()) + " and " + remote_server.remote_endpoint().address().to_string() + ":" + std::to_string(remote_server.remote_endpoint().port())).c_str());
 						using namespace asio::experimental::awaitable_operators;
 						co_await(ForwardData(socket, remote_server, *user_ptr) && ForwardData(remote_server, socket, *user_ptr));
+						this->log_output(("Forwarding data between " + socket.remote_endpoint().address().to_string() + ":" + std::to_string(socket.remote_endpoint().port()) + " and " + remote_server.remote_endpoint().address().to_string() + ":" + std::to_string(remote_server.remote_endpoint().port()) + " ended.").c_str());
 					}
 					//转发结束，关闭连接
 					co_await asio::dispatch(strand, asio::use_awaitable); //串行化
@@ -342,6 +351,7 @@ asio::awaitable<void> Proxy::HandleConnection(asio::ip::tcp::socket socket)
 			}
 				  break;
 			default:
+				this->log_output(("Invalid connection status: " + std::to_string(connection_status) + " from "+ socket.remote_endpoint().address().to_string()+":"+std::to_string(socket.remote_endpoint().port())).c_str());
 				throw ProxyException("Invalid connection status.");
 			}
 		}

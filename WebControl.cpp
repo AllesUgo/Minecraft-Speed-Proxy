@@ -42,23 +42,8 @@ void WebControlServer::SendSuccessResponse(const RbsLib::Network::TCP::TCPConnec
 
 bool WebControlServer::CheckToken(const std::string& cookie, const std::string& token, const std::chrono::system_clock::time_point& token_expiry_time)
 {
-	if (cookie.empty() || token.empty())
-	{
-		return false;
-	}
-	//从cookie中提取token
-	auto pos = cookie.find("token=");
-	if (pos == std::string::npos)
-	{
-		return false;
-	}
-	pos += 6; // 跳过 "token=" 的长度
-	auto end_pos = cookie.find(';', pos);
-	if (end_pos == std::string::npos)
-	{
-		end_pos = cookie.size();
-	}
-	std::string extracted_token = cookie.substr(pos, end_pos - pos);
+
+	std::string extracted_token = cookie;
 	return (extracted_token == token) && (std::chrono::system_clock::now() < token_expiry_time);
 }
 
@@ -378,7 +363,7 @@ void WebControlServer::Start(std::shared_ptr<Proxy>& proxy_client)
 		if (std::regex_match(header.path.c_str(), m, re_userproxy) and m.size() == 2)
 		{
 			//检查token
-			std::string cookie = header.headers.GetHeader("Cookie");
+			std::string cookie = header.headers.GetHeader("Authorize");
 			if (!CheckToken(cookie, this->user_token, this->token_expiry_time))
 			{
 				WebControlServer::SendErrorResponse(connection, 401, "Unauthorized");
@@ -400,7 +385,6 @@ void WebControlServer::Start(std::shared_ptr<Proxy>& proxy_client)
 					response_header.status = 200;
 					response_header.headers.AddHeader("Content-Type", "application/json; charset=utf-8");
 					response_header.headers.AddHeader("Content-Length", std::to_string(response_body.ToString().size()));
-					response_header.headers.AddHeader("Set-Cookie", "token=; HttpOnly; Max-Age=0; Path=/");
 					connection.Send(response_header.ToBuffer());
 					auto str = response_body.ToString();
 					connection.Send(str.c_str(), str.size());
@@ -492,19 +476,20 @@ void WebControlServer::Start(std::shared_ptr<Proxy>& proxy_client)
 				neb::CJsonObject response;
 				response.Add("status", 200);
 				response.Add("message", "Login successful");
+				response.Add("token", this->user_token);
+				response.Add("token_expiry_time", std::chrono::system_clock::to_time_t(this->token_expiry_time));
 				RbsLib::Network::HTTP::ResponseHeader response_header;
 				response_header.status = 200;
 				response_header.headers.AddHeader("Content-Type", "application/json; charset=utf-8");
 				response_header.headers.AddHeader("Access-Control-Allow-Origin", "*");
 				response_header.headers.AddHeader("Content-Length", std::to_string(response.ToString().size()));
-				response_header.headers.AddHeader("Set-Cookie", "token=" + this->user_token + "; HttpOnly; Max-Age=3600; Path=/");
 				connection.Send(response_header.ToBuffer());
 				connection.Send(response.ToString().c_str(), response.ToString().size());
 			}
 			else
 			{
 				//检查token
-				std::string cookie = header.headers.GetHeader("Cookie");
+				std::string cookie = header.headers.GetHeader("Authorize");
 				if (!CheckToken(cookie, this->user_token, this->token_expiry_time))
 				{
 					WebControlServer::SendErrorResponse(connection, 401, "Unauthorized");
