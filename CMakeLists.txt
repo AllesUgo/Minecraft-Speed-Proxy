@@ -38,7 +38,9 @@ include_directories("asio/include")
 
 # 将源代码添加到此项目的可执行文件。
 #若需要二次开发请修改下面指令中的文件名
-add_executable (minecraftspeedproxy "main.cpp" 
+add_executable (minecraftspeedproxy 
+"asio/import_asio.h" "asio/import_asio.cpp"
+"main.cpp" 
 "WhiteBlackList.cpp" "WhiteBlackList.h"
 "config.cpp" "config.h"
 "datapackage.cpp" "datapackage.h"
@@ -46,7 +48,6 @@ add_executable (minecraftspeedproxy "main.cpp"
 "proxy.cpp" "proxy.h"
 "helper.cpp" "helper.h"
 "WebControl.cpp" "WebControl.h"
-"asio/import_asio.h"
 ${RBS_LIB_SRC} ${JSON_LIB_SRC} )
 
 #如果是Windows平台，链接ws2_32.lib
