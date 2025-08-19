@@ -668,7 +668,7 @@ void WebControlServer::Start(std::shared_ptr<Proxy>& proxy_client)
 		response.status = 204; // No Content
 		response.headers.AddHeader("Access-Control-Allow-Origin", "*");
 		response.headers.AddHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-		response.headers.AddHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+		response.headers.AddHeader("Access-Control-Allow-Headers", "Content-Type, Authorize");
 		response.headers.AddHeader("Access-Control-Max-Age", "86400"); // 24 hours
 		connection.Send(response.ToBuffer());
 		return 0;
