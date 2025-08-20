@@ -379,7 +379,7 @@ bool WebControlServer::GetUserNumberList(neb::CJsonObject& response, neb::CJsonO
 		});
 
 	// 按照粒度分组统计
-	std::map<std::time_t, uint32_t> grouped;
+	std::map<std::time_t, uint32_t> grouped,count;
 	for (const auto& item : filtered_view)
 	{
 		std::time_t key = 0;
@@ -409,6 +409,19 @@ bool WebControlServer::GetUserNumberList(neb::CJsonObject& response, neb::CJsonO
 			key = std::mktime(&tm);
 		}
 		grouped[key] += item.second;
+		count[key]++; // 统计每个时间点的用户数量
+	}
+	// 计算每个时间点的平均在线用户数
+	for (auto& item : grouped)
+	{
+		if (count[item.first] > 0)
+		{
+			item.second /= count[item.first]; // 计算平均值
+		}
+		else
+		{
+			item.second = 0; // 如果没有用户，则设置为0
+		}
 	}
 
 	response.AddEmptySubArray("user_numbers");
