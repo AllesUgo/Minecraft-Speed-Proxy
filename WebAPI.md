@@ -24,16 +24,19 @@ generator: "@tarslib/widdershins v4.0.30"
 WebAPI当前版本采用单用户登录方式，无需用户名，密码在配置文件设置。
 
 你可以自行编写程序或网页，利用该接口文档实现对Minecraft-Speed-Proxy的远程控制。
-# Interface
 
+# Authentication
+
+* API Key (apikey-header-Authorize)
+    - Parameter Name: **Authorize**, in: header. 
+
+# Interfaces
 
 ## POST 登录
 
 POST /api/login
 
-登录
-登录成功后将会设置Cookie，包含一个关键的token字段作为后续鉴权令牌
-后续所有需要身份验证的操作均需要该Cookie
+登录成功后将会返回token和生存时间，需要身份验证的请求在请求头部添加Authorize字段，值为token
 
 > Body 请求参数
 
@@ -57,7 +60,9 @@ POST /api/login
 ```json
 {
   "status": 200,
-  "message": "success"
+  "message": "Login successful",
+  "token": "17555886558072626",
+  "token_expiry_time": 1755592255
 }
 ```
 
@@ -73,8 +78,10 @@ POST /api/login
 
 |名称|类型|必选|约束|中文名|说明|
 |---|---|---|---|---|---|
-|» status|integer|true|none||状态|
-|» message|string|true|none||状态说明|
+|» status|integer|true|none||none|
+|» message|string|true|none||none|
+|» token|string|true|none||none|
+|» token_expiry_time|integer|true|none||none|
 
 ### 返回头部 Header
 
@@ -690,6 +697,157 @@ GET /api/logout
 |---|---|---|---|---|---|
 |» status|integer|true|none||状态|
 |» message|string|true|none||状态说明|
+
+## GET 获取服务器启动时间戳和服务器当前时间戳
+
+GET /api/get_start_time
+
+> 返回示例
+
+> 200 Response
+
+```json
+{
+  "start_time": 1755524498,
+  "now_time": 1755524521,
+  "status": 200,
+  "message": "Start time retrieved successfully"
+}
+```
+
+### 返回结果
+
+|状态码|状态码含义|说明|数据模型|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|none|Inline|
+
+### 返回数据结构
+
+状态码 **200**
+
+|名称|类型|必选|约束|中文名|说明|
+|---|---|---|---|---|---|
+|» start_time|integer|true|none|服务器开始时间戳|none|
+|» now_time|integer|true|none|当前服务器时间戳|none|
+|» status|integer|true|none||none|
+|» message|string|true|none||none|
+
+## GET 获取日志记录
+
+GET /api/get_logs
+
+> 返回示例
+
+> 200 Response
+
+```json
+{
+  "logs": [
+    {
+      "timestamp": 1755591375,
+      "message": "玩家User uuid:xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx 登录于 127.0.0.1"
+    },
+    {
+      "timestamp": 1755591377,
+      "message": "玩家User uuid:xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx 退出于 127.0.0.1，在线时长2.000000秒，使用流量190.000000bytes"
+    }
+  ],
+  "status": 200,
+  "message": "Logs retrieved successfully"
+}
+```
+
+### 返回结果
+
+|状态码|状态码含义|说明|数据模型|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|none|Inline|
+
+### 返回数据结构
+
+状态码 **200**
+
+|名称|类型|必选|约束|中文名|说明|
+|---|---|---|---|---|---|
+|» logs|[object]|true|none||none|
+|»» timestamp|integer|true|none||none|
+|»» message|string|true|none||none|
+|» status|integer|true|none||none|
+|» message|string|true|none||none|
+
+## POST 获取历史在线用户数
+
+POST /api/get_online_number_list
+
+> Body 请求参数
+
+```json
+{
+  "start_time": 0,
+  "end_time": 1755612174,
+  "granularity": "minute"
+}
+```
+
+### 请求参数
+
+|名称|位置|类型|必选|中文名|说明|
+|---|---|---|---|---|---|
+|body|body|object| 否 ||none|
+|» start_time|body|integer| 是 | 起始时间戳|none|
+|» end_time|body|integer| 是 | 终止时间戳|none|
+|» granularity|body|string| 是 | 粒度|支持minute、hour、day、week、month|
+
+> 返回示例
+
+> 200 Response
+
+```json
+{
+  "user_numbers": [
+    {
+      "timestamp": 1755611904,
+      "online_users": 0
+    },
+    {
+      "timestamp": 1755611964,
+      "online_users": 0
+    },
+    {
+      "timestamp": 1755612024,
+      "online_users": 0
+    },
+    {
+      "timestamp": 1755612084,
+      "online_users": 0
+    },
+    {
+      "timestamp": 1755612174,
+      "online_users": 0
+    }
+  ],
+  "status": 200,
+  "message": "User number list retrieved successfully"
+}
+```
+
+### 返回结果
+
+|状态码|状态码含义|说明|数据模型|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|none|Inline|
+
+### 返回数据结构
+
+状态码 **200**
+
+|名称|类型|必选|约束|中文名|说明|
+|---|---|---|---|---|---|
+|» user_numbers|[object]|true|none||none|
+|»» timestamp|integer|false|none||none|
+|»» online_users|integer|false|none||none|
+|» status|integer|true|none||none|
+|» message|string|true|none||none|
 
 # 数据模型
 
