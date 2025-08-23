@@ -416,7 +416,7 @@ bool WebControlServer::GetUserNumberList(neb::CJsonObject& response, neb::CJsonO
 	{
 		if (count[item.first] > 0)
 		{
-			item.second /= count[item.first]; // 计算平均值
+			item.second = static_cast<int>(std::round(static_cast<double>(item.second) / count[item.first])); // 计算平均值
 		}
 		else
 		{
