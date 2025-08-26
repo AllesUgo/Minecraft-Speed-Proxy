@@ -50,8 +50,10 @@ protected:
 	static bool SetMaxUsers(neb::CJsonObject& response, const neb::CJsonObject& request, const std::shared_ptr<Proxy>& proxy_client);
 	static bool KickPlayer(neb::CJsonObject& response, const neb::CJsonObject& request, const std::shared_ptr<Proxy>& proxy_client);
 	static void GetStartTime(neb::CJsonObject& response, const std::shared_ptr<Proxy>& proxy_client);
-	 bool GetUserNumberList(neb::CJsonObject& response,neb::CJsonObject& request, const std::shared_ptr<Proxy>& proxy_client);
+	bool GetUserNumberList(neb::CJsonObject& response,neb::CJsonObject& request, const std::shared_ptr<Proxy>& proxy_client);
 	void GetLogs(neb::CJsonObject& response, const std::shared_ptr<Proxy>& proxy_client);
+	static void GetMotd(neb::CJsonObject& response, const std::shared_ptr<Proxy>& proxy_client);
+	static bool SetMotd(neb::CJsonObject& response, const neb::CJsonObject& request, const std::shared_ptr<Proxy>& proxy_client);
 public:
 	WebControlServer(const std::string& address, std::uint16_t port);
 	~WebControlServer() noexcept;

@@ -667,6 +667,14 @@ void Proxy::SetMotd(const std::string& motd)
 		}, asio::use_future).get();
 }
 
+neb::CJsonObject Proxy::GetMotd() const
+{
+	return asio::co_spawn(this->strand, [this]() -> asio::awaitable<neb::CJsonObject> {
+		co_await asio::dispatch(this->strand, asio::use_awaitable);
+		co_return this->motd.motd_json;
+		}, asio::use_future).get();
+}
+
 void Proxy::SetMaxPlayer(int n)
 {
 	this->max_player.store(n);//原子变量不需要发送到协程

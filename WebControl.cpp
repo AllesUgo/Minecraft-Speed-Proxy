@@ -454,6 +454,32 @@ void WebControlServer::GetLogs(neb::CJsonObject& response, const std::shared_ptr
 	response.Add("message", "Logs retrieved successfully");
 }
 
+void WebControlServer::GetMotd(neb::CJsonObject& response, const std::shared_ptr<Proxy>& proxy_client)
+{
+	response.Add("motd", proxy_client->GetMotd());
+	response.Add("status", 200);
+	response.Add("message", "MOTD retrieved successfully");
+}
+
+bool WebControlServer::SetMotd(neb::CJsonObject& response, const neb::CJsonObject& request, const std::shared_ptr<Proxy>& proxy_client)
+{
+	neb::CJsonObject motd;
+	if (request.Get("motd", motd))
+	{
+		proxy_client->SetMotd(motd.ToString());
+		Logger::LogInfo("WebAPI: 已设置新的MOTD");
+		response.Add("status", 200);
+		response.Add("message", "MOTD set successfully");
+		return true;
+	}
+	else
+	{
+		response.Add("status", 400);
+		response.Add("message", "Missing or invalid 'motd' field in request");
+		return false;
+	}
+}
+
 
 WebControlServer::WebControlServer(const std::string& address, std::uint16_t port)
 	:server(address, port)
@@ -598,6 +624,11 @@ void WebControlServer::Start(std::shared_ptr<Proxy>& proxy_client)
 				else if (m[1].str() == "get_logs")
 				{
 					this->GetLogs(response_body, proxy);
+					this->SendSuccessResponse(connection, response_body);
+				}
+				else if (m[1].str() == "get_motd")
+				{
+					this->GetMotd(response_body, proxy);
 					this->SendSuccessResponse(connection, response_body);
 				}
 				else
@@ -754,6 +785,17 @@ void WebControlServer::Start(std::shared_ptr<Proxy>& proxy_client)
 					else if (m[1].str() == "get_online_number_list")
 					{
 						if (this->GetUserNumberList(response_body, data, proxy))
+						{
+							this->SendSuccessResponse(connection, response_body);
+						}
+						else
+						{
+							WebControlServer::SendErrorResponse(connection, response_body);
+						}
+					}
+					else if (m[1].str() == "set_motd")
+					{
+						if (this->SetMotd(response_body, data, proxy))
 						{
 							this->SendSuccessResponse(connection, response_body);
 						}

@@ -101,6 +101,7 @@ public:
 	auto GetUsersInfo() -> std::list<UserInfo>;
 	auto GetUsersInfoAsync() -> asio::awaitable<std::list<UserInfo>>;
 	void SetMotd(const std::string& motd);
+	neb::CJsonObject GetMotd() const;
 	void SetMaxPlayer(int n);
 	int GetMaxPlayer(void);
 	void SetUserProxy(const std::string& username, const std::string& proxy_address, std::uint16_t proxy_port);
