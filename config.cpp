@@ -78,7 +78,7 @@ void Config::upgrade_config_v1_1()
 		Config::set_config("Version", "1.1");
 		Config::set_config("WebAPIEnable", true,true);
 		Config::set_config("WebAPIAddress", "127.0.0.1");
-		Config::set_config("WebAPIPort", 8080);
+		Config::set_config("WebAPIPort", 20220);
 		Config::set_config("WebAPIPassword", "admin");
 	}
 }
@@ -114,7 +114,7 @@ void Config::SetDefaultConfig()
 	//WebAPIœ‡πÿ
 	Config::set_config("WebAPIEnable", true,true);
 	Config::set_config("WebAPIAddress", "127.0.0.1");
-	Config::set_config("WebAPIPort", 8080);
+	Config::set_config("WebAPIPort", 20220);
 	Config::set_config("WebAPIPassword", "admin");
 
 }
