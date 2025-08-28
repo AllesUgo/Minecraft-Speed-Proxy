@@ -6,23 +6,49 @@ on:
 
 jobs:
   ubuntu-build:
-
     runs-on: ubuntu-22.04
-
     steps:
-      - uses: actions/checkout@v1
-      - name: configure
-        run: mkdir build-ubuntu && cd build-ubuntu && cmake -D CMAKE_BUILD_TYPE=release ..
-      - name: build
-        run: cmake --build build-ubuntu
+      - uses: actions/checkout@v2
+      
+      - name: Configure CMake
+        run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=Release
+      
+      - name: Build
+        run: cmake --build ${{github.workspace}}/build --config Release
+      
+      - name: Pack tar
+        run: |
+          mkdir minecraftspeedproxy
+          cp ${{github.workspace}}/build/minecraftspeedproxy ${{github.workspace}}/LICENSE minecraftspeedproxy/
+          tar -czf minecraftspeedproxy-linux-amd64.tar.gz minecraftspeedproxy
+      
+      - name: Upload Linux artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: minecraftspeedproxy-linux-amd64
+          path: minecraftspeedproxy-linux-amd64.tar.gz
 
   win-build:
-
     runs-on: windows-latest
-
     steps:
-      - uses: actions/checkout@v1
-      - name: configure
-        run: mkdir build-windows && cd build-windows && cmake -D CMAKE_BUILD_TYPE=release ..
-      - name: build
-        run: cmake --build build-windows
+      - uses: actions/checkout@v2
+      
+      - name: Configure CMake
+        run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=Release
+      
+      - name: Build
+        run: cmake --build ${{github.workspace}}/build --config Release
+      
+      - name: Pack zip
+        run: |
+          mkdir minecraftspeedproxy
+          copy ${{github.workspace}}/build/Release/minecraftspeedproxy.exe minecraftspeedproxy/
+          copy ${{github.workspace}}/LICENSE minecraftspeedproxy/
+          Compress-Archive -Path minecraftspeedproxy -DestinationPath minecraftspeedproxy-windows-amd64.zip
+        shell: powershell
+      
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: minecraftspeedproxy-windows-amd64
+          path: minecraftspeedproxy-windows-amd64.zip
