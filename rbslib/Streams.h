@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <exception>
 #include <string>
+#include "../asio/import_asio.h"
 namespace RbsLib
 {
 	namespace Streams
@@ -37,6 +38,18 @@ namespace RbsLib
 		public:
 			virtual void Write(const IBuffer& buffer) = 0;
 			virtual void Write(const void* ptr, int64_t size) = 0;
+		};
+		class IAsyncInputStream
+		{
+		public:
+			virtual asio::awaitable<const Buffer*> ReadAsync(Buffer& buffer, int64_t size = 0) = 0;
+			virtual asio::awaitable<int64_t> ReadAsync(void* ptr, int64_t size) = 0;
+		};
+		class IAsyncOutputStream
+		{
+			public:
+			virtual asio::awaitable<void> WriteAsync(const IBuffer& buffer) = 0;
+			virtual asio::awaitable<void> WriteAsync(const void* ptr, int64_t size) = 0;
 		};
 		class IOStream :public IInputStream, public IOutputStream
 		{};

@@ -4,6 +4,24 @@
 #include "json/CJsonObject.h"
 #include "rbslib/CharsetConvert.h"
 #include "WhiteBlackList.h"
+#include <ranges>
+
+asio::awaitable<void> WebControlServer::TimeTaskUsers(std::shared_ptr<Proxy>& proxy_client)
+{
+	try
+	{
+		asio::steady_timer timer(co_await asio::this_coro::executor);
+		while (true) 
+		{
+			std::shared_lock<std::shared_mutex> lock(time_online_users_mutex);
+			time_online_users[std::time(nullptr)] = proxy_client->GetUsersInfo().size();
+			lock.unlock();
+			timer.expires_after(std::chrono::minutes(1));
+			co_await timer.async_wait(asio::use_awaitable);
+		}
+	}
+	catch (...){}
+}
 
 void WebControlServer::SendErrorResponse(const RbsLib::Network::TCP::TCPConnection& connection, int status_code, const std::string& message)
 {
@@ -42,23 +60,8 @@ void WebControlServer::SendSuccessResponse(const RbsLib::Network::TCP::TCPConnec
 
 bool WebControlServer::CheckToken(const std::string& cookie, const std::string& token, const std::chrono::system_clock::time_point& token_expiry_time)
 {
-	if (cookie.empty() || token.empty())
-	{
-		return false;
-	}
-	//从cookie中提取token
-	auto pos = cookie.find("token=");
-	if (pos == std::string::npos)
-	{
-		return false;
-	}
-	pos += 6; // 跳过 "token=" 的长度
-	auto end_pos = cookie.find(';', pos);
-	if (end_pos == std::string::npos)
-	{
-		end_pos = cookie.size();
-	}
-	std::string extracted_token = cookie.substr(pos, end_pos - pos);
+
+	std::string extracted_token = cookie;
 	return (extracted_token == token) && (std::chrono::system_clock::now() < token_expiry_time);
 }
 
@@ -127,7 +130,7 @@ bool WebControlServer::AddBlacklistUser(neb::CJsonObject& response, const neb::C
 		return false;
 	}
 	WhiteBlackList::AddBlackList(username);
-	Logger::LogInfo("WebAPI: 已将用户 %s 添加到黑名单", username.c_str());
+	Logger::LogInfo("WebAPI: Added user %s to blacklist", username.c_str());
 	response.Add("status", 200);
 	response.Add("message", "User added to black list successfully");
 	return true;
@@ -149,7 +152,7 @@ bool WebControlServer::RemoveBlacklistUser(neb::CJsonObject& response, const neb
 		return false;
 	}
 	WhiteBlackList::RemoveBlackList(username);
-	Logger::LogInfo("WebAPI: 已将用户 %s 从黑名单移除", username.c_str());
+	Logger::LogInfo("WebAPI: Removed user %s from blacklist", username.c_str());
 	response.Add("status", 200);
 	response.Add("message", "User removed from black list successfully");
 	return true;
@@ -171,7 +174,7 @@ bool WebControlServer::AddWhitelistUser(neb::CJsonObject& response, const neb::C
 		return false;
 	}
 	WhiteBlackList::AddWhiteList(username);
-	Logger::LogInfo("WebAPI: 已将用户 %s 添加到白名单", username.c_str());
+	Logger::LogInfo("WebAPI: Added user %s to whitelist", username.c_str());
 	response.Add("status", 200);
 	response.Add("message", "User added to white list successfully");
 	return true;
@@ -193,7 +196,7 @@ bool WebControlServer::RemoveWhitelistUser(neb::CJsonObject& response, const neb
 		return false;
 	}
 	WhiteBlackList::RemoveWhiteList(username);
-	Logger::LogInfo("WebAPI: 已将用户 %s 从白名单移除", username.c_str());
+	Logger::LogInfo("WebAPI: Removed user %s from whitelist", username.c_str());
 	response.Add("status", 200);
 	response.Add("message", "User removed from white list successfully");
 	return true;
@@ -210,7 +213,7 @@ bool WebControlServer::EnableWhitelist(neb::CJsonObject& response, const std::sh
 	else
 	{
 		WhiteBlackList::WhiteListOn();
-		Logger::LogInfo("WebAPI: 白名单已启用");
+		Logger::LogInfo("WebAPI: Enabled whitelist");
 		response.Add("status", 200);
 		response.Add("message", "Whitelist enabled successfully");
 		return true;
@@ -228,7 +231,7 @@ bool WebControlServer::DisableWhitelist(neb::CJsonObject& response, const std::s
 	else
 	{
 		WhiteBlackList::WhiteListOff();
-		Logger::LogInfo("WebAPI: 白名单已禁用");
+		Logger::LogInfo("WebAPI: Disabled whitelist");
 		response.Add("status", 200);
 		response.Add("message", "Whitelist disabled successfully");
 		return true;
@@ -269,7 +272,7 @@ bool WebControlServer::SetUserProxy(neb::CJsonObject& response, const neb::CJson
 		return false;
 	}
 	proxy_client->SetUserProxy(username, proxy_address, static_cast<std::uint16_t>(proxy_port));
-	Logger::LogInfo("WebAPI: 已为用户 %s 设置代理服务器 %s:%d", username.c_str(), proxy_address.c_str(), proxy_port);
+	Logger::LogInfo("WebAPI: Set proxy server for user %s to %s:%d", username.c_str(), proxy_address.c_str(), proxy_port);
 	response.Add("status", 200);
 	response.Add("message", "User proxy set successfully");
 	return true;
@@ -287,7 +290,7 @@ bool WebControlServer::RemoveUserProxy(neb::CJsonObject& response, const neb::CJ
 	try
 	{
 		proxy_client->DeleteUserProxy(username);
-		Logger::LogInfo("WebAPI: 已删除用户 %s 的代理服务器设置", username.c_str());
+		Logger::LogInfo("WebAPI: Deleted proxy server setting for user %s", username.c_str());
 	}
 	catch (ProxyException const& ex)
 	{
@@ -310,7 +313,7 @@ bool WebControlServer::SetMaxUsers(neb::CJsonObject& response, const neb::CJsonO
 		return false;
 	}
 	proxy_client->SetMaxPlayer(max_users);
-	Logger::LogInfo("WebAPI: 已设置最大用户数为 %d", max_users);
+	Logger::LogInfo("WebAPI: Set maximum users to %d", max_users);
 	response.Add("status", 200);
 	response.Add("message", "Max users set successfully");
 	return true;
@@ -328,7 +331,7 @@ bool WebControlServer::KickPlayer(neb::CJsonObject& response, const neb::CJsonOb
 	try
 	{
 		proxy_client->KickByUsername(username);
-		Logger::LogInfo("WebAPI: 已踢出用户 %s", username.c_str());
+		Logger::LogInfo("WebAPI: Kicked user %s", username.c_str());
 		response.Add("status", 200);
 		response.Add("message", "Player kicked successfully");
 		return true;
@@ -341,6 +344,141 @@ bool WebControlServer::KickPlayer(neb::CJsonObject& response, const neb::CJsonOb
 	}
 }
 
+void WebControlServer::GetStartTime(neb::CJsonObject& response, const std::shared_ptr<Proxy>& proxy_client)
+{
+	auto start_time = proxy_client->GetStartTime();
+	response.Add("start_time", start_time);
+	response.Add("now_time", std::time(nullptr));
+	response.Add("status", 200);
+	response.Add("message", "Start time retrieved successfully");
+}
+
+// 修改的函数 GetUserNumberList返回的数据
+bool WebControlServer::GetUserNumberList(neb::CJsonObject& response, neb::CJsonObject& request, const std::shared_ptr<Proxy>& proxy_client)
+{
+	// 获取时间范围
+	std::time_t start_time, end_time;
+	if (!request.Get("start_time", start_time) || !request.Get("end_time", end_time) || start_time >= end_time)
+	{
+		response.Add("status", 400);
+		response.Add("message", "Invalid 'start_time' or 'end_time' value");
+		return false;
+	}
+	// 获取粒度 minute（分钟）、hour（小时）、day（天）、week（周）、month（月）
+	std::string granularity;
+	if (!request.Get("granularity", granularity) || (granularity != "minute" && granularity != "hour" && granularity != "day" && granularity != "week" && granularity != "month"))
+	{
+		response.Add("status", 400);
+		response.Add("message", "Invalid 'granularity' value");
+		return false;
+	}
+	// 使用ranges库获取时间范围内的在线用户数量
+	std::shared_lock<std::shared_mutex> lock(this->time_online_users_mutex);
+	auto filtered_view = std::ranges::views::filter(this->time_online_users, [start_time, end_time](const auto& item) {
+		return item.first >= start_time && item.first <= end_time;
+		});
+
+	// 根据粒度分组统计
+	std::map<std::time_t, uint32_t> grouped,count;
+	for (const auto& item : filtered_view)
+	{
+		std::time_t key = 0;
+		if (granularity == "minute")
+		{
+			key = item.first / 60 * 60;
+		}
+		else if (granularity == "hour")
+		{
+			key = item.first / 3600 * 3600;
+		}
+		else if (granularity == "day")
+		{
+			key = item.first / 86400 * 86400;
+		}
+		else if (granularity == "week")
+		{
+			key = item.first / (7 * 86400) * (7 * 86400);
+		}
+		else if (granularity == "month")
+		{
+			std::tm tm = *std::localtime(&item.first);
+			tm.tm_mday = 1; // 设置为当月第一天
+			tm.tm_hour = 0;
+			tm.tm_min = 0;
+			tm.tm_sec = 0;
+			key = std::mktime(&tm);
+		}
+		grouped[key] += item.second;
+		count[key]++; // 统计每个时间段的数据个数
+	}
+	// 计算每个时间段平均在线用户数
+	for (auto& item : grouped)
+	{
+		if (count[item.first] > 0)
+		{
+			item.second = static_cast<int>(std::round(static_cast<double>(item.second) / count[item.first])); // 计算平均值
+		}
+		else
+		{
+			item.second = 0; // 如果没有数据则设置为0
+		}
+	}
+
+	response.AddEmptySubArray("user_numbers");
+	for (const auto& item : grouped)
+	{
+		neb::CJsonObject user_number;
+		user_number.Add("timestamp", item.first);
+		user_number.Add("online_users", item.second);
+		response["user_numbers"].Add(user_number);
+	}
+	lock.unlock();
+	response.Add("status", 200);
+	response.Add("message", "User number list retrieved successfully");
+	return true;
+}
+
+void WebControlServer::GetLogs(neb::CJsonObject& response, const std::shared_ptr<Proxy>& proxy_client)
+{
+	response.AddEmptySubArray("logs");
+	std::shared_lock<std::shared_mutex> lock(this->log_mutex);
+	for (const auto& log : this->logs)
+	{
+		neb::CJsonObject log_entry;
+		log_entry.Add("timestamp", log.first);
+		log_entry.Add("message", log.second);
+		response["logs"].Add(log_entry);
+	}
+	lock.unlock();
+	response.Add("status", 200);
+	response.Add("message", "Logs retrieved successfully");
+}
+
+void WebControlServer::GetMotd(neb::CJsonObject& response, const std::shared_ptr<Proxy>& proxy_client)
+{
+	response.Add("motd", proxy_client->GetMotd());
+	response.Add("status", 200);
+	response.Add("message", "MOTD retrieved successfully");
+}
+
+bool WebControlServer::SetMotd(neb::CJsonObject& response, const neb::CJsonObject& request, const std::shared_ptr<Proxy>& proxy_client)
+{
+	neb::CJsonObject motd;
+	if (request.Get("motd", motd))
+	{
+		proxy_client->SetMotd(motd.ToString());
+		Logger::LogInfo("WebAPI: Set new MOTD");
+		response.Add("status", 200);
+		response.Add("message", "MOTD set successfully");
+		return true;
+	}
+	else
+	{
+		response.Add("status", 400);
+		response.Add("message", "Missing or invalid 'motd' field in request");
+		return false;
+	}
+}
 
 
 WebControlServer::WebControlServer(const std::string& address, std::uint16_t port)
@@ -363,27 +501,68 @@ void WebControlServer::SetUserPassword(const std::string& password)
 
 void WebControlServer::Start(std::shared_ptr<Proxy>& proxy_client)
 {
+	//注册日志回调
+	proxy_client->on_login += [this](Proxy::ConnectionControl& control) {
+		std::unique_lock<std::shared_mutex> lock(this->log_mutex);
+		this->logs.push_back({ std::time(nullptr), RbsLib::Encoding::CharsetConvert::ANSItoUTF8("Player " + control.Username() + " uuid:" + control.UUID() + " logged in from " + control.GetAddress()) });
+		if (this->max_log_size > this->max_log_size)
+		{
+			this->logs.pop_front(); //删除最旧的日志
+		}
+		};
+	proxy_client->on_logout += [this](Proxy::ConnectionControl& control) {
+		double flow = control.UploadBytes();
+		std::string unit = "bytes";
+		if (flow > 10000) {
+			flow /= 1024;
+			unit = "KB";
+		}
+		if (flow > 10000) {
+			flow /= 1024;
+			unit = "MB";
+		}
+		if (flow > 10000) {
+			flow /= 1024;
+			unit = "GB";
+		}
+		double time = std::time(nullptr) - control.ConnectTime();
+		std::string time_unit = "seconds";
+		if (time > 100) {
+			time /= 60;
+			time_unit = "minutes";
+		}
+		if (time > 100) {
+			time /= 60;
+			time_unit = "hours";
+		}
+		std::unique_lock<std::shared_mutex> lock(this->log_mutex);
+		this->logs.push_back({ std::time(nullptr), RbsLib::Encoding::CharsetConvert::ANSItoUTF8("Player " + control.Username() + " uuid:" + control.UUID() + " logged out from " + control.GetAddress() + ", online duration " + std::to_string(time) + " " + time_unit + ", traffic used " + std::to_string(flow) + " " + unit) });
+		if (this->logs.size() > this->max_log_size)
+		{
+			this->logs.pop_front(); //删除最旧的日志
+		}
+		};
 	this->server.SetGetHandle([proxy = proxy_client, this](const RbsLib::Network::TCP::TCPConnection& connection, RbsLib::Network::HTTP::RequestHeader& header) -> int {
 		static const std::regex re_userproxy(R"(^/api/([a-zA-Z0-9_]{1,256})$)");
 		std::cmatch m;
 		if (std::regex_match(header.path.c_str(), m, re_userproxy) and m.size() == 2)
 		{
 			//检查token
-			std::string cookie = header.headers.GetHeader("Cookie");
+			std::string cookie = header.headers.GetHeader("Authorize");
 			if (!CheckToken(cookie, this->user_token, this->token_expiry_time))
 			{
 				WebControlServer::SendErrorResponse(connection, 401, "Unauthorized");
 			}
 			else
 			{
-				//根据业务逻辑处理请求
+				//处理业务逻辑并返回结果
 				
 				neb::CJsonObject response_body;
 				if (m[1].str() == "logout")
 				{
 					this->user_token = "";
 					this->token_expiry_time = std::chrono::system_clock::time_point();
-					Logger::LogInfo("WebAPI: 用户退出登录");
+					Logger::LogInfo("WebAPI: User logged out");
 					response_body.Add("status", 200);
 					response_body.Add("message", "Logout successful");
 					RbsLib::Network::HTTP::ResponseHeader response_header;
@@ -391,7 +570,6 @@ void WebControlServer::Start(std::shared_ptr<Proxy>& proxy_client)
 					response_header.status = 200;
 					response_header.headers.AddHeader("Content-Type", "application/json; charset=utf-8");
 					response_header.headers.AddHeader("Content-Length", std::to_string(response_body.ToString().size()));
-					response_header.headers.AddHeader("Set-Cookie", "token=; HttpOnly; Max-Age=0; Path=/");
 					connection.Send(response_header.ToBuffer());
 					auto str = response_body.ToString();
 					connection.Send(str.c_str(), str.size());
@@ -438,6 +616,21 @@ void WebControlServer::Start(std::shared_ptr<Proxy>& proxy_client)
 					this->GetUserProxyList(response_body, proxy);
 					this->SendSuccessResponse(connection, response_body);
 				}
+				else if (m[1].str() == "get_start_time")
+				{
+					this->GetStartTime(response_body, proxy);
+					this->SendSuccessResponse(connection, response_body);
+				}
+				else if (m[1].str() == "get_logs")
+				{
+					this->GetLogs(response_body, proxy);
+					this->SendSuccessResponse(connection, response_body);
+				}
+				else if (m[1].str() == "get_motd")
+				{
+					this->GetMotd(response_body, proxy);
+					this->SendSuccessResponse(connection, response_body);
+				}
 				else
 				{
 					WebControlServer::SendErrorResponse(connection, 404, "Unknown API endpoint");
@@ -464,7 +657,7 @@ void WebControlServer::Start(std::shared_ptr<Proxy>& proxy_client)
 			}
 			if (m[1].str() == "login")
 			{
-				//登录请求
+				//登录逻辑
 				std::string password = data("password");
 				if (!this->user_password || *this->user_password != password)
 				{
@@ -474,30 +667,31 @@ void WebControlServer::Start(std::shared_ptr<Proxy>& proxy_client)
 				//生成token
 				this->user_token = std::to_string(std::chrono::system_clock::now().time_since_epoch().count());
 				this->token_expiry_time = std::chrono::system_clock::now() + std::chrono::hours(1); // token有效期1小时
-				Logger::LogInfo("WebAPI: 用户通过WebAPI登录成功");
+				Logger::LogInfo("WebAPI: User successfully logged in via WebAPI");
 				neb::CJsonObject response;
 				response.Add("status", 200);
 				response.Add("message", "Login successful");
+				response.Add("token", this->user_token);
+				response.Add("token_expiry_time", std::chrono::system_clock::to_time_t(this->token_expiry_time));
 				RbsLib::Network::HTTP::ResponseHeader response_header;
 				response_header.status = 200;
 				response_header.headers.AddHeader("Content-Type", "application/json; charset=utf-8");
 				response_header.headers.AddHeader("Access-Control-Allow-Origin", "*");
 				response_header.headers.AddHeader("Content-Length", std::to_string(response.ToString().size()));
-				response_header.headers.AddHeader("Set-Cookie", "token=" + this->user_token + "; HttpOnly; Max-Age=3600; Path=/");
 				connection.Send(response_header.ToBuffer());
 				connection.Send(response.ToString().c_str(), response.ToString().size());
 			}
 			else
 			{
 				//检查token
-				std::string cookie = header.headers.GetHeader("Cookie");
+				std::string cookie = header.headers.GetHeader("Authorize");
 				if (!CheckToken(cookie, this->user_token, this->token_expiry_time))
 				{
 					WebControlServer::SendErrorResponse(connection, 401, "Unauthorized");
 				}
 				else
 				{
-					//根据业务逻辑处理请求
+					//处理业务逻辑并返回结果
 					neb::CJsonObject response_body;
 					
 					if (m[1].str() == "add_whitelist_user")
@@ -588,6 +782,28 @@ void WebControlServer::Start(std::shared_ptr<Proxy>& proxy_client)
 							WebControlServer::SendErrorResponse(connection, response_body);
 						}
 					}
+					else if (m[1].str() == "get_online_number_list")
+					{
+						if (this->GetUserNumberList(response_body, data, proxy))
+						{
+							this->SendSuccessResponse(connection, response_body);
+						}
+						else
+						{
+							WebControlServer::SendErrorResponse(connection, response_body);
+						}
+					}
+					else if (m[1].str() == "set_motd")
+					{
+						if (this->SetMotd(response_body, data, proxy))
+						{
+							this->SendSuccessResponse(connection, response_body);
+						}
+						else
+						{
+							WebControlServer::SendErrorResponse(connection, response_body);
+						}
+					}
 					else
 					{
 						WebControlServer::SendErrorResponse(connection, 404, "Unknown API endpoint");
@@ -603,12 +819,12 @@ void WebControlServer::Start(std::shared_ptr<Proxy>& proxy_client)
 		});
 
 	this->server.SetOptionsHandle([this](const RbsLib::Network::TCP::TCPConnection& connection, RbsLib::Network::HTTP::RequestHeader& header) -> int {
-		//处理OPTIONS请求，主要用于CORS预检请求
+		//处理OPTIONS请求，主要处理CORS预检请求
 		RbsLib::Network::HTTP::ResponseHeader response;
 		response.status = 204; // No Content
 		response.headers.AddHeader("Access-Control-Allow-Origin", "*");
 		response.headers.AddHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-		response.headers.AddHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+		response.headers.AddHeader("Access-Control-Allow-Headers", "Content-Type, Authorize");
 		response.headers.AddHeader("Access-Control-Max-Age", "86400"); // 24 hours
 		connection.Send(response.ToBuffer());
 		return 0;
@@ -623,10 +839,21 @@ void WebControlServer::Start(std::shared_ptr<Proxy>& proxy_client)
 
 		}
 		}).detach();
+	std::thread([this, &proxy_client]() {
+		try
+		{
+			asio::co_spawn(this->io_context, this->TimeTaskUsers(proxy_client), asio::detached);
+			this->io_context.run();
+		}
+		catch (const std::exception& e)
+		{
+		}
+		}).detach();
 }
 
 void WebControlServer::Stop(void)
 {
 	this->is_request_stop = true;
 	this->server.StopAndThrowExceptionInLoopThread();
+	this->io_context.stop();
 }

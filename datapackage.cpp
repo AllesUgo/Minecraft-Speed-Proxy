@@ -26,6 +26,20 @@ RbsLib::Buffer DataPack::Data(RbsLib::Streams::IInputStream& input_stream)
     return RbsLib::Buffer(ptr.get(), size.Value());
 }
 
+asio::awaitable<RbsLib::Buffer> DataPack::Data(RbsLib::Streams::IAsyncInputStream& input_stream)
+{
+	RbsLib::DataType::Integer size;
+	if (!co_await size.ParseFromVarint(input_stream)) throw DataPackException("DataPack::Data: failed to parse size from varint");
+	std::unique_ptr<char[]> ptr = std::make_unique<char[]>(size.Value());
+	std::int64_t need_read = size.Value();
+	while (need_read > 0) {
+		std::int64_t n = co_await input_stream.ReadAsync(ptr.get() + size.Value() - need_read, need_read);
+		if (n <= 0) throw DataPackException("DataPack::Data: failed to read data from input_stream");
+		else need_read -= n;
+	}
+	co_return RbsLib::Buffer(ptr.get(), size.Value());
+}
+
 RbsLib::Buffer DataPack::ReadFullData(RbsLib::Streams::IInputStream& input_stream)
 {
 	RbsLib::Buffer buffer = Data(input_stream);
@@ -33,6 +47,15 @@ RbsLib::Buffer DataPack::ReadFullData(RbsLib::Streams::IInputStream& input_strea
 	ret.AppendToEnd(RbsLib::DataType::Integer(buffer.GetLength()).ToVarint());
 	ret.AppendToEnd(buffer);
 	return ret;
+}
+
+asio::awaitable<RbsLib::Buffer> DataPack::ReadFullData(RbsLib::Streams::IAsyncInputStream& input_stream)
+{
+	RbsLib::Buffer buffer = co_await Data(input_stream);
+	RbsLib::Buffer ret(buffer.GetLength() + 10);
+	ret.AppendToEnd(RbsLib::DataType::Integer(buffer.GetLength()).ToVarint());
+	ret.AppendToEnd(buffer);
+	co_return ret;
 }
 
 
@@ -62,6 +85,24 @@ void HandshakeDataPack::ParseFromInputStream(RbsLib::Streams::IInputStream& inpu
 	this->next_state.ParseFromVarint(bis);
 	if (next_state!=1 && next_state!=2)
 		throw DataPackException("HandshakeDataPack::ParseFromInputStream: invalid next_state");
+}
+
+asio::awaitable<void> HandshakeDataPack::ParseFromInputStream(RbsLib::Streams::IAsyncInputStream& input_stream)
+{
+	auto buffer = co_await DataPack::Data(input_stream);
+	RbsLib::Streams::BufferInputStream bis(buffer);
+	this->id.ParseFromVarint(bis);
+	if (this->id != 0)
+		throw DataPackException("HandshakeDataPack::ParseFromInputStream: invalid id");
+	this->protocol_version.ParseFromVarint(bis);
+	this->server_address.ParseFromInputStream(bis);
+	if (2 != bis.Read(&this->server_port, sizeof(this->server_port)))
+		throw DataPackException("HandshakeDataPack::ParseFromInputStream: failed to read server_port");
+	this->server_port = ntohs(this->server_port);
+	this->next_state.ParseFromVarint(bis);
+	if (next_state != 1 && next_state != 2)
+		throw DataPackException("HandshakeDataPack::ParseFromInputStream: invalid next_state");
+	co_return;
 }
 
 auto HandshakeDataPack::ToBuffer() const -> RbsLib::Buffer
@@ -94,6 +135,17 @@ void StatusResponseDataPack::ParseFromInputStream(RbsLib::Streams::IInputStream&
 	this->json_response.ParseFromInputStream(bis);
 }
 
+asio::awaitable<void> StatusResponseDataPack::ParseFromInputStream(RbsLib::Streams::IAsyncInputStream& input_stream)
+{
+	auto buffer = co_await DataPack::Data(input_stream);
+	RbsLib::Streams::BufferInputStream bis(buffer);
+	this->id.ParseFromVarint(bis);
+	if (this->id != 0)
+		throw DataPackException("StatusResponseDataPack::ParseFromInputStream: invalid id");
+	this->json_response.ParseFromInputStream(bis);
+	co_return;
+}
+
 #include <stdio.h>
 auto StatusResponseDataPack::ToBuffer() const -> RbsLib::Buffer
 {
@@ -118,6 +170,16 @@ void StatusRequestDataPack::ParseFromInputStream(RbsLib::Streams::IInputStream& 
 	this->id.ParseFromVarint(bis);
 	if (this->id != 0)
 		throw DataPackException("StatusRequestDataPack::ParseFromInputStream: invalid id");
+}
+
+asio::awaitable<void> StatusRequestDataPack::ParseFromInputStream(RbsLib::Streams::IAsyncInputStream& input_stream)
+{
+	auto buffer = co_await DataPack::Data(input_stream);
+	RbsLib::Streams::BufferInputStream bis(buffer);
+	this->id.ParseFromVarint(bis);
+	if (this->id != 0)
+		throw DataPackException("StatusRequestDataPack::ParseFromInputStream: invalid id");
+	co_return;
 }
 
 
@@ -150,6 +212,18 @@ void PingDataPack::ParseFromInputStream(RbsLib::Streams::IInputStream& input_str
 		throw DataPackException("PingDataPack::ParseFromInputStream: invalid id");
 	if (8 != bis.Read(&this->payload, sizeof(this->payload)))
 		throw DataPackException("PingDataPack::ParseFromInputStream: failed to read payload");
+}
+
+asio::awaitable<void> PingDataPack::ParseFromInputStream(RbsLib::Streams::IAsyncInputStream& input_stream)
+{
+	auto buffer = co_await DataPack::Data(input_stream);
+	RbsLib::Streams::BufferInputStream bis(buffer);
+	this->id.ParseFromVarint(bis);
+	if (this->id != 1)
+		throw DataPackException("PingDataPack::ParseFromInputStream: invalid id");
+	if (8 != bis.Read(&this->payload, sizeof(this->payload)))
+		throw DataPackException("PingDataPack::ParseFromInputStream: failed to read payload");
+	co_return;
 }
 
 auto PingDataPack::ToBuffer() const -> RbsLib::Buffer
@@ -199,6 +273,32 @@ void StartLoginDataPack::ParseFromInputStream(RbsLib::Streams::IInputStream& inp
 		else this->have_uuid = true;
 	}
 	else this->have_uuid = false;
+}
+
+asio::awaitable<void> StartLoginDataPack::ParseFromInputStream(RbsLib::Streams::IAsyncInputStream& input_stream)
+{
+	auto buffer = co_await DataPack::Data(input_stream);
+	RbsLib::Streams::BufferInputStream bis(buffer);
+	this->id.ParseFromVarint(bis);
+	if (this->id != 0)
+		throw DataPackException("StartLoginDataPack::ParseFromInputStream: invalid id");
+	this->user_name.ParseFromInputStream(bis);
+	if (bis.RemainLength() == 16)
+	{
+		if (16 != bis.Read(this->uuid, 16))
+			this->have_uuid = false;
+		else this->have_uuid = true;
+	}
+	else if (bis.RemainLength() == 17)
+	{
+		// 读取一个字节，并忽略
+		bis.Read(nullptr, 1);
+		if (16 != bis.Read(this->uuid, 16))
+			this->have_uuid = false;
+		else this->have_uuid = true;
+	}
+	else this->have_uuid = false;
+	co_return;
 }
 
 auto StartLoginDataPack::ToBuffer() const -> RbsLib::Buffer

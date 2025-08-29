@@ -129,7 +129,6 @@ void WhiteBlackList::ClearBlackList()
 bool WhiteBlackList::IsInWhite(const std::string& uuid)
 {
 	std::unique_lock<std::mutex> lock(WhiteBlackListMutex);
-	if (WhiteListStatus == false) return true;
 	return std::find(WhiteList.begin(), WhiteList.end(), uuid) != WhiteList.end();
 }
 

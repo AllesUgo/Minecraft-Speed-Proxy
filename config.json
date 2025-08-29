@@ -1,5 +1,5 @@
 {
-	"LocalAddress":	"::1",
+	"LocalAddress":	"0.0.0.0",
 	"LocalPort":	25565,
 	"Address":	"mc.hypixel.net",
 	"RemotePort":	25565,
@@ -15,6 +15,6 @@
 	"Version":	"1.1",
 	"WebAPIEnable":	1,
 	"WebAPIAddress":	"127.0.0.1",
-	"WebAPIPort":	8080,
+	"WebAPIPort":	20220,
 	"WebAPIPassword":	"admin"
 }
