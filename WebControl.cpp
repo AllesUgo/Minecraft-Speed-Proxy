@@ -130,7 +130,7 @@ bool WebControlServer::AddBlacklistUser(neb::CJsonObject& response, const neb::C
 		return false;
 	}
 	WhiteBlackList::AddBlackList(username);
-	Logger::LogInfo("WebAPI: 已将用户 %s 添加到黑名单", username.c_str());
+	Logger::LogInfo("WebAPI: Added user %s to blacklist", username.c_str());
 	response.Add("status", 200);
 	response.Add("message", "User added to black list successfully");
 	return true;
@@ -152,7 +152,7 @@ bool WebControlServer::RemoveBlacklistUser(neb::CJsonObject& response, const neb
 		return false;
 	}
 	WhiteBlackList::RemoveBlackList(username);
-	Logger::LogInfo("WebAPI: 已将用户 %s 从黑名单移除", username.c_str());
+	Logger::LogInfo("WebAPI: Removed user %s from blacklist", username.c_str());
 	response.Add("status", 200);
 	response.Add("message", "User removed from black list successfully");
 	return true;
@@ -174,7 +174,7 @@ bool WebControlServer::AddWhitelistUser(neb::CJsonObject& response, const neb::C
 		return false;
 	}
 	WhiteBlackList::AddWhiteList(username);
-	Logger::LogInfo("WebAPI: 已将用户 %s 添加到白名单", username.c_str());
+	Logger::LogInfo("WebAPI: Added user %s to whitelist", username.c_str());
 	response.Add("status", 200);
 	response.Add("message", "User added to white list successfully");
 	return true;
@@ -196,7 +196,7 @@ bool WebControlServer::RemoveWhitelistUser(neb::CJsonObject& response, const neb
 		return false;
 	}
 	WhiteBlackList::RemoveWhiteList(username);
-	Logger::LogInfo("WebAPI: 已将用户 %s 从白名单移除", username.c_str());
+	Logger::LogInfo("WebAPI: Removed user %s from whitelist", username.c_str());
 	response.Add("status", 200);
 	response.Add("message", "User removed from white list successfully");
 	return true;
@@ -213,7 +213,7 @@ bool WebControlServer::EnableWhitelist(neb::CJsonObject& response, const std::sh
 	else
 	{
 		WhiteBlackList::WhiteListOn();
-		Logger::LogInfo("WebAPI: 白名单已启用");
+		Logger::LogInfo("WebAPI: Enabled whitelist");
 		response.Add("status", 200);
 		response.Add("message", "Whitelist enabled successfully");
 		return true;
@@ -231,7 +231,7 @@ bool WebControlServer::DisableWhitelist(neb::CJsonObject& response, const std::s
 	else
 	{
 		WhiteBlackList::WhiteListOff();
-		Logger::LogInfo("WebAPI: 白名单已禁用");
+		Logger::LogInfo("WebAPI: Disabled whitelist");
 		response.Add("status", 200);
 		response.Add("message", "Whitelist disabled successfully");
 		return true;
@@ -272,7 +272,7 @@ bool WebControlServer::SetUserProxy(neb::CJsonObject& response, const neb::CJson
 		return false;
 	}
 	proxy_client->SetUserProxy(username, proxy_address, static_cast<std::uint16_t>(proxy_port));
-	Logger::LogInfo("WebAPI: 已为用户 %s 设置代理服务器 %s:%d", username.c_str(), proxy_address.c_str(), proxy_port);
+	Logger::LogInfo("WebAPI: Set proxy server for user %s to %s:%d", username.c_str(), proxy_address.c_str(), proxy_port);
 	response.Add("status", 200);
 	response.Add("message", "User proxy set successfully");
 	return true;
@@ -290,7 +290,7 @@ bool WebControlServer::RemoveUserProxy(neb::CJsonObject& response, const neb::CJ
 	try
 	{
 		proxy_client->DeleteUserProxy(username);
-		Logger::LogInfo("WebAPI: 已删除用户 %s 的代理服务器设置", username.c_str());
+		Logger::LogInfo("WebAPI: Deleted proxy server setting for user %s", username.c_str());
 	}
 	catch (ProxyException const& ex)
 	{
@@ -313,7 +313,7 @@ bool WebControlServer::SetMaxUsers(neb::CJsonObject& response, const neb::CJsonO
 		return false;
 	}
 	proxy_client->SetMaxPlayer(max_users);
-	Logger::LogInfo("WebAPI: 已设置最大用户数为 %d", max_users);
+	Logger::LogInfo("WebAPI: Set maximum users to %d", max_users);
 	response.Add("status", 200);
 	response.Add("message", "Max users set successfully");
 	return true;
@@ -331,7 +331,7 @@ bool WebControlServer::KickPlayer(neb::CJsonObject& response, const neb::CJsonOb
 	try
 	{
 		proxy_client->KickByUsername(username);
-		Logger::LogInfo("WebAPI: 已踢出用户 %s", username.c_str());
+		Logger::LogInfo("WebAPI: Kicked user %s", username.c_str());
 		response.Add("status", 200);
 		response.Add("message", "Player kicked successfully");
 		return true;
@@ -353,7 +353,7 @@ void WebControlServer::GetStartTime(neb::CJsonObject& response, const std::share
 	response.Add("message", "Start time retrieved successfully");
 }
 
-// 修复后的 GetUserNumberList 相关代码
+// 修改的函数 GetUserNumberList返回的数据
 bool WebControlServer::GetUserNumberList(neb::CJsonObject& response, neb::CJsonObject& request, const std::shared_ptr<Proxy>& proxy_client)
 {
 	// 获取时间范围
@@ -364,7 +364,7 @@ bool WebControlServer::GetUserNumberList(neb::CJsonObject& response, neb::CJsonO
 		response.Add("message", "Invalid 'start_time' or 'end_time' value");
 		return false;
 	}
-	// 获取粒度 minute分钟、hour小时、day天、week周、month月
+	// 获取粒度 minute（分钟）、hour（小时）、day（天）、week（周）、month（月）
 	std::string granularity;
 	if (!request.Get("granularity", granularity) || (granularity != "minute" && granularity != "hour" && granularity != "day" && granularity != "week" && granularity != "month"))
 	{
@@ -372,13 +372,13 @@ bool WebControlServer::GetUserNumberList(neb::CJsonObject& response, neb::CJsonO
 		response.Add("message", "Invalid 'granularity' value");
 		return false;
 	}
-	// 利用ranges库获取时间范围内的在线用户数量
+	// 使用ranges库获取时间范围内的在线用户数量
 	std::shared_lock<std::shared_mutex> lock(this->time_online_users_mutex);
 	auto filtered_view = std::ranges::views::filter(this->time_online_users, [start_time, end_time](const auto& item) {
 		return item.first >= start_time && item.first <= end_time;
 		});
 
-	// 按照粒度分组统计
+	// 根据粒度分组统计
 	std::map<std::time_t, uint32_t> grouped,count;
 	for (const auto& item : filtered_view)
 	{
@@ -409,9 +409,9 @@ bool WebControlServer::GetUserNumberList(neb::CJsonObject& response, neb::CJsonO
 			key = std::mktime(&tm);
 		}
 		grouped[key] += item.second;
-		count[key]++; // 统计每个时间点的用户数量
+		count[key]++; // 统计每个时间段的数据个数
 	}
-	// 计算每个时间点的平均在线用户数
+	// 计算每个时间段平均在线用户数
 	for (auto& item : grouped)
 	{
 		if (count[item.first] > 0)
@@ -420,7 +420,7 @@ bool WebControlServer::GetUserNumberList(neb::CJsonObject& response, neb::CJsonO
 		}
 		else
 		{
-			item.second = 0; // 如果没有用户，则设置为0
+			item.second = 0; // 如果没有数据则设置为0
 		}
 	}
 
@@ -467,7 +467,7 @@ bool WebControlServer::SetMotd(neb::CJsonObject& response, const neb::CJsonObjec
 	if (request.Get("motd", motd))
 	{
 		proxy_client->SetMotd(motd.ToString());
-		Logger::LogInfo("WebAPI: 已设置新的MOTD");
+		Logger::LogInfo("WebAPI: Set new MOTD");
 		response.Add("status", 200);
 		response.Add("message", "MOTD set successfully");
 		return true;
@@ -504,7 +504,7 @@ void WebControlServer::Start(std::shared_ptr<Proxy>& proxy_client)
 	//注册日志回调
 	proxy_client->on_login += [this](Proxy::ConnectionControl& control) {
 		std::unique_lock<std::shared_mutex> lock(this->log_mutex);
-		this->logs.push_back({ std::time(nullptr), RbsLib::Encoding::CharsetConvert::ANSItoUTF8("玩家" + control.Username() + " uuid:" + control.UUID() + " 登录于 " + control.GetAddress()) });
+		this->logs.push_back({ std::time(nullptr), RbsLib::Encoding::CharsetConvert::ANSItoUTF8("Player " + control.Username() + " uuid:" + control.UUID() + " logged in from " + control.GetAddress()) });
 		if (this->max_log_size > this->max_log_size)
 		{
 			this->logs.pop_front(); //删除最旧的日志
@@ -526,17 +526,17 @@ void WebControlServer::Start(std::shared_ptr<Proxy>& proxy_client)
 			unit = "GB";
 		}
 		double time = std::time(nullptr) - control.ConnectTime();
-		std::string time_unit = "秒";
+		std::string time_unit = "seconds";
 		if (time > 100) {
 			time /= 60;
-			time_unit = "分钟";
+			time_unit = "minutes";
 		}
 		if (time > 100) {
 			time /= 60;
-			time_unit = "小时";
+			time_unit = "hours";
 		}
 		std::unique_lock<std::shared_mutex> lock(this->log_mutex);
-		this->logs.push_back({ std::time(nullptr), RbsLib::Encoding::CharsetConvert::ANSItoUTF8("玩家" + control.Username() + " uuid:" + control.UUID() + " 退出于 " + control.GetAddress() + "，在线时长" + std::to_string(time) + time_unit + "，使用流量" + std::to_string(flow) + unit) });
+		this->logs.push_back({ std::time(nullptr), RbsLib::Encoding::CharsetConvert::ANSItoUTF8("Player " + control.Username() + " uuid:" + control.UUID() + " logged out from " + control.GetAddress() + ", online duration " + std::to_string(time) + " " + time_unit + ", traffic used " + std::to_string(flow) + " " + unit) });
 		if (this->logs.size() > this->max_log_size)
 		{
 			this->logs.pop_front(); //删除最旧的日志
@@ -555,14 +555,14 @@ void WebControlServer::Start(std::shared_ptr<Proxy>& proxy_client)
 			}
 			else
 			{
-				//根据业务逻辑处理请求
+				//处理业务逻辑并返回结果
 				
 				neb::CJsonObject response_body;
 				if (m[1].str() == "logout")
 				{
 					this->user_token = "";
 					this->token_expiry_time = std::chrono::system_clock::time_point();
-					Logger::LogInfo("WebAPI: 用户退出登录");
+					Logger::LogInfo("WebAPI: User logged out");
 					response_body.Add("status", 200);
 					response_body.Add("message", "Logout successful");
 					RbsLib::Network::HTTP::ResponseHeader response_header;
@@ -657,7 +657,7 @@ void WebControlServer::Start(std::shared_ptr<Proxy>& proxy_client)
 			}
 			if (m[1].str() == "login")
 			{
-				//登录请求
+				//登录逻辑
 				std::string password = data("password");
 				if (!this->user_password || *this->user_password != password)
 				{
@@ -667,7 +667,7 @@ void WebControlServer::Start(std::shared_ptr<Proxy>& proxy_client)
 				//生成token
 				this->user_token = std::to_string(std::chrono::system_clock::now().time_since_epoch().count());
 				this->token_expiry_time = std::chrono::system_clock::now() + std::chrono::hours(1); // token有效期1小时
-				Logger::LogInfo("WebAPI: 用户通过WebAPI登录成功");
+				Logger::LogInfo("WebAPI: User successfully logged in via WebAPI");
 				neb::CJsonObject response;
 				response.Add("status", 200);
 				response.Add("message", "Login successful");
@@ -691,7 +691,7 @@ void WebControlServer::Start(std::shared_ptr<Proxy>& proxy_client)
 				}
 				else
 				{
-					//根据业务逻辑处理请求
+					//处理业务逻辑并返回结果
 					neb::CJsonObject response_body;
 					
 					if (m[1].str() == "add_whitelist_user")
@@ -819,7 +819,7 @@ void WebControlServer::Start(std::shared_ptr<Proxy>& proxy_client)
 		});
 
 	this->server.SetOptionsHandle([this](const RbsLib::Network::TCP::TCPConnection& connection, RbsLib::Network::HTTP::RequestHeader& header) -> int {
-		//处理OPTIONS请求，主要用于CORS预检请求
+		//处理OPTIONS请求，主要处理CORS预检请求
 		RbsLib::Network::HTTP::ResponseHeader response;
 		response.status = 204; // No Content
 		response.headers.AddHeader("Access-Control-Allow-Origin", "*");
