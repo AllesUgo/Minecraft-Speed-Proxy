@@ -135,18 +135,18 @@ void Config::load_config(const std::string& path)
 		//如果没有版本号，则升级到1.0
 		Config::upgrade_config_v1_0();
 		Config::upgrade_config_v1_1();
-		std::cout << "配置文件版本较低，已自动升级配置文件，是否保存？(y/n): ";
+		std::cout << "Config file version is low, auto-upgraded config file. Do you want to save it? (y/n): ";
 		std::string save;
 		std::cin >> save;
-		getchar(); //清除输入缓冲区的换行符
+		getchar(); //清除输入缓存中的换行符
 		if (save != "y" && save != "Y")
 		{
-			std::cout << "已取消保存配置文件" << std::endl;
+			std::cout << "Canceled saving upgraded config file" << std::endl;
 			return;
 		}
 		else
 		{
-			std::cout << "正在保存配置文件..." << std::endl;
+			std::cout << "Saving upgraded config file..." << std::endl;
 			Config::save_config(path);
 		}
 	}

@@ -194,12 +194,12 @@ void RbsLib::Command::CommandExecuter::Execute(int argc, const char** argv)
 		{
 			if (ptr->IsFunctionExist())
 				ptr->operator()(this->args);
-			else throw std::runtime_error("语法错误，使用-h参数获取帮助");
+			else throw std::runtime_error("Syntax error, use -h parameter for help");
 		}
 	}
 	catch (int)
 	{
-		throw std::runtime_error("语法错误，使用-h参数获取帮助");
+		throw std::runtime_error("Syntax error, use -h parameter for help");
 	}
 }
 
