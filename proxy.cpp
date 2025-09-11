@@ -329,12 +329,19 @@ asio::awaitable<void> Proxy::HandleConnection(asio::ip::tcp::socket socket)
 					this->connections.push_back(&socket);
 					//开始转发数据
 					{
-						this->on_proxy_start(user_control); //调用代理开始回调
-						this->log_output(("Forwarding data between " + socket.remote_endpoint().address().to_string() + ":" + std::to_string(socket.remote_endpoint().port()) + " and " + remote_server.remote_endpoint().address().to_string() + ":" + std::to_string(remote_server.remote_endpoint().port())).c_str());
-						using namespace asio::experimental::awaitable_operators;
-						co_await(ForwardData(socket, remote_server, *user_ptr) && ForwardData(remote_server, socket, *user_ptr));
-						this->log_output(("Forwarding data between " + socket.remote_endpoint().address().to_string() + ":" + std::to_string(socket.remote_endpoint().port()) + " and " + remote_server.remote_endpoint().address().to_string() + ":" + std::to_string(remote_server.remote_endpoint().port()) + " ended.").c_str());
-						this->on_proxy_end(user_control); //调用代理结束回调
+						try
+						{
+							this->on_proxy_start(user_control); //调用代理开始回调
+							this->log_output(("Forwarding data between " + socket.remote_endpoint().address().to_string() + ":" + std::to_string(socket.remote_endpoint().port()) + " and " + remote_server.remote_endpoint().address().to_string() + ":" + std::to_string(remote_server.remote_endpoint().port())).c_str());
+							using namespace asio::experimental::awaitable_operators;
+							co_await(ForwardData(socket, remote_server, *user_ptr) && ForwardData(remote_server, socket, *user_ptr));
+							this->log_output(("Forwarding data between " + socket.remote_endpoint().address().to_string() + ":" + std::to_string(socket.remote_endpoint().port()) + " and " + remote_server.remote_endpoint().address().to_string() + ":" + std::to_string(remote_server.remote_endpoint().port()) + " ended.").c_str());
+							this->on_proxy_end(user_control); //调用代理结束回调
+						}
+						catch (const std::exception& ex)
+						{
+							//std::cout <<ex.what() << std::endl;
+						}
 					}
 					//转发结束，关闭连接
 					co_await asio::dispatch(strand, asio::use_awaitable); //串行化
@@ -370,99 +377,21 @@ asio::awaitable<void> Proxy::ForwardData(
 	asio::ip::tcp::socket& to_socket,
 	User& user_control) noexcept
 {
-
-	constexpr size_t MAX_BUFFER_NUM = 100;			   // 最大缓冲区数量
-	constexpr size_t CHUNK_SIZE = 4096;                // 数据块大小
-
-	asio::experimental::channel<void(asio::error_code)> flow_control(co_await asio::this_coro::executor);
-
-	// 有界缓冲区队列
-	struct Buffer {
-		std::unique_ptr<char[]> data;
-		size_t size;
-	};
-	std::deque<Buffer> buffer_queue;
-	size_t total_buffer_num = 0; // 当前缓冲区数量
-	bool read_stopped = false;
-
-	auto strand = asio::make_strand(from_socket.get_executor());
-
-	// 发送协程
-	auto sender = [&]() -> asio::awaitable<void> {
-		
-		while (true) {
-			if (buffer_queue.empty()) {
-				if (read_stopped) break; // 无数据且读取已停止
-
-				// 等待新数据或流控信号
-				co_await flow_control.async_receive(asio::use_awaitable);
-				continue;
-			}
-			auto buffer = std::move(buffer_queue.front());
-			auto buffer_row_ptr = buffer.data.get();
-			buffer_queue.pop_front();
-			total_buffer_num -= 1;
-
-			// 触发流控（如果有等待的读取）
-			if (read_stopped && total_buffer_num < MAX_BUFFER_NUM)
-			{
-				read_stopped = false;
-				flow_control.try_send(asio::error_code{});
-			}
-
-			try {
-				co_await async_write(to_socket, asio::buffer(buffer_row_ptr, buffer.size),
-					asio::use_awaitable);
-				// 更新统计
-				user_control.upload_bytes += buffer.size;
-			}
-			catch (const std::exception& ex) {
-				break; // 发送失败终止
-			}
-		}
-		flow_control.close(); // 关闭流控通道
-		};
-
-	// 接收协程
-	auto receiver = [&]() -> asio::awaitable<void> {
-		
-		try {
-			while (true) {
-				auto buffer = std::make_unique<char[]>(CHUNK_SIZE);
-				size_t n = co_await from_socket.async_read_some(
-					asio::buffer(buffer.get(), CHUNK_SIZE), asio::use_awaitable);
-
-				// 检查缓冲区限制
-				while (total_buffer_num >= MAX_BUFFER_NUM) {
-					read_stopped = true;
-					co_await flow_control.async_receive(asio::use_awaitable);
-				}
-				
-				buffer_queue.push_back({ std::move(buffer), n });
-				total_buffer_num += 1;
-
-				// 触发发送协程
-				flow_control.try_send(asio::error_code{});
-			}
-		}
-		catch (const std::exception& ex) {
-			// 读取结束或出错
-		}
-		read_stopped = true;
-		flow_control.try_send(asio::error_code{}); // 唤醒发送协程
-		};
-
-	// 并行运行收发协程
-
-
+	std::unique_ptr<std::uint8_t[]> buffer = std::make_unique<std::uint8_t[]>(10240);
 	try
 	{
-		using namespace asio::experimental::awaitable_operators;
-		co_await (asio::co_spawn(strand,receiver, asio::use_awaitable) && asio::co_spawn(strand, sender, asio::use_awaitable));
+		while (true)
+		{
+			std::size_t n = co_await from_socket.async_receive(asio::buffer(buffer.get(), 10240), asio::use_awaitable);
+			if (n == 0)
+				break;
+			co_await to_socket.async_send(asio::buffer(buffer.get(), n), asio::use_awaitable);
+			user_control.upload_bytes += n;
+		}
 	}
-	catch (const std::exception& e)
+	catch (...)
 	{
-		std::string x = e.what();
+		//忽略转发时的异常
 	}
 	try
 	{
@@ -604,6 +533,10 @@ void Proxy::KickByUsername(const std::string& username)
 		if (it != this->users.end())
 		{
 			it->second->client->shutdown(asio::ip::tcp::socket::shutdown_both);
+		}
+		else
+		{
+			throw std::runtime_error(username + " not online");
 		}
 		}, asio::use_future).get();
 }
