@@ -385,7 +385,7 @@ asio::awaitable<void> Proxy::ForwardData(
 			std::size_t n = co_await from_socket.async_receive(asio::buffer(buffer.get(), 10240), asio::use_awaitable);
 			if (n == 0)
 				break;
-			co_await to_socket.async_send(asio::buffer(buffer.get(), n), asio::use_awaitable);
+			co_await asio::async_write(to_socket, asio::buffer(buffer.get(), n), asio::use_awaitable);
 			user_control.upload_bytes += n;
 		}
 	}
