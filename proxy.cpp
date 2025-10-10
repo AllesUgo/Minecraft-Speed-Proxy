@@ -60,14 +60,14 @@ auto Proxy::PingTest() const -> std::uint64_t
 			handshake_data_pack.next_state = 1;
 			handshake_data_pack.protocol_version = 754;
 			auto handshake_buffer = handshake_data_pack.ToBuffer();
-			co_await remote_server.async_send(asio::buffer(handshake_buffer.Data(), handshake_buffer.GetLength()), asio::use_awaitable);
+			co_await asio::async_write(remote_server,asio::buffer(handshake_buffer.Data(), handshake_buffer.GetLength()), asio::use_awaitable);
 
 			AsyncInputSocketStream stream(remote_server);
 			
 			// 发送状态请求
 			StatusRequestDataPack status_request_data_pack;
 			auto status_buffer = status_request_data_pack.ToBuffer();
-			co_await remote_server.async_send(asio::buffer(status_buffer.Data(), status_buffer.GetLength()), asio::use_awaitable);
+			co_await asio::async_write(remote_server,asio::buffer(status_buffer.Data(), status_buffer.GetLength()), asio::use_awaitable);
 			
 			// 接收状态并丢弃
 			co_await DataPack::ReadFullData(stream);
@@ -77,7 +77,7 @@ auto Proxy::PingTest() const -> std::uint64_t
 			ping_data_pack.payload = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 			auto start = std::chrono::system_clock::now();
 			auto ping_buffer = ping_data_pack.ToBuffer();
-			co_await remote_server.async_send(asio::buffer(ping_buffer.Data(), ping_buffer.GetLength()), asio::use_awaitable);
+			co_await asio::async_write(remote_server,asio::buffer(ping_buffer.Data(), ping_buffer.GetLength()), asio::use_awaitable);
 			co_await pong_data_pack.ParseFromInputStream(stream);
 			auto end = std::chrono::system_clock::now();
 			auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
@@ -197,7 +197,7 @@ asio::awaitable<void> Proxy::HandleConnection(asio::ip::tcp::socket socket)
 					motd.SetVersion("", handshake_data_pack.protocol_version.Value());
 					this->max_player != -1 ? motd.SetPlayerMaxNumber(this->max_player) : motd.SetPlayerMaxNumber(9999999);
 					status_response_data_pack.json_response = RbsLib::DataType::String(motd.ToString());
-					co_await socket.async_send(asio::buffer(status_response_data_pack.ToBuffer().Data(), status_response_data_pack.ToBuffer().GetLength()), asio::use_awaitable);
+					co_await asio::async_write(socket,asio::buffer(status_response_data_pack.ToBuffer().Data(), status_response_data_pack.ToBuffer().GetLength()), asio::use_awaitable);
 					//debug motd
 					//std::cout << motd.motd_json.ToFormattedString() << std::endl;
 					break;
@@ -209,7 +209,7 @@ asio::awaitable<void> Proxy::HandleConnection(asio::ip::tcp::socket socket)
 					ping_data_pack.ParseFromInputStream(bis);
 					PingDataPack pong_data_pack;
 					pong_data_pack.payload = ping_data_pack.payload;
-					co_await socket.async_send(asio::buffer(pong_data_pack.ToBuffer().Data(), pong_data_pack.ToBuffer().GetLength()), asio::use_awaitable);
+					co_await asio::async_write(socket,asio::buffer(pong_data_pack.ToBuffer().Data(), pong_data_pack.ToBuffer().GetLength()), asio::use_awaitable);
 					this->log_output(("Ping from " + socket.remote_endpoint().address().to_string() + ":" + std::to_string(socket.remote_endpoint().port()) + ", payload: " + std::to_string(ping_data_pack.payload)).c_str());
 					break;
 				}
@@ -225,7 +225,7 @@ asio::awaitable<void> Proxy::HandleConnection(asio::ip::tcp::socket socket)
 				co_await asio::dispatch(strand, asio::use_awaitable); //确保在线程安全的环境中访问用户数据
 				if (this->max_player != -1 && this->users.size() >= this->max_player) {
 					LoginFailureDataPack login_failed_data_pack("Server is full.");
-					co_await socket.async_send(asio::buffer(login_failed_data_pack.ToBuffer().Data(), login_failed_data_pack.ToBuffer().GetLength()), asio::use_awaitable);
+					co_await asio::async_write(socket,asio::buffer(login_failed_data_pack.ToBuffer().Data(), login_failed_data_pack.ToBuffer().GetLength()), asio::use_awaitable);
 					this->log_output(("Refused connection " + socket.remote_endpoint().address().to_string() + ":" + std::to_string(socket.remote_endpoint().port()) + ", reason: Server is full.").c_str());
 					throw ProxyException("Server is full.");
 				}
@@ -251,7 +251,7 @@ asio::awaitable<void> Proxy::HandleConnection(asio::ip::tcp::socket socket)
 				{
 					LoginFailureDataPack login_failed_data_pack(user_control.reason);
 					auto buffer = login_failed_data_pack.ToBuffer();
-					co_await socket.async_send(asio::buffer(buffer.Data(), buffer.GetLength()), asio::use_awaitable);
+					co_await asio::async_write(socket, asio::buffer(buffer.Data(), buffer.GetLength()), asio::use_awaitable);
 					throw ProxyException(std::string("Callback disable user login: ") + user_control.reason);
 				}
 
@@ -298,7 +298,7 @@ asio::awaitable<void> Proxy::HandleConnection(asio::ip::tcp::socket socket)
 				{
 					LoginFailureDataPack login_failed_data_pack(start_login_data_pack.user_name + " already online");
 					RbsLib::Buffer buffer = login_failed_data_pack.ToBuffer();
-					co_await socket.async_send(asio::buffer(buffer.Data(), buffer.GetLength()), asio::use_awaitable);
+					co_await asio::async_write(socket,asio::buffer(buffer.Data(), buffer.GetLength()), asio::use_awaitable);
 					throw ProxyException("User already online: " + start_login_data_pack.user_name);
 				}
 				this->users[user_ptr->username] = user_ptr;
@@ -312,9 +312,9 @@ asio::awaitable<void> Proxy::HandleConnection(asio::ip::tcp::socket socket)
 					//发送握手申请
 					handshake_data_pack.server_address = RbsLib::DataType::String(remote_server_addr_real + remote_server_suffix);
 					auto buffer = handshake_data_pack.ToBuffer();
-					co_await remote_server.async_send(asio::buffer(buffer.Data(), buffer.GetLength()), asio::use_awaitable);
+					co_await asio::async_write(remote_server,asio::buffer(buffer.Data(), buffer.GetLength()), asio::use_awaitable);
 					//发送登录请求
-					co_await remote_server.async_send(asio::buffer(login_start_row_packet.Data(), login_start_row_packet.GetLength()), asio::use_awaitable);
+					co_await asio::async_write(remote_server,asio::buffer(login_start_row_packet.Data(), login_start_row_packet.GetLength()), asio::use_awaitable);
 				}
 				catch (...)
 				{
