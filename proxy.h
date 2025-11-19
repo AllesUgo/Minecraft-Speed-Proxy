@@ -11,6 +11,7 @@
 #include <map>
 #include <memory>
 #include <shared_mutex>
+#include <regex>
 #include "asio/import_asio.h"
 
 /**
@@ -310,6 +311,36 @@ public:
   */
 	auto PingTest()const -> std::uint64_t;
 
+	/**
+  * @brief 启用域名代理映射
+  * @param doman_name 域名模板
+  */
+	void EnableDomainNameProxy(const std::string& doman_name);
+
+
+	/**
+  * @brief 添加域名代理映射
+  * @param doman_pattern 域名匹配得到的字符串
+  * @param target_address 目标地址
+  * @param target_port 目标端口
+  */
+	void AddDomainNameProxyMapping(const std::string& domain_pattern,const std::string& target_address,std::uint16_t target_port);
+
+
+	/**
+  * @brief 移除域名代理映射
+  * @param domain_pattern 域名匹配得到的字符串
+  */
+	void RemoveDomainNameProxyMapping(const std::string& domain_pattern);
+
+	/**
+  * @brief 禁用域名代理映射
+  */
+	void DisableDomainNameProxy();
+
+
+
+
 protected:
 	asio::awaitable<void> AcceptLoop(asio::ip::tcp::acceptor& acceptor);
 	asio::awaitable<void> HandleConnection(asio::ip::tcp::socket socket);
@@ -327,6 +358,7 @@ protected:
 	std::unique_ptr<asio::ip::tcp::acceptor> acceptor; ///< 连接接收器
 	Motd motd; ///< MOTD对象
 	std::map<std::string, std::pair<std::string, std::uint16_t>> user_proxy_map; ///< 用户代理映射
+	std::optional<std::pair<std::regex /*域名匹配模板*/, std::map<std::string, std::pair<std::string,std::uint16_t>>>/*映射表*/> dn_proxy_map; ///< 域名代理映射
 	std::list<asio::ip::tcp::socket*> connections; ///< 活动连接列表
 	std::time_t start_time = 0; ///< 代理启动时间
 };

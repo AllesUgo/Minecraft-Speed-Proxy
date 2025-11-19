@@ -94,6 +94,60 @@ auto Proxy::PingTest() const -> std::uint64_t
 	}, asio::use_future).get();
 }
 
+static std::string convertDomainPattern(const std::string& pattern) {
+	std::string result = "^";
+
+	for (char c : pattern) {
+		if (c == '*') {
+			result += "(.+)";
+		}
+		else if (c == '.') {
+			result += "\\.";
+		}
+		else {
+			result += c;
+		}
+	}
+
+	result += "$";
+	return result;
+}
+
+void Proxy::EnableDomainNameProxy(const std::string& doman_name)
+{
+	//将domjan_name中的*替换为.*，其他字符不变，构造正则表达式
+	
+	std::string pattern = convertDomainPattern(doman_name);
+	std::cout << pattern << std::endl;
+	asio::co_spawn(this->strand, [this, &doman_name,&pattern]() -> asio::awaitable<void> {
+		co_await asio::dispatch(this->strand, asio::use_awaitable);
+		if (this->dn_proxy_map.has_value())
+		{
+			this->dn_proxy_map->first = std::regex{ pattern };
+		}
+		else
+		{
+			this->dn_proxy_map = std::make_optional<std::pair<std::regex, std::map<std::string, std::pair<std::string, std::uint16_t>>>>();
+			this->dn_proxy_map->first = std::regex{ pattern };
+		}
+		}, asio::use_future).get();
+}
+
+void Proxy::AddDomainNameProxyMapping(const std::string& domain_pattern, const std::string& target_address, std::uint16_t target_port)
+{
+	asio::co_spawn(this->strand, [this, &domain_pattern, &target_address, target_port]()->asio::awaitable<void> {
+		co_await asio::dispatch(this->strand, asio::use_awaitable);
+		if (this->dn_proxy_map.has_value())
+		{
+			this->dn_proxy_map->second.insert({ domain_pattern, { target_address, target_port } });
+		}
+		else
+		{
+			throw ProxyException("Domain name proxy is not enabled.");
+		}
+		}, asio::use_future).get();
+}
+
 std::time_t Proxy::GetStartTime(void) const noexcept
 {
 	return this->start_time;
@@ -136,6 +190,29 @@ Proxy::~Proxy() noexcept
 	{
 		this->log_output((std::string("停止IO上下文时发生异常: ") + ex->what()).c_str());
 	}
+}
+
+void Proxy::RemoveDomainNameProxyMapping(const std::string& domain_pattern)
+{
+	asio::co_spawn(this->strand, [this, &domain_pattern]() -> asio::awaitable<void> {
+		co_await asio::dispatch(this->strand, asio::use_awaitable);
+		if (this->dn_proxy_map.has_value())
+		{
+			this->dn_proxy_map->second.erase(domain_pattern);
+		}
+		else
+		{
+			throw ProxyException("Domain name proxy is not enabled.");
+		}
+		}, asio::use_future).get();
+}
+
+void Proxy::DisableDomainNameProxy()
+{
+	asio::co_spawn(this->strand, [this]() -> asio::awaitable<void> {
+		co_await asio::dispatch(this->strand, asio::use_awaitable);
+		this->dn_proxy_map.reset();
+		}, asio::use_future).get();
 }
 
 asio::awaitable<void> Proxy::AcceptLoop(asio::ip::tcp::acceptor& acceptor)
@@ -258,16 +335,27 @@ asio::awaitable<void> Proxy::HandleConnection(asio::ip::tcp::socket socket)
 				//连接远程服务器
 				std::string remote_server_addr_real;
 				std::uint32_t remote_server_port_real;
+				remote_server_addr_real = this->remote_server_addr;
+				remote_server_port_real = this->remote_server_port;
 				co_await asio::dispatch(strand, asio::use_awaitable); //确保在线程安全的环境中访问用户数据
+				//先检查域名映射表
+				if (this->dn_proxy_map.has_value())
+				{
+					std::smatch match_result;
+					if (std::regex_search(handshake_data_pack.server_address, match_result, this->dn_proxy_map->first))
+					{
+						if (auto addr = this->dn_proxy_map->second.find(match_result[1]); addr != this->dn_proxy_map->second.end())
+						{
+							remote_server_addr_real = addr->second.first;
+							remote_server_port_real = addr->second.second;
+						}
+					}
+				}
+				//再检查用户代理映射表
 				if (auto usr = this->user_proxy_map.find(start_login_data_pack.user_name); usr != this->user_proxy_map.end())
 				{
 					remote_server_addr_real = usr->second.first;
 					remote_server_port_real = usr->second.second;
-				}
-				else
-				{
-					remote_server_addr_real = this->remote_server_addr;
-					remote_server_port_real = this->remote_server_port;
 				}
 				asio::ip::tcp::socket remote_server(socket.get_executor());
 				try
@@ -282,6 +370,7 @@ asio::awaitable<void> Proxy::HandleConnection(asio::ip::tcp::socket socket)
 				}
 				catch (const std::exception& e)
 				{
+
 					throw; // 重新抛出异常
 				}
 				remote_server.set_option(asio::ip::tcp::no_delay(true));
@@ -311,6 +400,7 @@ asio::awaitable<void> Proxy::HandleConnection(asio::ip::tcp::socket socket)
 					//此阶段若要断开连接需要从用户表中删除用户
 					//发送握手申请
 					handshake_data_pack.server_address = RbsLib::DataType::String(remote_server_addr_real + remote_server_suffix);
+					handshake_data_pack.server_port = remote_server_port_real;
 					auto buffer = handshake_data_pack.ToBuffer();
 					co_await asio::async_write(remote_server,asio::buffer(buffer.Data(), buffer.GetLength()), asio::use_awaitable);
 					//发送登录请求

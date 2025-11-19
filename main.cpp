@@ -150,6 +150,7 @@ void InnerCmdline(int argc, const char** argv) {
 		cout << "maxplayer [number]: Get/set maximum player count" << endl;
 		cout << "userproxy <set|list>: User proxy server settings" << endl;
 		cout << "ping: Test ping latency to target server" << endl;
+		cout << "dnproxy: Domain name proxy functions" << endl;
 		cout << "exit: Exit program" << endl;
 		});
 	executer.CreateSubOption("ping", 0, "Test ping latency to target server", false, [](const RbsLib::Command::CommandExecuter::Args& args) {
@@ -359,6 +360,42 @@ void InnerCmdline(int argc, const char** argv) {
 		if (proxy == nullptr) throw std::runtime_error("Service not started");
 		proxy->ClearUserProxy();
 		Logger::LogInfo("Cleared all user proxy server settings");
+		});
+	executer.CreateSubOption("dnproxy", 0, "DNProxy settings", true);
+	executer["dnproxy"].CreateSubOption("enable", 1, "Enable DNProxy", false, [](const RbsLib::Command::CommandExecuter::Args& args) {
+		if (args.find("enable") == args.end() || args.find("enable")->second.empty()) {
+			cout << "Parameter error, please specify the DNProxy server address" << endl;
+			return;
+		}
+		proxy->EnableDomainNameProxy(*args.find("enable")->second.begin());
+		Logger::LogInfo("Enabled DNProxy");
+		});
+	executer["dnproxy"].CreateSubOption("disable", 0, "Disable DNProxy", false, [](const RbsLib::Command::CommandExecuter::Args& args) {
+		proxy->DisableDomainNameProxy();
+		Logger::LogInfo("Disabled DNProxy");
+		});
+
+	executer["dnproxy"].CreateSubOption("add",3, "add <domain_name> <address> <port>\tAdd DNProxy domain name mapping", false, [](const RbsLib::Command::CommandExecuter::Args& args) {
+		if (args.find("add") == args.end() || args.find("add")->second.size() != 3) {
+			cout << "Parameter error, please specify domain name, address and port" << endl;
+			return;
+		}
+		auto it = args.find("add")->second.begin();
+		std::string domain_name = *it++;
+		std::string address = *it++;
+		std::uint16_t port = std::stoi(*it);
+		proxy->AddDomainNameProxyMapping(domain_name, address, port);
+		Logger::LogInfo("Added DNProxy mapping: %s -> %s:%d", domain_name.c_str(), address.c_str(), port);
+		});
+	executer["dnproxy"].CreateSubOption("remove", 1, "remove <domain_name>\tRemove DNProxy domain name mapping", false, [](const RbsLib::Command::CommandExecuter::Args& args) {
+		if (args.find("remove") == args.end() || args.find("remove")->second.empty()) {
+			cout << "Parameter error, please specify domain name to remove" << endl;
+			return;
+		}
+		for (const auto& it : args.find("remove")->second) {
+			proxy->RemoveDomainNameProxyMapping(it);
+			Logger::LogInfo("Removed DNProxy mapping for domain name: %s", it.c_str());
+		}
 		});
 	executer.Execute(argc, argv);
 }
