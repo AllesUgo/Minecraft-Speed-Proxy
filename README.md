@@ -143,7 +143,7 @@ chmod +x minecraftspeedproxy
 
 WebAPI允许通过HTTP请求控制服务器，包含控制台全部功能及扩展。
 默认启用，可在配置文件中设置`WebAPIEnable`为`0`关闭。
-接口文档详见 [WebAPI.md]。
+接口文档详见 [WebAPI.md](WebAPI.md)。
 > [!WARNING]
 > 你的密码将被不加密传输，请慎重考虑启用WebAPI及网络环境安全性。可以使用反向代理用HTTPS提高安全性。
 ---

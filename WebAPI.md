@@ -1,36 +1,20 @@
-﻿---
-title: Minecraft-Speed-Proxy
-language_tabs:
-  - shell: Shell
-  - http: HTTP
-  - javascript: JavaScript
-  - ruby: Ruby
-  - python: Python
-  - php: PHP
-  - java: Java
-  - go: Go
-toc_footers: []
-includes: []
-search: true
-code_clipboard: true
-highlight_theme: darkula
-headingLevel: 2
-generator: "@tarslib/widdershins v4.0.30"
-
----
-
+﻿
 # Minecraft-Speed-Proxy WebAPI接口文档
 
 WebAPI当前版本采用单用户登录方式，无需用户名，密码在配置文件设置。
 
 你可以自行编写程序或网页，利用该接口文档实现对Minecraft-Speed-Proxy的远程控制。
 
-# Authentication
+可以在GitHub中查找由其他开发者开发的第三方管理面板，但请注意安全性。
+
+# Authentication 鉴权
 
 * API Key (apikey-header-Authorize)
     - Parameter Name: **Authorize**, in: header. 
 
-# Interfaces
+通过login接口获取token后，在需要身份验证的请求中添加请求头部Authorize字段，值为token。
+
+# Interfaces 接口
 
 ## POST 登录
 
@@ -83,11 +67,6 @@ POST /api/login
 |» token|string|true|none||none|
 |» token_expiry_time|integer|true|none||none|
 
-### 返回头部 Header
-
-|Status|Header|Type|Format|Description|
-|---|---|---|---|---|
-|200|Cookie|string||none|
 
 ## GET 获取在线用户列表
 
